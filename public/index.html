@@ -1,0 +1,3404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0b0c10">
+<title>Kii Akira — Dashboard</title>
+<!-- Icons: using a pinned version to avoid race conditions -->
+<script>
+// Load lucide synchronously before anything else
+document.write('<script src="https://cdn.jsdelivr.net/npm/lucide@0.344.0/dist/umd/lucide.min.js"><\/script>');
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── RESET & BASE ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html{height:100%;font-size:14px;}
+body{height:100%;font-family:'Inter',system-ui,sans-serif;background:#0b0c10;color:#e3e5e8;overflow:hidden;-webkit-text-size-adjust:100%;}
+
+/* ── DESIGN TOKENS ── */
+:root{
+  /* Surfaces */
+  --bg-base:#0b0c10;
+  --bg-100:#111318;
+  --bg-200:#17191f;
+  --bg-300:#1e2028;
+  --bg-hover:#22252e;
+
+  /* Borders */
+  --border:#2a2d36;
+  --border-mid:#33363f;
+
+  /* Brand */
+  --brand:#5865f2;
+  --brand-dark:#4752c4;
+  --brand-light:#7983f5;
+  --pink:#e91e8c;
+  --pink-dim:rgba(233,30,140,.12);
+
+  /* Accent */
+  --gold:#f0b429;
+  --exec:#f04f00;
+
+  /* Semantic */
+  --green:#3ba55d;
+  --red:#ed4245;
+  --yellow:#faa61a;
+
+  /* Text */
+  --text-1:#e3e5e8;
+  --text-2:#b5bac1;
+  --text-3:#80848e;
+  --text-4:#4e5058;
+
+  /* Radius */
+  --r-sm:6px;
+  --r-md:10px;
+  --r-lg:16px;
+  --r-xl:20px;
+
+  /* Sidebar */
+  --sidebar-w:240px;
+
+  /* Transitions */
+  --t:.18s ease;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border-mid);border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:#4e5058;}
+
+/* ── TYPOGRAPHY ── */
+h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
+
+/* ── UTILITIES ── */
+.flex{display:flex;}.flex-col{flex-direction:column;}.items-center{align-items:center;}.items-start{align-items:flex-start;}.justify-between{justify-content:space-between;}.justify-center{justify-content:center;}
+.gap-1{gap:4px;}.gap-2{gap:8px;}.gap-3{gap:12px;}.gap-4{gap:16px;}.gap-6{gap:24px;}
+.flex-1{flex:1;min-width:0;}.flex-shrink-0{flex-shrink:0;}
+.w-full{width:100%;}.h-full{height:100%;}
+.text-sm{font-size:.8125rem;}.text-xs{font-size:.75rem;}.text-xxs{font-size:.6875rem;}
+.font-medium{font-weight:500;}.font-semibold{font-weight:600;}.font-bold{font-weight:700;}.font-mono{font-family:'JetBrains Mono',monospace;}
+.text-2{color:var(--text-2);}.text-3{color:var(--text-3);}.text-4{color:var(--text-4);}
+.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.uppercase{text-transform:uppercase;}.tracking-wide{letter-spacing:.06em;}
+.hidden{display:none!important;}
+.pointer{cursor:pointer;}
+.relative{position:relative;}.absolute{position:absolute;}
+.overflow-hidden{overflow:hidden;}.overflow-y-auto{overflow-y:auto;}
+.select-none{user-select:none;-webkit-user-select:none;}
+
+/* ── VIEWS ── */
+.view{display:none;width:100%;height:100vh;}
+.view.active{display:flex;}
+
+/* ════════════════════════════════════════
+   LOGIN PAGE
+════════════════════════════════════════ */
+#loginView{align-items:center;justify-content:center;background:var(--bg-base);}
+
+/* Subtle grid */
+#loginView::before{
+  content:'';position:fixed;inset:0;
+  background-image:radial-gradient(circle at 50% 0%,rgba(88,101,242,.15) 0%,transparent 60%);
+  pointer-events:none;
+}
+
+.login-card{
+  width:100%;max-width:420px;padding:0 20px;
+  position:relative;z-index:1;
+  animation:fadeUp .4s ease both;
+}
+.login-logo{
+  display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:36px;
+}
+.login-logo-mark{
+  width:44px;height:44px;border-radius:14px;
+  background:linear-gradient(135deg,var(--pink),var(--brand));
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.login-logo-mark svg{width:24px;height:24px;fill:#fff;}
+.login-logo-name{font-size:1.25rem;font-weight:800;letter-spacing:-.03em;color:var(--text-1);}
+.login-logo-name span{color:var(--pink);}
+
+.login-box{
+  background:var(--bg-200);
+  border:1px solid var(--border);
+  border-radius:var(--r-xl);
+  overflow:hidden;
+}
+.login-box-header{
+  padding:24px 28px 20px;
+  border-bottom:1px solid var(--border);
+}
+.login-box-header h2{font-size:1rem;font-weight:700;color:var(--text-1);margin-bottom:4px;}
+.login-box-header p{font-size:.8125rem;color:var(--text-3);}
+.login-box-body{padding:24px 28px;}
+
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:.75rem;font-weight:600;color:var(--text-2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;}
+.input{
+  width:100%;padding:10px 14px;
+  background:var(--bg-base);border:1px solid var(--border);
+  border-radius:var(--r-md);color:var(--text-1);
+  font-family:'Inter',sans-serif;font-size:.875rem;
+  outline:none;transition:border-color var(--t),box-shadow var(--t);
+}
+.input:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(88,101,242,.2);}
+.input::placeholder{color:var(--text-4);}
+.input-wrap{position:relative;}
+.input-wrap .input{padding-right:44px;}
+.input-eye{
+  position:absolute;right:12px;top:50%;transform:translateY(-50%);
+  background:none;border:none;cursor:pointer;color:var(--text-3);
+  display:flex;align-items:center;padding:4px;
+  transition:color var(--t);
+}
+.input-eye:hover{color:var(--text-1);}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:10px 18px;border-radius:var(--r-md);
+  font-family:'Inter',sans-serif;font-size:.875rem;font-weight:600;
+  cursor:pointer;border:none;transition:all var(--t);
+  white-space:nowrap;
+}
+.btn-primary{background:var(--brand);color:#fff;}
+.btn-primary:hover{background:var(--brand-dark);box-shadow:0 4px 16px rgba(88,101,242,.4);}
+.btn-primary:active{transform:translateY(1px);}
+.btn-ghost{background:transparent;color:var(--text-2);border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--bg-hover);color:var(--text-1);border-color:var(--border-mid);}
+.btn-discord{background:#5865f2;color:#fff;}
+.btn-discord:hover{background:#4752c4;box-shadow:0 4px 16px rgba(88,101,242,.45);}
+.btn-danger{background:rgba(237,66,69,.12);color:var(--red);border:1px solid rgba(237,66,69,.25);}
+.btn-danger:hover{background:rgba(237,66,69,.22);}
+.btn-sm{padding:6px 12px;font-size:.75rem;}
+.btn-xs{padding:4px 10px;font-size:.6875rem;}
+.btn-full{width:100%;}
+.btn-icon{padding:8px;border-radius:var(--r-sm);}
+
+.divider{display:flex;align-items:center;gap:12px;margin:18px 0;color:var(--text-4);font-size:.75rem;}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border);}
+
+.discord-connect-btn{
+  width:100%;padding:12px;
+  background:var(--bg-base);border:1px solid var(--border);
+  border-radius:var(--r-md);display:flex;align-items:center;gap:12px;
+  cursor:pointer;transition:all var(--t);color:var(--text-1);font-family:'Inter',sans-serif;
+  font-size:.875rem;font-weight:500;
+}
+.discord-connect-btn:hover{border-color:#5865f2;background:rgba(88,101,242,.06);}
+.discord-connect-btn .dc-icon{
+  width:36px;height:36px;border-radius:8px;background:#5865f2;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.dc-chevron{margin-left:auto;color:var(--text-4);}
+
+/* ════════════════════════════════════════
+   MAIN APP LAYOUT
+════════════════════════════════════════ */
+#mainView{flex-direction:row;background:var(--bg-base);}
+
+/* SIDEBAR */
+.sidebar{
+  width:var(--sidebar-w);flex-shrink:0;
+  background:var(--bg-100);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  height:100vh;overflow-y:auto;
+  transition:width var(--t);
+}
+
+.sidebar-header{
+  padding:16px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+}
+.sidebar-logo-mark{
+  width:32px;height:32px;border-radius:10px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--pink),var(--brand));
+  display:flex;align-items:center;justify-content:center;
+}
+.sidebar-logo-mark svg{width:18px;height:18px;fill:#fff;}
+.sidebar-logo-name{font-size:.9375rem;font-weight:800;letter-spacing:-.02em;}
+.sidebar-logo-name span{color:var(--pink);}
+
+.sidebar-status{
+  margin-top:auto;padding:12px 16px;
+  border-top:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+}
+.user-avatar{
+  width:32px;height:32px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.8rem;font-weight:700;color:#fff;flex-shrink:0;
+  background:linear-gradient(135deg,#5865f2,#8338ec);
+}
+.user-info{flex:1;min-width:0;}
+.user-name{font-size:.8125rem;font-weight:600;color:var(--text-1);truncate;}
+.user-role{font-size:.6875rem;color:var(--text-3);}
+
+/* SIDEBAR NAV */
+.nav-section{padding:12px 8px 4px;}
+.nav-label{
+  padding:4px 8px 8px;
+  font-size:.625rem;font-weight:700;color:var(--text-4);
+  text-transform:uppercase;letter-spacing:.1em;
+}
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 10px;border-radius:var(--r-sm);
+  cursor:pointer;transition:all var(--t);
+  color:var(--text-3);font-size:.875rem;font-weight:500;
+  border:none;background:none;width:100%;text-align:left;
+  position:relative;
+}
+.nav-item:hover{background:var(--bg-hover);color:var(--text-1);}
+.nav-item.active{background:rgba(88,101,242,.15);color:#fff;}
+.nav-item.active .nav-icon{color:var(--brand-light);}
+.nav-item svg{width:18px;height:18px;flex-shrink:0;stroke-width:2;}
+.nav-icon{width:18px;height:18px;flex-shrink:0;transition:color var(--t);}
+.nav-badge{
+  margin-left:auto;padding:2px 7px;border-radius:999px;
+  font-size:.625rem;font-weight:700;
+  background:var(--pink-dim);color:var(--pink);
+}
+.nav-badge.gold{background:rgba(240,180,41,.12);color:var(--gold);}
+.nav-badge.green{background:rgba(59,165,93,.12);color:var(--green);}
+.nav-divider{height:1px;background:var(--border);margin:8px;}
+
+/* MAIN CONTENT */
+.main-content{flex:1;height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+
+/* TOPBAR */
+.topbar{
+  background:var(--bg-100);
+  border-bottom:1px solid var(--border);
+  padding:0 24px;height:56px;
+  display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;position:sticky;top:0;z-index:20;
+}
+.topbar-title{font-size:1rem;font-weight:700;color:var(--text-1);}
+.topbar-sub{font-size:.75rem;color:var(--text-3);margin-top:1px;}
+.topbar-actions{display:flex;align-items:center;gap:8px;}
+
+/* PAGE CONTENT */
+.page{display:none;padding:28px;flex:1;overflow-y:auto;height:calc(100vh - 56px);}
+.page.active{display:block;}
+.page-flex{display:none;flex:1;overflow:hidden;}
+.page-flex.active{display:flex;}
+
+/* ── CARDS ── */
+.card{background:var(--bg-200);border:1px solid var(--border);border-radius:var(--r-lg);}
+.card-header{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.card-title{font-size:.9375rem;font-weight:700;color:var(--text-1);display:flex;align-items:center;gap:8px;}
+.card-body{padding:20px;}
+.card-sm{padding:16px;border-radius:var(--r-md);}
+
+/* ── STAT CARDS ── */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:24px;}
+.stat-card{
+  background:var(--bg-200);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:18px;
+}
+.stat-card-label{font-size:.6875rem;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.stat-card-value{font-size:1.625rem;font-weight:800;color:var(--text-1);letter-spacing:-.03em;}
+.stat-card-sub{font-size:.75rem;color:var(--text-3);margin-top:4px;}
+
+/* ── SECTION HEADER ── */
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.section-title{font-size:.9375rem;font-weight:700;color:var(--text-1);}
+
+/* ── BOT CARDS ── */
+.bot-card{
+  background:var(--bg-200);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:18px;
+  transition:border-color var(--t);margin-bottom:10px;
+}
+.bot-card:hover{border-color:var(--border-mid);}
+.bot-avatar{
+  width:40px;height:40px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.bot-name{font-size:.9375rem;font-weight:700;color:var(--text-1);}
+.bot-model{font-size:.75rem;color:var(--text-3);}
+.bot-status{display:flex;align-items:center;gap:5px;font-size:.75rem;font-weight:600;}
+.status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.status-dot.online{background:var(--green);}
+.status-dot.offline{background:var(--text-4);}
+
+/* ── MEMORY BAR ── */
+.mem-section{
+  background:var(--bg-300);border-radius:var(--r-md);
+  padding:12px 14px;margin-top:14px;
+}
+.mem-label-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.mem-label{font-size:.6875rem;font-weight:600;color:var(--text-3);display:flex;align-items:center;gap:5px;}
+.mem-pct{font-size:.6875rem;font-weight:700;font-family:'JetBrains Mono',monospace;}
+.mem-track{width:100%;height:5px;background:var(--bg-base);border-radius:3px;overflow:hidden;}
+.mem-fill{height:100%;border-radius:3px;transition:width .6s ease;}
+.mem-fill.green{background:var(--green);}
+.mem-fill.yellow{background:var(--yellow);}
+.mem-fill.red{background:var(--red);}
+.mem-stats-row{display:flex;align-items:center;justify-content:space-between;margin-top:6px;}
+.mem-stat{font-size:.6875rem;color:var(--text-4);display:flex;align-items:center;gap:4px;}
+
+/* ── TOGGLE ── */
+.toggle{
+  width:44px;height:24px;border-radius:12px;
+  position:relative;cursor:pointer;flex-shrink:0;
+  transition:background var(--t);
+  background:var(--bg-300);border:1px solid var(--border);
+}
+.toggle.on{background:var(--brand);border-color:var(--brand);}
+.toggle::after{
+  content:'';position:absolute;
+  width:18px;height:18px;border-radius:50%;
+  background:#fff;top:2px;left:2px;
+  transition:transform .2s cubic-bezier(.4,0,.2,1);
+  box-shadow:0 1px 4px rgba(0,0,0,.3);
+}
+.toggle.on::after{transform:translateX(20px);}
+
+/* ── BADGE / CHIP ── */
+.badge{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:2px 8px;border-radius:999px;
+  font-size:.6875rem;font-weight:700;
+}
+.badge-brand{background:rgba(88,101,242,.15);color:var(--brand-light);border:1px solid rgba(88,101,242,.25);}
+.badge-dev{background:linear-gradient(135deg,var(--pink),var(--brand));color:#fff;}
+.badge-admin{background:rgba(237,66,69,.12);color:#f07070;border:1px solid rgba(237,66,69,.2);}
+.badge-beta{background:rgba(250,166,26,.1);color:var(--yellow);border:1px solid rgba(250,166,26,.2);}
+.badge-vip{background:rgba(240,180,41,.12);color:var(--gold);border:1px solid rgba(240,180,41,.2);}
+.badge-user{background:var(--bg-300);color:var(--text-3);border:1px solid var(--border);}
+.badge-ok{background:rgba(59,165,93,.1);color:#5aad75;border:1px solid rgba(59,165,93,.2);}
+.badge-err{background:rgba(237,66,69,.1);color:#f07070;border:1px solid rgba(237,66,69,.18);}
+.badge-ai{background:rgba(233,30,140,.1);color:var(--pink);border:1px solid rgba(233,30,140,.2);}
+.badge-exec{background:rgba(240,79,0,.1);color:#ff8c5a;border:1px solid rgba(240,79,0,.2);}
+.badge-web{background:rgba(88,101,242,.1);color:var(--brand-light);border:1px solid rgba(88,101,242,.2);}
+.badge-green{background:rgba(59,165,93,.1);color:#5aad75;border:1px solid rgba(59,165,93,.2);}
+.badge-full{background:rgba(237,66,69,.12);color:#f07070;border:1px solid rgba(237,66,69,.2);}
+
+/* ── MODEL CARDS ── */
+.model-card{
+  background:var(--bg-300);border:1px solid var(--border);
+  border-radius:var(--r-md);padding:14px;cursor:pointer;
+  transition:all var(--t);
+}
+.model-card:hover{border-color:var(--border-mid);background:var(--bg-hover);}
+.model-card.selected{border-color:var(--brand);background:rgba(88,101,242,.08);}
+.model-icon{
+  width:38px;height:38px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.model-name{font-size:.875rem;font-weight:700;color:var(--text-1);}
+.model-desc{font-size:.75rem;color:var(--text-3);margin-top:2px;}
+.model-mem{font-size:.6875rem;color:var(--text-4);margin-top:4px;display:flex;align-items:center;gap:4px;}
+.check-mark{
+  width:20px;height:20px;border-radius:50%;
+  background:var(--brand);display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:11px;flex-shrink:0;margin-left:auto;
+}
+
+/* ── TABLE ── */
+.data-table{width:100%;border-collapse:collapse;}
+.data-table th{
+  text-align:left;padding:10px 14px;
+  font-size:.6875rem;font-weight:700;color:var(--text-3);
+  text-transform:uppercase;letter-spacing:.08em;
+  border-bottom:1px solid var(--border);background:var(--bg-300);
+}
+.data-table th:first-child{border-radius:var(--r-sm) 0 0 0;}
+.data-table th:last-child{border-radius:0 var(--r-sm) 0 0;}
+.data-table td{
+  padding:11px 14px;border-bottom:1px solid var(--border);
+  font-size:.8125rem;color:var(--text-2);
+  transition:background var(--t);
+}
+.data-table tr:hover td{background:var(--bg-hover);}
+.data-table tr:last-child td{border-bottom:none;}
+
+/* ── CREATE AI LAYOUT ── */
+.studio-sidebar{
+  width:220px;flex-shrink:0;
+  background:var(--bg-100);border-right:1px solid var(--border);
+  padding:16px 8px;overflow-y:auto;
+}
+.studio-content{flex:1;padding:24px;overflow-y:auto;height:calc(100vh - 56px);}
+
+/* ── EXECUTOR ── */
+.exec-layout{flex:1;display:flex;flex-direction:column;height:calc(100vh - 56px);overflow:hidden;}
+.exec-topbar{
+  background:var(--bg-100);border-bottom:1px solid var(--border);
+  padding:12px 20px;display:flex;align-items:center;gap:16px;flex-shrink:0;
+}
+.exec-icon{
+  width:40px;height:40px;border-radius:12px;
+  background:rgba(240,79,0,.15);border:1px solid rgba(240,79,0,.3);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.exec-split{flex:1;display:flex;overflow:hidden;}
+.exec-hub{
+  width:200px;flex-shrink:0;border-right:1px solid var(--border);
+  padding:12px 8px;overflow-y:auto;
+  background:var(--bg-100);
+}
+.hub-item{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 10px;border-radius:var(--r-sm);
+  cursor:pointer;transition:background var(--t);
+  color:var(--text-3);font-size:.8125rem;
+  background:none;border:none;width:100%;text-align:left;
+  font-family:'Inter',sans-serif;
+}
+.hub-item:hover{background:var(--bg-hover);color:var(--text-1);}
+.exec-editor{flex:1;display:flex;flex-direction:column;padding:16px;gap:12px;background:var(--bg-base);}
+.code-area{
+  flex:1;min-height:160px;
+  background:var(--bg-100);border:1px solid var(--border);
+  border-radius:var(--r-md);padding:16px;
+  font-family:'JetBrains Mono',monospace;font-size:.8rem;
+  color:#e6db74;resize:none;outline:none;line-height:1.7;
+  transition:border-color var(--t);
+}
+.code-area:focus{border-color:var(--exec);}
+.exec-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.exec-btn{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:8px 14px;border-radius:var(--r-sm);
+  font-family:'Inter',sans-serif;font-size:.8125rem;font-weight:600;
+  cursor:pointer;transition:all var(--t);border:1px solid rgba(240,79,0,.3);
+  background:rgba(240,79,0,.1);color:#ff7040;
+}
+.exec-btn:hover{background:rgba(240,79,0,.2);border-color:rgba(240,79,0,.5);}
+.exec-btn.primary{background:var(--exec);border-color:var(--exec);color:#fff;}
+.exec-btn.primary:hover{background:#d44500;box-shadow:0 4px 14px rgba(240,79,0,.35);}
+.exec-status{
+  padding:4px 10px;border-radius:999px;
+  font-size:.6875rem;font-weight:700;
+  display:flex;align-items:center;gap:5px;
+}
+.exec-status.detached{background:rgba(80,80,80,.15);color:var(--text-3);border:1px solid var(--border);}
+.exec-status.attached{background:rgba(59,165,93,.12);color:#5aad75;border:1px solid rgba(59,165,93,.22);}
+.exec-footer{
+  padding:8px 20px;border-top:1px solid var(--border);
+  display:flex;align-items:center;gap:16px;
+  background:var(--bg-100);flex-shrink:0;
+  font-size:.6875rem;color:var(--text-4);font-family:'JetBrains Mono',monospace;
+}
+
+/* ── VIP ── */
+.vip-hero{
+  background:linear-gradient(135deg,rgba(240,180,41,.08) 0%,rgba(88,101,242,.06) 100%);
+  border:1px solid rgba(240,180,41,.2);
+  border-radius:var(--r-xl);padding:32px;margin-bottom:24px;
+  text-align:center;
+}
+.vip-icon{
+  width:56px;height:56px;border-radius:16px;
+  background:linear-gradient(135deg,#b8860b,var(--gold));
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 16px;
+}
+.vip-icon svg{width:28px;height:28px;stroke:#000;stroke-width:2;}
+.price-card{
+  background:var(--bg-200);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:16px 18px;
+  display:flex;align-items:center;gap:14px;
+  cursor:pointer;transition:all var(--t);margin-bottom:8px;
+}
+.price-card:hover{border-color:var(--border-mid);background:var(--bg-hover);}
+.price-card.featured{border-color:rgba(240,180,41,.4);background:rgba(240,180,41,.04);}
+.price-country{font-size:.875rem;font-weight:600;color:var(--text-1);}
+.price-currency{font-size:.75rem;color:var(--text-3);margin-top:2px;}
+.price-amount{margin-left:auto;font-size:1.125rem;font-weight:800;letter-spacing:-.02em;}
+.price-per{font-size:.6875rem;color:var(--text-3);margin-top:2px;text-align:right;}
+.price-flag{font-size:1.5rem;flex-shrink:0;}
+
+/* ── ADMIN ── */
+.admin-layout{flex:1;display:flex;height:calc(100vh - 56px);overflow:hidden;}
+.admin-sidebar{
+  width:210px;flex-shrink:0;border-right:1px solid var(--border);
+  padding:12px 8px;overflow-y:auto;background:var(--bg-100);
+}
+.admin-content{flex:1;padding:24px;overflow-y:auto;}
+/* AI Logs table extras */
+.ai-log-row:hover td{background:var(--bg-hover);}
+.cspeak-output{background:var(--bg-300);border:1px solid var(--border);border-radius:var(--r-md);padding:12px;font-family:'JetBrains Mono',monospace;font-size:.75rem;color:#79c0ff;max-height:160px;overflow-y:auto;margin-top:10px;}
+.cspeak-msg{padding:5px 0;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:flex-start;}
+.cspeak-msg:last-child{border-bottom:none;}
+.ban-card{background:var(--bg-200);border:1px solid var(--border);border-radius:var(--r-md);padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;}
+
+/* ── MEMORY MANAGER ── */
+.mem-source-tabs{display:flex;gap:4px;margin-bottom:16px;background:var(--bg-300);border-radius:var(--r-md);padding:4px;}
+.mem-tab{
+  flex:1;padding:7px;border-radius:var(--r-sm);
+  border:none;background:transparent;cursor:pointer;
+  font-family:'Inter',sans-serif;font-size:.8125rem;font-weight:600;
+  color:var(--text-3);transition:all var(--t);display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.mem-tab.active{background:var(--bg-200);color:var(--text-1);box-shadow:0 1px 4px rgba(0,0,0,.2);}
+.mem-ctx-card{
+  background:var(--bg-200);border:1px solid var(--border);
+  border-radius:var(--r-md);padding:14px 16px;margin-bottom:8px;
+  transition:border-color var(--t);
+}
+.mem-ctx-card:hover{border-color:var(--border-mid);}
+.mem-entry{
+  padding:10px 12px;border-radius:var(--r-sm);margin-bottom:6px;
+  border-left:3px solid;
+  animation:fadeUp .25s ease;
+}
+.mem-entry.role-user{background:rgba(88,101,242,.07);border-left-color:var(--brand);}
+.mem-entry.role-assistant{background:rgba(233,30,140,.06);border-left-color:var(--pink);}
+.mem-entry.evict-warn{opacity:.6;}
+.mem-role{font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
+.mem-role.user{color:var(--brand-light);}
+.mem-role.assistant{color:var(--pink);}
+.mem-text{font-size:.8125rem;color:var(--text-2);line-height:1.5;}
+.mem-time{font-size:.625rem;color:var(--text-4);font-family:'JetBrains Mono',monospace;float:right;}
+.evict-tag{font-size:.6rem;font-weight:700;color:var(--yellow);background:rgba(250,166,26,.1);border:1px solid rgba(250,166,26,.2);padding:1px 6px;border-radius:4px;display:inline-block;margin-bottom:4px;}
+
+/* ── MODALS ── */
+.backdrop{
+  position:fixed;inset:0;z-index:100;
+  background:rgba(0,0,0,.75);
+  backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;padding:16px;
+}
+.backdrop.open{display:flex;}
+.modal{
+  background:var(--bg-200);border:1px solid var(--border);
+  border-radius:var(--r-xl);width:100%;
+  max-height:90vh;overflow-y:auto;
+  animation:fadeUp .25s ease;position:relative;
+}
+.modal-header{
+  padding:20px 24px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;background:var(--bg-200);z-index:1;
+}
+.modal-title{font-size:1rem;font-weight:700;}
+.modal-body{padding:20px 24px;}
+.modal-close{
+  width:32px;height:32px;border-radius:var(--r-sm);
+  display:flex;align-items:center;justify-content:center;
+  border:none;background:transparent;cursor:pointer;
+  color:var(--text-3);transition:all var(--t);
+}
+.modal-close:hover{background:var(--bg-hover);color:var(--text-1);}
+
+/* ── DISCORD MODAL ── */
+#discordModal{max-width:440px;}
+#memDetailModal{max-width:540px;}
+#userMenuModal{max-width:220px;position:fixed;top:56px;right:16px;border-radius:var(--r-lg);z-index:110;}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:24px;right:24px;z-index:200;
+  background:var(--bg-300);border:1px solid var(--border);
+  border-radius:var(--r-md);padding:12px 16px;
+  display:flex;align-items:center;gap:10px;
+  min-width:240px;max-width:340px;
+  box-shadow:0 8px 24px rgba(0,0,0,.4);
+  transform:translateY(100px);opacity:0;
+  transition:all .3s cubic-bezier(.16,1,.3,1);
+  pointer-events:none;
+}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast-icon{width:18px;height:18px;flex-shrink:0;}
+.toast-msg{font-size:.8125rem;font-weight:600;color:var(--text-1);}
+
+/* ── SYSTEM LOG ── */
+.log-entry{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:.75rem;font-family:'JetBrains Mono',monospace;}
+.log-entry:last-child{border-bottom:none;}
+.log-time{color:var(--text-4);flex-shrink:0;}
+.log-msg{color:var(--text-2);}
+
+/* ── SETTINGS ROW ── */
+.setting-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px;border-radius:var(--r-md);
+  background:var(--bg-300);margin-bottom:8px;
+}
+.setting-row-info{}
+.setting-row-label{font-size:.875rem;font-weight:600;color:var(--text-1);display:flex;align-items:center;gap:8px;margin-bottom:3px;}
+.setting-row-sub{font-size:.75rem;color:var(--text-3);}
+
+/* ── PERSONALITY GRID ── */
+.p-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;}
+.p-btn{
+  padding:9px;border-radius:var(--r-sm);border:1px solid var(--border);
+  background:var(--bg-300);color:var(--text-3);
+  cursor:pointer;font-family:'Inter',sans-serif;font-size:.8125rem;
+  font-weight:600;transition:all var(--t);text-align:center;
+}
+.p-btn:hover{border-color:var(--border-mid);color:var(--text-1);}
+.p-btn.on{border-color:var(--brand);background:rgba(88,101,242,.12);color:var(--brand-light);}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes ping{75%,100%{transform:scale(2);opacity:0;}}
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes memFill{from{width:0;}to{width:var(--w);}}
+
+.anim-fade-up{animation:fadeUp .35s ease both;}
+.sdot-pulse::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:2px solid currentColor;animation:ping 2s ease infinite;opacity:0;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  :root{--sidebar-w:56px;}
+  .sidebar-logo-name,.nav-item span,.nav-badge,.sidebar-status .user-info,.nav-label{display:none;}
+  .nav-item{justify-content:center;padding:10px;}
+  .studio-sidebar{width:48px;}
+  .studio-sidebar span{display:none;}
+  .exec-hub{width:46px;}
+  .exec-hub span,.hub-item span{display:none;}
+  .hub-item{justify-content:center;}
+  .admin-sidebar{width:48px;}
+  .admin-sidebar span{display:none;}
+  .admin-sidebar .nav-item{justify-content:center;}
+  .page,.studio-content,.admin-content,.exec-editor{padding:14px;}
+  .stat-grid{grid-template-columns:repeat(2,1fr);}
+}
+@media(max-width:480px){
+  .topbar-title-group .topbar-sub{display:none;}
+  .stat-card-value{font-size:1.25rem;}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     LOGIN VIEW
+═══════════════════════════════════════ -->
+<div id="loginView" class="view active">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-mark">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-4H7l5-8v4h4l-5 8z"/></svg>
+      </div>
+      <div class="login-logo-name">Kii<span>Akira</span></div>
+    </div>
+
+    <div class="login-box">
+      <div class="login-box-header">
+        <h2>Welcome back</h2>
+        <p>Enter your access key to continue to the dashboard.</p>
+      </div>
+      <div class="login-box-body">
+        <div class="field">
+          <label>Access Key</label>
+          <div class="input-wrap">
+            <input type="password" id="keyInput" class="input" placeholder="••••••••••••" autocomplete="off" autocapitalize="off">
+            <button class="input-eye" onclick="togglePwd()" id="eyeBtn" aria-label="Toggle visibility">
+              <svg id="eyeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="verifyKey()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20,6 9,17 4,12"/></svg>
+          Continue
+        </button>
+
+        <div class="divider">or</div>
+
+        <button class="discord-connect-btn" onclick="openDiscordModal()">
+          <div class="dc-icon">
+            <svg width="20" height="15" viewBox="0 0 22 16" fill="white"><path d="M18.59 1.33A18.17 18.17 0 0 0 14.1 0a.07.07 0 0 0-.07.03 12.68 12.68 0 0 0-.56 1.15 16.77 16.77 0 0 0-5.03 0A11.65 11.65 0 0 0 7.88.03a.07.07 0 0 0-.07-.03 18.13 18.13 0 0 0-4.49 1.33.06.06 0 0 0-.03.02C.48 5.57-.29 9.7.09 13.77a.07.07 0 0 0 .03.05 18.26 18.26 0 0 0 5.5 2.78.07.07 0 0 0 .08-.03c.42-.58.8-1.19 1.12-1.83a.07.07 0 0 0-.04-.09 12.03 12.03 0 0 1-1.72-.82.07.07 0 0 1-.01-.11c.12-.09.23-.18.34-.27a.07.07 0 0 1 .07-.01 13.01 13.01 0 0 0 11.06 0 .07.07 0 0 1 .07.01c.11.09.23.18.34.27a.07.07 0 0 1-.01.11 11.3 11.3 0 0 1-1.72.82.07.07 0 0 0-.04.09c.33.64.71 1.25 1.12 1.83a.07.07 0 0 0 .08.03 18.21 18.21 0 0 0 5.51-2.78.07.07 0 0 0 .03-.05c.46-4.74-.77-8.86-3.26-12.41a.05.05 0 0 0-.03-.03ZM7.35 11.29c-1.08 0-1.97-.99-1.97-2.21s.87-2.21 1.97-2.21c1.11 0 1.99 1 1.97 2.21 0 1.22-.87 2.21-1.97 2.21Zm7.29 0c-1.08 0-1.97-.99-1.97-2.21s.87-2.21 1.97-2.21c1.11 0 1.99 1 1.97 2.21 0 1.22-.86 2.21-1.97 2.21Z"/></svg>
+          </div>
+          <span>Continue with Discord</span>
+          <svg class="dc-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <p style="text-align:center;margin-top:20px;font-size:.75rem;color:var(--text-4);">
+      Kii Akira Platform — Developer: <span style="color:var(--text-3);">kiiakira</span>
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MAIN APP VIEW
+═══════════════════════════════════════ -->
+<div id="mainView" class="view">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo-mark">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-4H7l5-8v4h4l-5 8z"/></svg>
+      </div>
+      <div class="sidebar-logo-name">Kii<span>Akira</span></div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Platform</div>
+      <button class="nav-item active" id="nav-home" onclick="switchPage('home',this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+        <span>Home</span>
+      </button>
+      <button class="nav-item" id="nav-createAI" onclick="switchPage('createAI',this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
+        <span>Create AI</span>
+        <span class="nav-badge">New</span>
+      </button>
+      <button class="nav-item" id="nav-executor" onclick="switchPage('executor',this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="4,17 10,11 4,5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        <span>Executor</span>
+      </button>
+      <button class="nav-item" id="nav-vip" onclick="switchPage('vip',this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
+        <span>VIP</span>
+        <span class="nav-badge gold">Store</span>
+      </button>
+    </div>
+
+    <div class="nav-section" style="margin-top:4px;">
+      <div class="nav-divider"></div>
+      <button class="nav-item hidden" id="nav-admin" onclick="switchPage('admin',this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span>Admin Panel</span>
+        <span class="nav-badge" style="background:rgba(237,66,69,.1);color:#f07070;border-color:rgba(237,66,69,.2);">Dev</span>
+      </button>
+    </div>
+
+    <!-- User footer -->
+    <div class="sidebar-status">
+      <div class="user-avatar" id="sidebarAvatar">?</div>
+      <div class="user-info">
+        <div class="user-name" id="sidebarUsername">—</div>
+        <div class="user-role" id="sidebarRole">Not connected</div>
+      </div>
+      <button onclick="openUserMenu()" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:4px;border-radius:var(--r-sm);display:flex;" title="Settings">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── RIGHT PANEL ── -->
+  <div class="flex flex-col flex-1" style="min-width:0;height:100vh;">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div>
+        <div class="topbar-title" id="topbarTitle">Dashboard</div>
+        <div class="topbar-sub" id="topbarSub">Overview of your platform</div>
+      </div>
+      <div class="topbar-actions">
+        <div class="flex items-center gap-2" style="padding:5px 10px;background:var(--bg-300);border-radius:999px;border:1px solid var(--border);">
+          <div id="statusDot" style="width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0;position:relative;">
+            <span style="position:absolute;inset:-3px;border-radius:50%;border:2px solid var(--green);opacity:0;animation:ping 2s ease infinite;"></span>
+          </div>
+          <span style="font-size:.75rem;font-weight:600;color:var(--text-2);">All systems online</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── HOME PAGE ─── -->
+    <div class="page active" id="homePage">
+      <!-- Stats -->
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-card-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+            Response Time
+          </div>
+          <div class="stat-card-value">24<span style="font-size:.875rem;color:var(--text-3);font-weight:500;">ms</span></div>
+          <div class="stat-card-sub">↓ 3ms from yesterday</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
+            Active Bots
+          </div>
+          <div class="stat-card-value" id="statActiveBots">1</div>
+          <div class="stat-card-sub">of 5 slots used</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+            Memory Entries
+          </div>
+          <div class="stat-card-value" id="statMemEntries">0</div>
+          <div class="stat-card-sub">across all bots</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/></svg>
+            API Calls Today
+          </div>
+          <div class="stat-card-value" id="statApiCalls">1.2k</div>
+          <div class="stat-card-sub">+18% from yesterday</div>
+        </div>
+      </div>
+
+      <!-- Deployed Bots -->
+      <div class="section-header">
+        <div class="section-title">Deployed Bots</div>
+        <button class="btn btn-primary btn-sm" onclick="switchPage('createAI',document.getElementById('nav-createAI'))">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Bot
+        </button>
+      </div>
+      <div id="homeBotsRef"></div>
+
+      <!-- System Log -->
+      <div class="card" style="margin-top:24px;">
+        <div class="card-header">
+          <div class="card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4,17 10,11 4,5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            System Log
+          </div>
+          <span class="badge badge-green">Live</span>
+        </div>
+        <div class="card-body" style="padding:0;" id="sysLog"></div>
+      </div>
+    </div>
+
+    <!-- ─── CREATE AI PAGE ─── -->
+    <div class="page-flex" id="createAIPage">
+      <!-- Studio Sidebar -->
+      <div class="studio-sidebar">
+        <div class="nav-label" style="display:block;padding:8px 10px 10px;">Studio</div>
+        <button class="nav-item" id="sb-apiModels" onclick="setStudio('apiModels')">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          <span>API Models</span>
+        </button>
+        <button class="nav-item active" id="sb-createAI" onclick="setStudio('createAI')">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          <span>Create AI</span>
+        </button>
+        <button class="nav-item" id="sb-memory" onclick="setStudio('memory')">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          <span>Memory</span>
+        </button>
+      </div>
+      <div class="studio-content">
+
+        <!-- API Models -->
+        <div id="panel-apiModels" style="display:none;">
+          <div class="section-header"><div class="section-title">API Models</div><span class="badge badge-brand">All include memory</span></div>
+          <div id="fullModelList" style="margin-bottom:24px;"></div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Generate API Key</div></div>
+            <div class="card-body">
+              <div class="field"><label>Select Model</label>
+                <select id="keyModelSelect" class="input" style="appearance:none;">
+                  <option value="">Choose a model...</option>
+                  <option value="akira">Akira AI (VIP)</option>
+                  <option value="gpt4">GPT-4 Turbo</option>
+                  <option value="claude">Claude 3 Opus</option>
+                  <option value="llama">Llama 3 70B</option>
+                  <option value="mistral">Mistral Large</option>
+                </select>
+              </div>
+              <button class="btn btn-primary btn-full" onclick="generateAPIKey()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Generate Key
+              </button>
+              <div style="margin-top:16px;" id="apiKeyList">
+                <div style="background:var(--bg-300);border:1px solid var(--border);border-radius:var(--r-md);padding:14px;margin-bottom:8px;">
+                  <div class="flex items-center justify-between" style="margin-bottom:8px;">
+                    <span class="text-xs font-semibold text-3 uppercase tracking-wide">Production</span>
+                    <span class="badge badge-green">Active</span>
+                  </div>
+                  <div class="font-mono text-xs" style="color:#79c0ff;word-break:break-all;">sk-kii-7f8d2a1b9c4e3f6d</div>
+                  <div class="flex gap-2" style="margin-top:10px;">
+                    <button onclick="copyKey(this)" class="btn btn-ghost btn-xs flex-1">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      Copy
+                    </button>
+                    <button onclick="revokeKey(this)" class="btn btn-danger btn-xs flex-1">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14a2,2,0,0,1-2,2H8a2,2,0,0,1-2-2L5,6"/></svg>
+                      Revoke
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Create AI -->
+        <div id="panel-createAI">
+          <div class="section-header" style="margin-bottom:20px;">
+            <div class="section-title">Create Discord AI</div>
+            <span class="badge badge-brand">Memory enabled</span>
+          </div>
+
+          <!-- Model Selection -->
+          <div class="card" style="margin-bottom:16px;">
+            <div class="card-header"><div class="card-title">1 — Select Model</div></div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:8px;" id="createModelList"></div>
+          </div>
+
+          <!-- Config -->
+          <div class="card" style="margin-bottom:16px;">
+            <div class="card-header"><div class="card-title">2 — Configuration</div></div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
+              <div class="field" style="margin:0;"><label>Bot Name</label><input type="text" id="botName" class="input" placeholder="e.g. Akira-Helper"></div>
+              <div class="field" style="margin:0;"><label>Discord Bot Token</label><input type="password" id="botToken" class="input" placeholder="Token from Discord Developer Portal"></div>
+              <div class="field" style="margin:0;">
+                <label>Personality</label>
+                <div class="p-grid">
+                  <button class="p-btn on" onclick="selectP(this,'helpful')">Helpful</button>
+                  <button class="p-btn" onclick="selectP(this,'creative')">Creative</button>
+                  <button class="p-btn" onclick="selectP(this,'technical')">Technical</button>
+                  <button class="p-btn" onclick="selectP(this,'custom')">Custom</button>
+                </div>
+              </div>
+              <div class="field" style="margin:0;">
+                <label style="display:flex;align-items:center;justify-content:space-between;">
+                  <span>Temperature</span>
+                  <span class="font-mono text-xs" id="tempVal" style="color:var(--brand-light);">0.7</span>
+                </label>
+                <input type="range" min="0" max="2" step="0.1" value="0.7" style="width:100%;accent-color:var(--brand);" oninput="document.getElementById('tempVal').textContent=this.value">
+                <div class="flex justify-between" style="margin-top:4px;"><span class="text-xxs text-3">Precise</span><span class="text-xxs text-3">Balanced</span><span class="text-xxs text-3">Creative</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Memory Config -->
+          <div class="card" style="margin-bottom:16px;">
+            <div class="card-header">
+              <div class="card-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                3 — Memory Settings
+              </div>
+            </div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:8px;">
+              <div class="setting-row">
+                <div class="setting-row-info">
+                  <div class="setting-row-label">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    Server Memory
+                  </div>
+                  <div class="setting-row-sub">Remember conversations per server channel</div>
+                </div>
+                <div class="toggle on" id="serverMemToggle" onclick="this.classList.toggle('on');updateMemPreview()"></div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-row-info">
+                  <div class="setting-row-label">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                    DM Memory
+                  </div>
+                  <div class="setting-row-sub">Remember conversations in direct messages</div>
+                </div>
+                <div class="toggle on" id="dmMemToggle" onclick="this.classList.toggle('on');updateMemPreview()"></div>
+              </div>
+              <div style="background:rgba(250,166,26,.06);border:1px solid rgba(250,166,26,.18);border-radius:var(--r-md);padding:12px;display:flex;gap:10px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#faa61a" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <div style="font-size:.75rem;color:var(--text-3);line-height:1.5;"><strong style="color:var(--yellow);">Auto-Eviction Active</strong> — When memory reaches capacity, the oldest messages are automatically deleted to make room for new ones (FIFO queue).</div>
+              </div>
+              <div id="memCapPreview" style="background:var(--bg-300);border-radius:var(--r-md);padding:12px;display:none;">
+                <div class="flex items-center justify-between" style="margin-bottom:8px;">
+                  <span class="text-xxs font-semibold text-3 uppercase tracking-wide">Capacity Preview</span>
+                  <span id="memCapLabel" class="badge badge-brand text-xxs">—</span>
+                </div>
+                <div class="mem-track"><div class="mem-fill green" id="memCapBar" style="width:18%;"></div></div>
+                <div class="flex justify-between" style="margin-top:6px;"><span class="text-xxs text-4">0 entries</span><span class="text-xxs text-4" id="memCapMax">—</span></div>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn btn-primary btn-full" style="height:44px;font-size:.9375rem;" onclick="createBot()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><polygon points="22,2 15,22 11,13 2,9"/></svg>
+            Deploy Instance
+          </button>
+
+          <!-- Bot List -->
+          <div style="margin-top:28px;">
+            <div class="section-header"><div class="section-title">Deployed Instances</div></div>
+            <div id="botsList"></div>
+          </div>
+        </div>
+
+        <!-- Memory Manager -->
+        <div id="panel-memory" style="display:none;">
+          <div class="section-header" style="margin-bottom:20px;">
+            <div class="section-title">Memory Manager</div>
+            <span class="badge badge-brand">Real-time</span>
+          </div>
+          <div class="field"><label>Select Bot</label>
+            <select id="memBotSelect" class="input" style="appearance:none;" onchange="loadBotMemory()">
+              <option value="">Choose a bot...</option>
+            </select>
+          </div>
+          <div id="memoryView" style="display:none;">
+            <!-- overall -->
+            <div class="card" style="margin-bottom:16px;">
+              <div class="card-header">
+                <div class="card-title" id="memBotName">Bot</div>
+                <div class="flex gap-2">
+                  <span id="memUsageBadge" class="badge badge-green">0%</span>
+                  <button onclick="clearAllMemory()" class="btn btn-danger btn-sm">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14a2,2,0,0,1-2,2H8a2,2,0,0,1-2-2L5,6"/></svg>
+                    Clear All
+                  </button>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="mem-track" style="height:6px;margin-bottom:8px;"><div class="mem-fill" id="overallMemBar" style="width:0%;"></div></div>
+                <div class="flex justify-between text-xxs text-4" style="margin-bottom:16px;">
+                  <span id="memUsedCount">0 entries used</span><span id="memMaxCount">0 max</span>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;">
+                  <div style="background:var(--bg-300);border-radius:var(--r-md);padding:10px;">
+                    <div class="font-bold" style="font-size:1.125rem;" id="memServerCount">0</div>
+                    <div class="text-xxs text-4" style="margin-top:2px;">Servers</div>
+                  </div>
+                  <div style="background:var(--bg-300);border-radius:var(--r-md);padding:10px;">
+                    <div class="font-bold" style="font-size:1.125rem;" id="memDMCount">0</div>
+                    <div class="text-xxs text-4" style="margin-top:2px;">DM Threads</div>
+                  </div>
+                  <div style="background:var(--bg-300);border-radius:var(--r-md);padding:10px;">
+                    <div class="font-bold" style="font-size:1.125rem;" id="memEvictCount">0</div>
+                    <div class="text-xxs text-4" style="margin-top:2px;">Evicted</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- tabs -->
+            <div class="mem-source-tabs">
+              <button class="mem-tab active" id="srcTabServers" onclick="setSrcTab('servers')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+                Servers
+              </button>
+              <button class="mem-tab" id="srcTabDMs" onclick="setSrcTab('dms')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                DMs
+              </button>
+            </div>
+            <div id="serverMemView"><div id="serverMemList"></div></div>
+            <div id="dmMemView" style="display:none;"><div id="dmMemList"></div></div>
+          </div>
+          <div id="noMemSelected" style="text-align:center;padding:48px 0;color:var(--text-4);">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 12px;display:block;opacity:.4;"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+            <p style="font-size:.875rem;">Select a bot to view memory</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── EXECUTOR PAGE ─── -->
+    <div class="page-flex" id="executorPage">
+      <div class="exec-layout">
+        <div class="exec-topbar">
+          <div class="exec-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f04f00" stroke-width="2"><polyline points="4,17 10,11 4,5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          </div>
+          <div>
+            <div style="font-size:.9375rem;font-weight:700;">Akira Executor</div>
+            <div class="text-xs text-3">Roblox Script Executor · v1.0</div>
+          </div>
+          <div class="flex items-center gap-2" style="margin-left:auto;">
+            <span class="badge badge-exec">BETA</span>
+            <div class="exec-status detached" id="execStatus">
+              <div style="width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;"></div>
+              <span id="execStatusText">Not Attached</span>
+            </div>
+          </div>
+        </div>
+        <div class="exec-split">
+          <div class="exec-hub">
+            <div class="nav-label" style="display:block;padding:4px 8px 10px;">Hub</div>
+            <div id="scriptHubList"></div>
+          </div>
+          <div class="exec-editor">
+            <div class="flex items-center gap-2">
+              <div style="padding:5px 12px;background:var(--bg-200);border:1px solid var(--border);border-radius:var(--r-sm);font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--text-2);">Script_1.lua</div>
+              <button onclick="newScriptTab()" class="btn btn-ghost btn-icon" style="padding:5px 8px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
+            </div>
+            <textarea id="codeEditor" class="code-area" placeholder="-- Akira Executor v1.0&#10;-- Paste or write your Luau script here&#10;print('Hello from Akira!')"></textarea>
+            <div class="exec-actions">
+              <button onclick="attachExecutor()" class="exec-btn primary" style="flex:1;min-width:90px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                Attach
+              </button>
+              <button onclick="executeScript()" class="exec-btn" style="flex:1;min-width:90px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5,3 19,12 5,21"/></svg>
+                Execute
+              </button>
+              <button onclick="clearEditor()" class="exec-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14H6L5,6"/></svg>
+              </button>
+              <button onclick="saveScript()" class="exec-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="exec-footer">
+          <span>Akira Executor · UNC · Luau Ready · Anti-Detection · Level 7</span>
+          <span style="margin-left:auto;">Full Lua</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── VIP PAGE ─── -->
+    <div class="page" id="vipPage" style="display:none;">
+      <div class="vip-hero">
+        <div class="vip-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
+        </div>
+        <h2 style="font-size:1.5rem;margin-bottom:8px;">Kii Akira <span style="color:var(--gold);">VIP</span></h2>
+        <p style="color:var(--text-3);font-size:.875rem;">Unlock the full platform — including the Akira AI model</p>
+      </div>
+
+      <!-- Benefits -->
+      <div class="card" style="margin-bottom:24px;">
+        <div class="card-header"><div class="card-title">What's included</div></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px;" id="vipBenefits"></div>
+      </div>
+
+      <div class="section-header"><div class="section-title">Choose your region</div></div>
+      <div id="priceCards"></div>
+      <p style="text-align:center;font-size:.75rem;color:var(--text-4);margin-top:16px;">Billed annually · Cancel anytime · Secure payment</p>
+    </div>
+
+    <!-- ─── ADMIN PAGE ─── -->
+    <div class="page-flex hidden" id="adminPage">
+      <div class="admin-layout">
+        <div class="admin-sidebar">
+          <div class="nav-label" style="display:block;padding:8px 10px 10px;">Admin</div>
+          <button class="nav-item active" id="admin-activity" onclick="setAdmin('activity')">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>
+            <span>Activity Log</span>
+          </button>
+          <button class="nav-item" id="admin-ailogs" onclick="setAdmin('ailogs')">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
+            <span>AI Usage Logs</span>
+          </button>
+          <button class="nav-item" id="admin-bans" onclick="setAdmin('bans')">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+            <span>Ban Management</span>
+          </button>
+          <button class="nav-item" id="admin-whitelist" onclick="setAdmin('whitelist')">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            <span>Whitelist</span>
+          </button>
+          <button class="nav-item" id="admin-users" onclick="setAdmin('users')">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span>Users</span>
+          </button>
+          <button class="nav-item" id="admin-aicontrol" onclick="setAdmin('aicontrol')">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span>AI Control</span>
+          </button>
+          <div class="nav-divider"></div>
+          <button class="nav-item" id="admin-shutdown" onclick="setAdmin('shutdown')" style="color:var(--red);">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="color:var(--red);"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span>Shut Down Web</span>
+          </button>
+        </div>
+        <div class="admin-content">
+          <!-- Activity -->
+          <div id="adminActivityPanel">
+            <div class="section-header" style="margin-bottom:16px;">
+              <div class="section-title">Activity Logger</div>
+              <div class="flex gap-2">
+                <select id="logFilter" class="input" style="padding:6px 12px;font-size:.75rem;width:120px;appearance:none;" onchange="renderActivityLog()">
+                  <option value="all">All</option><option value="website">Website</option><option value="ai">AI</option><option value="executor">Executor</option>
+                </select>
+                <button onclick="refreshLog()" class="btn btn-ghost btn-sm">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23,4 23,10 17,10"/><polyline points="1,20 1,14 7,14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="card" style="overflow:hidden;">
+              <table class="data-table"><thead><tr><th>Time</th><th>User</th><th>Type</th><th>Action</th><th>Status</th></tr></thead><tbody id="activityLogBody"></tbody></table>
+            </div>
+          </div>
+          <!-- Whitelist -->
+          <div id="adminWhitelistPanel" style="display:none;">
+            <div class="section-title" style="margin-bottom:16px;">Whitelist System</div>
+            <div class="card" style="margin-bottom:16px;">
+              <div class="card-header"><div class="card-title">Add User</div></div>
+              <div class="card-body" style="display:flex;flex-direction:column;gap:10px;">
+                <div class="flex gap-2">
+                  <input type="text" id="wlUsername" placeholder="Discord username..." class="input flex-1">
+                  <select id="wlRole" class="input" style="width:140px;appearance:none;"><option value="beta_tester">Beta Tester</option><option value="admin">Admin</option><option value="vip">VIP</option></select>
+                </div>
+                <div class="flex gap-2">
+                  <button onclick="addToWhitelist()" class="btn btn-primary flex-1">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20,6 9,17 4,12"/></svg>
+                    Whitelist
+                  </button>
+                  <button onclick="addToBlacklist()" class="btn btn-danger flex-1">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    Blacklist
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="card" style="overflow:hidden;">
+              <table class="data-table"><thead><tr><th>Username</th><th>Status</th><th>Role</th><th>Action</th></tr></thead><tbody id="whitelistBody"></tbody></table>
+            </div>
+          </div>
+          <!-- Users -->
+          <div id="adminUsersPanel" style="display:none;">
+            <div class="section-title" style="margin-bottom:16px;">User Management</div>
+            <div id="userMgmtList" style="display:flex;flex-direction:column;gap:8px;"></div>
+          </div>
+
+          <!-- AI Usage Logs -->
+          <div id="adminAilogsPanel" style="display:none;">
+            <div class="section-header" style="margin-bottom:16px;">
+              <div class="section-title">AI Usage Logs</div>
+              <div class="flex gap-2">
+                <select id="aiLogFilter" class="input" style="padding:6px 12px;font-size:.75rem;width:140px;appearance:none;" onchange="renderAILogs()">
+                  <option value="all">All Models</option>
+                  <option value="akira">Akira AI</option>
+                  <option value="gpt4">GPT-4 Turbo</option>
+                  <option value="claude">Claude 3 Opus</option>
+                  <option value="llama">Llama 3 70B</option>
+                  <option value="mistral">Mistral Large</option>
+                </select>
+                <button onclick="renderAILogs()" class="btn btn-ghost btn-sm">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23,4 23,10 17,10"/><polyline points="1,20 1,14 7,14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="card" style="overflow:hidden;">
+              <table class="data-table">
+                <thead><tr><th>Time</th><th>User</th><th>Model</th><th>Server</th><th>Channel</th><th>Tokens</th><th>Status</th></tr></thead>
+                <tbody id="aiLogsBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Ban Management -->
+          <div id="adminBansPanel" style="display:none;">
+            <div class="section-header" style="margin-bottom:16px;">
+              <div class="section-title">Ban Management</div>
+            </div>
+            <!-- Quick ban form -->
+            <div class="card" style="margin-bottom:16px;">
+              <div class="card-header"><div class="card-title">Ban a User</div></div>
+              <div class="card-body" style="display:flex;flex-direction:column;gap:10px;">
+                <div class="flex gap-2">
+                  <input type="text" id="banUsername" placeholder="Discord username..." class="input flex-1">
+                  <select id="banReason" class="input" style="width:160px;appearance:none;">
+                    <option>Spam</option>
+                    <option>Abuse</option>
+                    <option>Cheating / Exploit</option>
+                    <option>Harassment</option>
+                    <option>NSFW Content</option>
+                    <option>Other</option>
+                  </select>
+                </div>
+                <div class="flex gap-2">
+                  <button onclick="quickBanUser()" class="btn btn-danger flex-1">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                    Ban User
+                  </button>
+                  <button onclick="quickUnbanUser()" class="btn btn-ghost flex-1">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/></svg>
+                    Unban User
+                  </button>
+                </div>
+              </div>
+            </div>
+            <!-- Active ban list -->
+            <div class="section-title" style="margin-bottom:10px;font-size:.875rem;">Active Bans</div>
+            <div class="card" style="overflow:hidden;">
+              <table class="data-table">
+                <thead><tr><th>User</th><th>Reason</th><th>Banned At</th><th>Banned By</th><th>Action</th></tr></thead>
+                <tbody id="banListBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- AI Control -->
+          <div id="adminAicontrolPanel" style="display:none;">
+            <div class="section-header" style="margin-bottom:16px;">
+              <div class="section-title">AI Control</div>
+              <span class="badge badge-exec">Admin Only</span>
+            </div>
+            <div style="background:rgba(250,166,26,.06);border:1px solid rgba(250,166,26,.2);border-radius:var(--r-md);padding:12px 16px;margin-bottom:20px;display:flex;gap:10px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#faa61a" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <span style="font-size:.8125rem;color:var(--text-3);">Use <span class="font-mono" style="color:#79c0ff;">/cspeak (text)</span> to force a user's AI bot to send a message in their Discord server. Actions are logged.</span>
+            </div>
+
+            <!-- Bot selector -->
+            <div class="card" style="margin-bottom:16px;">
+              <div class="card-header"><div class="card-title">Select Target Bot</div></div>
+              <div class="card-body" style="display:flex;flex-direction:column;gap:12px;">
+                <div class="flex gap-2">
+                  <div class="field flex-1" style="margin:0;">
+                    <label>Target User</label>
+                    <select id="cSpeakUser" class="input" style="appearance:none;" onchange="updateCSpeakBots()">
+                      <option value="">Choose user...</option>
+                    </select>
+                  </div>
+                  <div class="field flex-1" style="margin:0;">
+                    <label>Target Bot</label>
+                    <select id="cSpeakBot" class="input" style="appearance:none;">
+                      <option value="">Choose bot...</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="field" style="margin:0;">
+                  <label>Server / Channel</label>
+                  <select id="cSpeakChannel" class="input" style="appearance:none;">
+                    <option value="">Select channel...</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- /cspeak command -->
+            <div class="card" style="margin-bottom:16px;">
+              <div class="card-header">
+                <div class="card-title">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  /cspeak Command
+                </div>
+                <span class="badge badge-brand font-mono">/cspeak</span>
+              </div>
+              <div class="card-body" style="display:flex;flex-direction:column;gap:10px;">
+                <div class="field" style="margin:0;">
+                  <label>Message Text</label>
+                  <textarea id="cSpeakText" class="input" style="resize:vertical;min-height:80px;font-family:'Inter',sans-serif;line-height:1.5;" placeholder="Enter the message you want the AI bot to send in Discord..."></textarea>
+                </div>
+                <div style="background:var(--bg-300);border-radius:var(--r-sm);padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:.8rem;color:var(--text-3);">
+                  Preview: <span id="cSpeakPreview" style="color:#79c0ff;">/cspeak Hello from admin!</span>
+                </div>
+                <div class="flex gap-2">
+                  <button onclick="sendCSpeak()" class="btn btn-primary flex-1" style="height:40px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><polygon points="22,2 15,22 11,13 2,9"/></svg>
+                    Send /cspeak
+                  </button>
+                  <button onclick="clearCSpeak()" class="btn btn-ghost">Clear</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Command history -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Command History</div>
+                <button onclick="document.getElementById('cSpeakHistory').innerHTML='<div style=&quot;padding:24px;text-align:center;color:var(--text-4);font-size:.875rem;&quot;>History cleared</div>'" class="btn btn-ghost btn-sm">Clear</button>
+              </div>
+              <div id="cSpeakHistory" style="padding:8px 0;max-height:280px;overflow-y:auto;">
+                <div style="padding:24px;text-align:center;color:var(--text-4);font-size:.875rem;">No commands sent yet.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SHUT DOWN WEB PANEL ══ -->
+          <div id="adminShutdownPanel" style="display:none;">
+            <div class="section-header" style="margin-bottom:20px;">
+              <div class="section-title" style="color:var(--red);display:flex;align-items:center;gap:8px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Shut Down Web
+              </div>
+              <div id="siteStatusBadge" class="badge badge-ok">● ONLINE</div>
+            </div>
+
+            <!-- Status card -->
+            <div class="card" style="margin-bottom:20px;border-color:rgba(237,66,69,.2);background:rgba(237,66,69,.03);">
+              <div class="card-body" style="display:flex;align-items:center;gap:16px;">
+                <div id="shutdownIconRing" style="width:52px;height:52px;border-radius:50%;border:2px solid var(--green);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:border-color .3s;">
+                  <svg id="shutdownIconSvg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" style="transition:stroke .3s;"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+                </div>
+                <div style="flex:1;">
+                  <div class="font-semibold" id="shutdownStatusLabel" style="font-size:.9375rem;color:var(--green);transition:color .3s;">Site is Online</div>
+                  <div class="text-xs text-3" id="shutdownStatusSub" style="margin-top:3px;">All users can access the dashboard normally.</div>
+                </div>
+                <div id="shutdownToggleWrap">
+                  <div class="toggle on" id="siteOnlineToggle" onclick="confirmToggleMaintenance()" title="Toggle maintenance mode"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Maintenance config -->
+            <div class="card" style="margin-bottom:16px;">
+              <div class="card-header">
+                <div class="card-title">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  Maintenance Message
+                </div>
+              </div>
+              <div class="card-body" style="display:flex;flex-direction:column;gap:12px;">
+                <div class="field" style="margin:0;">
+                  <label>Message shown to users</label>
+                  <textarea id="maintMsgInput" class="input" style="resize:vertical;min-height:80px;line-height:1.6;" placeholder="Kii Akira is currently offline for maintenance. We'll be back shortly.">Kii Akira is currently offline for maintenance and improvements. We'll be back shortly.</textarea>
+                </div>
+                <div class="flex gap-3">
+                  <div class="field flex-1" style="margin:0;">
+                    <label>Estimated return (optional)</label>
+                    <input type="datetime-local" id="maintEtaInput" class="input">
+                  </div>
+                  <div class="field flex-1" style="margin:0;">
+                    <label>Version tag</label>
+                    <input type="text" id="maintVersionInput" class="input" placeholder="e.g. v1.1.0" value="v1.0.0">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Update notes -->
+            <div class="card" style="margin-bottom:16px;">
+              <div class="card-header">
+                <div class="card-title">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23,4 23,10 17,10"/><polyline points="1,20 1,14 7,14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                  Update Notes
+                </div>
+                <span class="badge badge-brand" style="font-size:.6rem;">Shown on maintenance page</span>
+              </div>
+              <div class="card-body" style="display:flex;flex-direction:column;gap:10px;">
+                <div id="updateNotesList" style="display:flex;flex-direction:column;gap:6px;"></div>
+                <div class="flex gap-2">
+                  <input type="text" id="newUpdateNote" class="input flex-1" placeholder="e.g. ✨ New AI memory system" onkeypress="if(event.key==='Enter')addUpdateNote()">
+                  <button onclick="addUpdateNote()" class="btn btn-ghost btn-sm">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Add
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <button onclick="confirmShutdown()" id="shutdownBtn" class="btn btn-danger btn-full" style="height:46px;font-size:.9375rem;font-weight:700;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+                Shut Down Website
+              </button>
+              <button onclick="publishUpdate()" id="publishUpdateBtn" class="btn btn-ghost btn-full" style="height:46px;font-size:.9375rem;font-weight:700;display:none;border-color:rgba(59,165,93,.3);color:var(--green);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23,4 23,10 17,10"/><polyline points="1,20 1,14 7,14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                Push Update &amp; Bring Online
+              </button>
+            </div>
+
+            <!-- Shutdown log -->
+            <div class="card" style="margin-top:20px;">
+              <div class="card-header"><div class="card-title">Shutdown History</div></div>
+              <div id="shutdownLog" style="max-height:220px;overflow-y:auto;">
+                <div style="padding:20px;text-align:center;color:var(--text-4);font-size:.875rem;">No shutdown events recorded.</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+<!-- ═══════════════════════════════════════
+     MAINTENANCE SCREEN (full-page overlay)
+═══════════════════════════════════════ -->
+<div id="maintenanceScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:#0b0c10;align-items:center;justify-content:center;text-align:center;padding:24px;">
+  <div style="max-width:540px;width:100%;animation:fadeUp .5s ease both;">
+    <!-- Pulsing warning icon -->
+    <div style="position:relative;width:80px;height:80px;margin:0 auto 24px;">
+      <div style="position:absolute;inset:-10px;border-radius:50%;border:2px solid rgba(237,66,69,.2);animation:maintPing 2s ease infinite;"></div>
+      <div style="width:80px;height:80px;border-radius:22px;background:linear-gradient(135deg,rgba(237,66,69,.15),rgba(240,79,0,.08));border:1px solid rgba(237,66,69,.3);display:flex;align-items:center;justify-content:center;">
+        <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#ed4245" stroke-width="2" style="animation:maintPulse 2.4s ease infinite;"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+      </div>
+    </div>
+    <!-- Status pill -->
+    <div style="display:inline-flex;align-items:center;gap:7px;background:rgba(237,66,69,.1);border:1px solid rgba(237,66,69,.25);border-radius:999px;padding:5px 14px;margin-bottom:20px;">
+      <div style="width:7px;height:7px;border-radius:50%;background:#ed4245;animation:maintBlink 1.2s ease infinite;"></div>
+      <span style="font-size:.75rem;font-weight:700;color:#ed4245;text-transform:uppercase;letter-spacing:.12em;">Site Offline</span>
+    </div>
+    <h1 style="font-size:1.875rem;font-weight:800;letter-spacing:-.03em;color:#e3e5e8;margin-bottom:10px;">Under Maintenance</h1>
+    <p id="maintMsgDisplay" style="font-size:.9375rem;color:#80848e;line-height:1.7;margin-bottom:28px;max-width:420px;margin-left:auto;margin-right:auto;">Kii Akira is currently offline for maintenance. We'll be back shortly.</p>
+
+    <!-- ETA countdown -->
+    <div id="maintEtaBox" style="display:none;background:#111318;border:1px solid #2a2d36;border-radius:14px;padding:18px 24px;margin-bottom:20px;">
+      <div style="font-size:.625rem;font-weight:700;color:#4e5058;text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px;">Estimated Return</div>
+      <div id="maintEtaDisplay" style="font-size:1.25rem;font-weight:700;color:#e3e5e8;font-family:'JetBrains Mono',monospace;margin-bottom:4px;"></div>
+      <div id="maintCountdown" style="font-size:.8125rem;color:#80848e;"></div>
+    </div>
+
+    <!-- Update notes -->
+    <div id="maintUpdateBox" style="display:none;background:#111318;border:1px solid #2a2d36;border-radius:14px;padding:18px 24px;margin-bottom:24px;text-align:left;">
+      <div style="font-size:.625rem;font-weight:700;color:#4e5058;text-transform:uppercase;letter-spacing:.12em;margin-bottom:12px;">What's Coming in This Update</div>
+      <div id="maintUpdateDisplay" style="font-size:.875rem;color:#b5bac1;line-height:1.8;"></div>
+    </div>
+
+    <!-- Version + branding -->
+    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:24px;">
+      <span id="maintVersionDisplay" style="font-size:.75rem;color:#4e5058;font-family:'JetBrains Mono',monospace;">v1.0.0</span>
+      <span style="width:3px;height:3px;border-radius:50%;background:#4e5058;display:inline-block;"></span>
+      <span style="font-size:.75rem;color:#4e5058;">Kii Akira Platform</span>
+    </div>
+
+    <!-- Admin bypass (hidden from normal users) -->
+    <div id="maintAdminBypass" style="display:none;padding-top:20px;border-top:1px solid #1e2028;">
+      <p style="font-size:.75rem;color:#4e5058;margin-bottom:12px;">You have admin access.</p>
+      <button onclick="bypassMaintenance()" style="background:#5865f2;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-family:'Inter',sans-serif;font-size:.875rem;font-weight:600;cursor:pointer;" onmouseover="this.style.background='#4752c4'" onmouseout="this.style.background='#5865f2'">
+        Enter Dashboard →
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Shutdown confirmation modal -->
+<div class="backdrop" id="shutdownConfirmBackdrop" onclick="closeShutdownConfirm()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:420px;">
+    <div class="modal-header">
+      <div class="modal-title flex items-center gap-2" style="color:var(--red);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Confirm Shutdown
+      </div>
+      <button class="modal-close" onclick="closeShutdownConfirm()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div style="background:rgba(237,66,69,.07);border:1px solid rgba(237,66,69,.2);border-radius:var(--r-md);padding:14px;margin-bottom:18px;font-size:.875rem;color:var(--text-2);line-height:1.6;">
+        This will <strong style="color:var(--red);">immediately take the website offline</strong> for all users. They will see the maintenance screen until you bring it back online.
+      </div>
+      <div class="field" style="margin-bottom:4px;">
+        <label>Type <span style="font-family:'JetBrains Mono',monospace;color:var(--red);">SHUTDOWN</span> to confirm</label>
+        <input type="text" id="shutdownConfirmInput" class="input" placeholder="SHUTDOWN" autocomplete="off" oninput="checkShutdownConfirm()">
+      </div>
+      <div class="flex gap-2" style="margin-top:16px;">
+        <button onclick="closeShutdownConfirm()" class="btn btn-ghost flex-1">Cancel</button>
+        <button onclick="executeShutdown()" id="confirmShutdownBtn" class="btn btn-danger flex-1" disabled style="opacity:.4;cursor:not-allowed;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          Shut Down Now
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes maintPing{0%{transform:scale(1);opacity:.5}100%{transform:scale(1.5);opacity:0}}
+@keyframes maintPulse{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes maintBlink{0%,100%{opacity:1}50%{opacity:.2}}
+</style>
+
+<!-- ═══════════════════════════════════════
+     MODALS
+═══════════════════════════════════════ -->
+
+<!-- Discord Auth Modal — multi-step -->
+<div class="backdrop" id="discordBackdrop" onclick="if(authStep===1)closeDiscord()">
+  <div class="modal" id="discordModal" onclick="event.stopPropagation()" style="max-width:460px;">
+
+    <!-- ── STEP 1: Email ── -->
+    <div id="authStep1">
+      <div class="modal-header">
+        <div class="modal-title flex items-center gap-2">
+          <div style="width:28px;height:28px;border-radius:8px;background:#5865f2;display:flex;align-items:center;justify-content:center;">
+            <svg width="16" height="12" viewBox="0 0 22 16" fill="white"><path d="M18.59 1.33A18.17 18.17 0 0 0 14.1 0a.07.07 0 0 0-.07.03 12.68 12.68 0 0 0-.56 1.15 16.77 16.77 0 0 0-5.03 0A11.65 11.65 0 0 0 7.88.03a.07.07 0 0 0-.07-.03 18.13 18.13 0 0 0-4.49 1.33.06.06 0 0 0-.03.02C.48 5.57-.29 9.7.09 13.77a.07.07 0 0 0 .03.05 18.26 18.26 0 0 0 5.5 2.78.07.07 0 0 0 .08-.03c.42-.58.8-1.19 1.12-1.83a.07.07 0 0 0-.04-.09 12.03 12.03 0 0 1-1.72-.82.07.07 0 0 1-.01-.11c.12-.09.23-.18.34-.27a.07.07 0 0 1 .07-.01 13.01 13.01 0 0 0 11.06 0 .07.07 0 0 1 .07.01c.11.09.23.18.34.27a.07.07 0 0 1-.01.11 11.3 11.3 0 0 1-1.72.82.07.07 0 0 0-.04.09 20.5 20.5 0 0 0 1.12 1.83.07.07 0 0 0 .08.03 18.21 18.21 0 0 0 5.51-2.78.07.07 0 0 0 .03-.05c.46-4.74-.77-8.86-3.26-12.41a.05.05 0 0 0-.03-.03Z"/></svg>
+          </div>
+          Connect to Discord
+        </div>
+        <button class="modal-close" onclick="closeDiscord()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div style="display:flex;gap:8px;margin-bottom:20px;">
+          <div style="flex:1;height:3px;border-radius:2px;background:var(--brand);"></div>
+          <div style="flex:1;height:3px;border-radius:2px;background:var(--border);"></div>
+          <div style="flex:1;height:3px;border-radius:2px;background:var(--border);"></div>
+        </div>
+        <p style="font-size:.8125rem;color:var(--text-3);margin-bottom:16px;line-height:1.5;">Step 1 of 3 — Enter your email address. We'll send a verification code to confirm it's you.</p>
+        <div class="field">
+          <label>Email Address</label>
+          <input type="email" id="authEmail" class="input" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div id="authEmailErr" style="display:none;font-size:.75rem;color:var(--red);margin-bottom:10px;"></div>
+        <div class="flex gap-2" style="margin-top:4px;">
+          <button onclick="closeDiscord()" class="btn btn-ghost flex-1">Cancel</button>
+          <button onclick="sendEmailCode()" id="sendCodeBtn" class="btn btn-discord flex-1">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            Send Code
+          </button>
+        </div>
+        <div style="margin-top:14px;padding:12px;background:rgba(88,101,242,.06);border:1px solid rgba(88,101,242,.15);border-radius:var(--r-md);">
+          <div style="font-size:.6875rem;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Already have an account?</div>
+          <div style="font-size:.8125rem;color:var(--text-3);">Returning users are remembered via saved session. <button onclick="checkReturnUser()" style="background:none;border:none;cursor:pointer;color:var(--brand-light);font-size:.8125rem;font-family:inherit;">Quick login →</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── STEP 2: Verify Email Code ── -->
+    <div id="authStep2" style="display:none;">
+      <div class="modal-header">
+        <div class="modal-title flex items-center gap-2">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13 19.79 19.79 0 0 1 1.61 4.37 2 2 0 0 1 3.58 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.16 6.16l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 17v-.08z"/></svg>
+          Verify Your Email
+        </div>
+      </div>
+      <div class="modal-body">
+        <div style="display:flex;gap:8px;margin-bottom:20px;">
+          <div style="flex:1;height:3px;border-radius:2px;background:var(--brand);"></div>
+          <div style="flex:1;height:3px;border-radius:2px;background:var(--brand);"></div>
+          <div style="flex:1;height:3px;border-radius:2px;background:var(--border);"></div>
+        </div>
+        <div style="text-align:center;margin-bottom:20px;">
+          <div style="width:52px;height:52px;background:rgba(59,165,93,.1);border:1px solid rgba(59,165,93,.25);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          </div>
+          <p style="font-size:.875rem;color:var(--text-2);margin-bottom:4px;">Code sent to <strong id="emailDisplay" style="color:var(--text-1);">—</strong></p>
+          <p style="font-size:.75rem;color:var(--text-3);">Check your inbox and enter the 6-digit code below.</p>
+        </div>
+        <!-- 6-digit code input -->
+        <div style="display:flex;gap:8px;justify-content:center;margin-bottom:6px;" id="codeInputRow">
+          <input type="text" maxlength="1" class="input" style="width:44px;height:52px;text-align:center;font-size:1.25rem;font-weight:700;font-family:'JetBrains Mono',monospace;padding:0;" oninput="codeNav(this,0)" id="ci0">
+          <input type="text" maxlength="1" class="input" style="width:44px;height:52px;text-align:center;font-size:1.25rem;font-weight:700;font-family:'JetBrains Mono',monospace;padding:0;" oninput="codeNav(this,1)" id="ci1">
+          <input type="text" maxlength="1" class="input" style="width:44px;height:52px;text-align:center;font-size:1.25rem;font-weight:700;font-family:'JetBrains Mono',monospace;padding:0;" oninput="codeNav(this,2)" id="ci2">
+          <span style="display:flex;align-items:center;color:var(--text-4);font-size:1.25rem;">—</span>
+          <input type="text" maxlength="1" class="input" style="width:44px;height:52px;text-align:center;font-size:1.25rem;font-weight:700;font-family:'JetBrains Mono',monospace;padding:0;" oninput="codeNav(this,3)" id="ci3">
+          <input type="text" maxlength="1" class="input" style="width:44px;height:52px;text-align:center;font-size:1.25rem;font-weight:700;font-family:'JetBrains Mono',monospace;padding:0;" oninput="codeNav(this,4)" id="ci4">
+          <input type="text" maxlength="1" class="input" style="width:44px;height:52px;text-align:center;font-size:1.25rem;font-weight:700;font-family:'JetBrains Mono',monospace;padding:0;" oninput="codeNav(this,5)" id="ci5">
+        </div>
+        <!-- dev hint -->
+        <div id="codeHint" style="text-align:center;margin-bottom:14px;background:rgba(240,180,41,.07);border:1px solid rgba(240,180,41,.18);border-radius:var(--r-sm);padding:8px 12px;font-size:.75rem;color:var(--text-3);">
+          📬 Code: <strong id="codeDisplay" style="font-family:'JetBrains Mono',monospace;color:var(--gold);letter-spacing:.1em;">——————</strong>
+          <span style="font-size:.625rem;color:var(--text-4);display:block;margin-top:2px;">Shown here because no mail server is connected yet</span>
+        </div>
+        <div id="authCodeErr" style="display:none;font-size:.75rem;color:var(--red);margin-bottom:10px;text-align:center;"></div>
+        <div class="flex gap-2">
+          <button onclick="goStep(1)" class="btn btn-ghost flex-1">Back</button>
+          <button onclick="verifyEmailCode()" class="btn btn-primary flex-1">Verify Code</button>
+        </div>
+        <div style="text-align:center;margin-top:12px;">
+          <button onclick="resendCode()" style="background:none;border:none;cursor:pointer;color:var(--brand-light);font-size:.75rem;font-family:inherit;" id="resendBtn">Resend code</button>
+          <span id="resendTimer" style="font-size:.75rem;color:var(--text-4);display:none;"> (wait <span id="resendCount">30</span>s)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── STEP 3: Discord OAuth ── -->
+    <div id="authStep3" style="display:none;">
+      <div class="modal-header">
+        <div class="modal-title flex items-center gap-2">
+          <div style="width:28px;height:28px;border-radius:8px;background:#5865f2;display:flex;align-items:center;justify-content:center;">
+            <svg width="16" height="12" viewBox="0 0 22 16" fill="white"><path d="M18.59 1.33A18.17 18.17 0 0 0 14.1 0a.07.07 0 0 0-.07.03 12.68 12.68 0 0 0-.56 1.15 16.77 16.77 0 0 0-5.03 0A11.65 11.65 0 0 0 7.88.03a.07.07 0 0 0-.07-.03 18.13 18.13 0 0 0-4.49 1.33.06.06 0 0 0-.03.02C.48 5.57-.29 9.7.09 13.77a.07.07 0 0 0 .03.05 18.26 18.26 0 0 0 5.5 2.78.07.07 0 0 0 .08-.03c.42-.58.8-1.19 1.12-1.83a.07.07 0 0 0-.04-.09 12.03 12.03 0 0 1-1.72-.82.07.07 0 0 1-.01-.11c.12-.09.23-.18.34-.27a.07.07 0 0 1 .07-.01 13.01 13.01 0 0 0 11.06 0 .07.07 0 0 1 .07.01c.11.09.23.18.34.27a.07.07 0 0 1-.01.11 11.3 11.3 0 0 1-1.72.82.07.07 0 0 0-.04.09 20.5 20.5 0 0 0 1.12 1.83.07.07 0 0 0 .08.03 18.21 18.21 0 0 0 5.51-2.78.07.07 0 0 0 .03-.05c.46-4.74-.77-8.86-3.26-12.41a.05.05 0 0 0-.03-.03Z"/></svg>
+          </div>
+          Connect Discord Account
+        </div>
+      </div>
+      <div class="modal-body">
+        <div style="display:flex;gap:8px;margin-bottom:20px;">
+          <div style="flex:1;height:3px;border-radius:2px;background:var(--brand);"></div>
+          <div style="flex:1;height:3px;border-radius:2px;background:var(--brand);"></div>
+          <div style="flex:1;height:3px;border-radius:2px;background:var(--brand);"></div>
+        </div>
+        <p style="font-size:.8125rem;color:var(--text-3);margin-bottom:18px;line-height:1.5;">Step 3 of 3 — Authorize Kii Akira to link your Discord account. This gives us your username and user ID.</p>
+        <!-- Discord OAuth button -->
+        <button onclick="openDiscordOAuth()" class="btn btn-discord btn-full" style="height:48px;font-size:.9375rem;margin-bottom:12px;">
+          <svg width="18" height="14" viewBox="0 0 22 16" fill="white"><path d="M18.59 1.33A18.17 18.17 0 0 0 14.1 0a.07.07 0 0 0-.07.03 12.68 12.68 0 0 0-.56 1.15 16.77 16.77 0 0 0-5.03 0A11.65 11.65 0 0 0 7.88.03a.07.07 0 0 0-.07-.03 18.13 18.13 0 0 0-4.49 1.33.06.06 0 0 0-.03.02C.48 5.57-.29 9.7.09 13.77a.07.07 0 0 0 .03.05 18.26 18.26 0 0 0 5.5 2.78.07.07 0 0 0 .08-.03c.42-.58.8-1.19 1.12-1.83a.07.07 0 0 0-.04-.09 12.03 12.03 0 0 1-1.72-.82.07.07 0 0 1-.01-.11c.12-.09.23-.18.34-.27a.07.07 0 0 1 .07-.01 13.01 13.01 0 0 0 11.06 0 .07.07 0 0 1 .07.01c.11.09.23.18.34.27a.07.07 0 0 1-.01.11 11.3 11.3 0 0 1-1.72.82.07.07 0 0 0-.04.09 20.5 20.5 0 0 0 1.12 1.83.07.07 0 0 0 .08.03 18.21 18.21 0 0 0 5.51-2.78.07.07 0 0 0 .03-.05c.46-4.74-.77-8.86-3.26-12.41a.05.05 0 0 0-.03-.03Z"/></svg>
+          Authorize with Discord
+        </button>
+        <div style="background:rgba(88,101,242,.06);border:1px solid rgba(88,101,242,.15);border-radius:var(--r-md);padding:12px;font-size:.75rem;color:var(--text-3);line-height:1.6;margin-bottom:14px;">
+          <strong style="color:var(--brand-light);">What we access:</strong><br>
+          • Your Discord username &amp; discriminator<br>
+          • Your Discord user ID (for account linking)<br>
+          • Your email (to match your verified address)<br>
+          <span style="color:var(--text-4);">We never post, DM, or access your servers without permission.</span>
+        </div>
+        <div style="margin-bottom:14px;position:relative;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            <div style="flex:1;height:1px;background:var(--border);"></div>
+            <span style="font-size:.7rem;color:var(--text-4);">or enter manually</span>
+            <div style="flex:1;height:1px;background:var(--border);"></div>
+          </div>
+          <input type="text" id="discordUsername" class="input" placeholder="Your Discord username (e.g. kiiakira)" autocomplete="off" autocapitalize="off">
+          <div style="font-size:.7rem;color:var(--text-4);margin-top:5px;">Used when OAuth popup is blocked or unavailable.</div>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="goStep(2)" class="btn btn-ghost flex-1">Back</button>
+          <button onclick="authorizeDiscord()" class="btn btn-primary flex-1">Complete Setup</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── STEP 4: Success ── -->
+    <div id="authStep4" style="display:none;">
+      <div class="modal-body" style="text-align:center;padding:40px 32px;">
+        <div style="width:64px;height:64px;background:rgba(59,165,93,.12);border:1px solid rgba(59,165,93,.28);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><polyline points="20,6 9,17 4,12"/></svg>
+        </div>
+        <h2 style="font-size:1.125rem;margin-bottom:6px;">Account Verified!</h2>
+        <p style="font-size:.875rem;color:var(--text-3);line-height:1.5;">Welcome to Kii Akira, <strong id="successUsername" style="color:var(--text-1);">—</strong>. Your account has been secured and linked to Discord.</p>
+        <div style="margin-top:16px;padding:12px;background:var(--bg-300);border-radius:var(--r-md);font-size:.8125rem;color:var(--text-3);">Entering dashboard...</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Memory Detail Modal -->
+<div class="backdrop" id="memDetailBackdrop" onclick="closeMemDetail()">
+  <div class="modal" id="memDetailModal" onclick="event.stopPropagation()">
+    <div class="modal-header" style="position:sticky;top:0;">
+      <div style="flex:1;min-width:0;">
+        <div class="modal-title" id="detailTitle">Memory</div>
+        <div class="flex items-center gap-2" style="margin-top:6px;">
+          <div class="mem-track" style="flex:1;"><div class="mem-fill" id="detailMemBar" style="width:0%;"></div></div>
+          <span class="text-xs text-3 font-mono" id="detailMemStats">0 / 0</span>
+        </div>
+      </div>
+      <div class="flex gap-2 items-center">
+        <button onclick="clearContextMemory()" class="btn btn-danger btn-sm">Clear</button>
+        <button class="modal-close" onclick="closeMemDetail()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div style="background:rgba(250,166,26,.06);border:1px solid rgba(250,166,26,.18);border-radius:var(--r-md);padding:10px 14px;margin-bottom:14px;display:flex;gap:8px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#faa61a" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/></svg>
+        <span style="font-size:.75rem;color:var(--text-3);">Auto-eviction is active — oldest messages removed first when full.</span>
+      </div>
+      <div id="memEntryList" style="max-height:420px;overflow-y:auto;"></div>
+      <div id="noMemEntries" style="display:none;text-align:center;padding:40px 0;color:var(--text-4);">
+        <p>No memory entries yet.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- User Menu -->
+<div id="userMenuOverlay" style="display:none;position:fixed;inset:0;z-index:105;" onclick="closeUserMenu()"></div>
+<div class="modal" id="userMenuModal" style="display:none;">
+  <div style="padding:16px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center;">
+    <div class="user-avatar" id="menuAvatar">?</div>
+    <div><div class="font-semibold text-sm" id="menuUsername">—</div><div id="menuRoleBadge" class="badge badge-user" style="margin-top:3px;">User</div></div>
+  </div>
+  <div style="padding:8px;">
+    <button class="nav-item" style="width:100%;" onclick="switchPage('vip',document.getElementById('nav-vip'));closeUserMenu();">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
+      <span>VIP Store</span>
+    </button>
+    <div class="nav-divider"></div>
+    <button class="nav-item" style="width:100%;color:var(--red);" onclick="logout();closeUserMenu();">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      <span>Sign out</span>
+    </button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <svg id="toastIcon" class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20,6 9,17 4,12"/></svg>
+  <span id="toastMsg" class="toast-msg">Success</span>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+//  SAFE ICON INIT — wraps all lucide calls
+// ═══════════════════════════════════════
+function safeIcons() {
+  if (typeof lucide !== 'undefined' && lucide.createIcons) {
+    try { lucide.createIcons(); } catch(e) {}
+  }
+}
+window.addEventListener('load', safeIcons);
+
+// ═══════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════
+const ACCESS_KEY = 'Hello';
+let currentUser = null;
+let selectedModel = null;
+let selectedPersonality = 'helpful';
+
+// ─── Models ───
+const models = [
+  { id:'akira',   name:'Akira AI',      tier:'VIP',  vip:true,  color:'#f0b429', icon:'sparkles',
+    desc:'Our flagship model. Massive memory, advanced reasoning, multimodal.',
+    specs:{tokens:'500,000+',memory:'500MB',speed:'Ultra',multimodal:true},
+    serverMemLimit:1000, dmMemLimit:1000, maxContexts:50, memoryLabel:'500MB · 1,000 entries/context' },
+  { id:'gpt4',    name:'GPT-4 Turbo',   tier:'FREE', vip:false, color:'#5865f2', icon:'brain',
+    desc:'Most capable general model for complex reasoning and creative tasks.',
+    specs:{tokens:'128,000',memory:'8KB',speed:'Fast',multimodal:true},
+    serverMemLimit:200, dmMemLimit:200, maxContexts:20, memoryLabel:'8KB · 200 entries/context' },
+  { id:'claude',  name:'Claude 3 Opus', tier:'FREE', vip:false, color:'#8338ec', icon:'message-square',
+    desc:'Excellent for long-context conversations and nuanced reasoning.',
+    specs:{tokens:'200,000',memory:'12KB',speed:'Fast',multimodal:true},
+    serverMemLimit:300, dmMemLimit:300, maxContexts:25, memoryLabel:'12KB · 300 entries/context' },
+  { id:'llama',   name:'Llama 3 70B',   tier:'FREE', vip:false, color:'#3a86ff', icon:'code-2',
+    desc:'Open source powerhouse with great multilingual performance.',
+    specs:{tokens:'8,000',memory:'4KB',speed:'Very Fast',multimodal:false},
+    serverMemLimit:100, dmMemLimit:100, maxContexts:15, memoryLabel:'4KB · 100 entries/context' },
+  { id:'mistral', name:'Mistral Large', tier:'FREE', vip:false, color:'#f97316', icon:'zap',
+    desc:'Efficient and cost-effective for high-volume use.',
+    specs:{tokens:'32,000',memory:'2KB',speed:'Ultra Fast',multimodal:false},
+    serverMemLimit:80, dmMemLimit:80, maxContexts:10, memoryLabel:'2KB · 80 entries/context' },
+];
+
+// ─── Admin data ───
+const managedUsers = [
+  {id:'kiiakira',    username:'kiiakira',    role:'developer',   isVIP:true,  bots:1, banned:false, joined:'2024-01-01'},
+  {id:'starplayer99',username:'starplayer99',role:'user',        isVIP:false, bots:1, banned:false, joined:'2025-01-15'},
+  {id:'anime_fan21', username:'anime_fan21', role:'beta_tester', isVIP:true,  bots:3, banned:false, joined:'2025-02-10'},
+  {id:'rxblox_dev',  username:'rxblox_dev',  role:'user',        isVIP:false, bots:0, banned:false, joined:'2025-03-01'},
+  {id:'shadow_mod',  username:'shadow_mod',  role:'admin',       isVIP:true,  bots:1, banned:false, joined:'2024-06-01'},
+];
+let whitelist = [
+  {username:'anime_fan21', status:'whitelist', role:'beta_tester'},
+  {username:'shadow_mod',  status:'whitelist', role:'admin'},
+  {username:'bad_actor99', status:'blacklist', role:'none'},
+];
+let activityLog = [
+  {time:'14:32:01', user:'starplayer99', type:'ai',       action:'Used GPT-4 · 2,300 tokens',          status:'OK'},
+  {time:'14:31:45', user:'anime_fan21',  type:'executor', action:'Script executed in Roblox',           status:'OK'},
+  {time:'14:30:12', user:'rxblox_dev',   type:'website',  action:'Visited Create AI',                   status:'OK'},
+  {time:'14:28:55', user:'shadow_mod',   type:'ai',       action:'Used Akira AI · 15,400 tokens (VIP)', status:'OK'},
+  {time:'14:27:33', user:'kiiakira',     type:'website',  action:'Admin Panel access',                  status:'OK'},
+  {time:'14:20:00', user:'unknown',      type:'website',  action:'Failed key verification',             status:'BLOCKED'},
+];
+
+// ─── Bot memory ───
+const botMemory = {};
+const deployedBots = [];
+let currentMemBot = null;
+let currentMemDetail = null;
+let memDetailEntries = null;
+let memDetailLimit = 100;
+
+// ═══════════════════════════════════════
+//  MEMORY ENGINE
+// ═══════════════════════════════════════
+const sampleConvos = {
+  server:[
+    ['user','What commands do you have?'],['assistant','I have /chat, /imagine, /help, /clear, and /stats!'],
+    ['user','Can you help me with Roblox scripting?'],['assistant','Sure! I can help with Luau, game mechanics and more.'],
+    ['user','How do I make a part move back and forth?'],['assistant','Use TweenService — create a goal position and tween back and forth.'],
+    ['user','Thanks! Remember this for next time.'],['assistant','Absolutely — I have this in my server memory for this channel.'],
+  ],
+  dm:[
+    ['user','Hey, remember me?'],['assistant','Of course! Last time we talked about Roblox scripting tips.'],
+    ['user','Keep track of my game ideas?'],['assistant','Sure — your DM memory is private and persistent. Go ahead!'],
+    ['user','Idea: sky island builder game'],['assistant','Saved: "Sky Islands Builder — sky islands, player trading economy."'],
+    ['user','Idea 2: horror school game'],['assistant','Saved: "Abandoned School Horror — atmospheric, exploration." Two ideas logged.'],
+  ]
+};
+
+function genEntries(type, count, limit) {
+  const c = sampleConvos[type==='server'?'server':'dm'];
+  const entries=[], base=Date.now()-count*90000;
+  for(let i=0;i<count;i++){
+    const ts=new Date(base+i*60000);
+    entries.push({id:'e_'+Math.random().toString(36).slice(2,9),role:i%2===0?'user':'assistant',content:c[i%c.length][i%2],timestamp:ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),date:ts.toLocaleDateString()});
+  }
+  return entries;
+}
+
+function seedBotMemory(botId, modelId) {
+  botMemory[botId]={model:modelId,serverMemEnabled:true,dmMemEnabled:true,evictionCount:0,
+    servers:{
+      srv_gen:{name:'Anime Hub',channel:'#general',entries:genEntries('server',12,200)},
+      srv_help:{name:'Anime Hub',channel:'#help',entries:genEntries('server',6,200)},
+      srv_bot:{name:'Dev Server',channel:'#bot-cmds',entries:genEntries('server',24,200)},
+    },
+    dms:{
+      dm1:{username:'starplayer99',entries:genEntries('dm',18,200)},
+      dm2:{username:'anime_fan21',entries:genEntries('dm',8,200)},
+    }
+  };
+}
+
+function pushMemEntry(botId, type, ctxKey, role, content) {
+  const mem=botMemory[botId]; if(!mem) return;
+  const store=type==='server'?mem.servers:mem.dms;
+  if(!store[ctxKey]) return;
+  const ctx=store[ctxKey];
+  const m=models.find(x=>x.id===mem.model);
+  const limit=type==='server'?m.serverMemLimit:m.dmMemLimit;
+  const now=new Date();
+  while(ctx.entries.length>=limit){ctx.entries.shift();mem.evictionCount++;showEviction(botId,type,ctxKey);}
+  ctx.entries.push({id:'e_'+Math.random().toString(36).slice(2,9),role,content,timestamp:now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),date:now.toLocaleDateString()});
+  updateStats();
+}
+
+function showEviction(botId,type,ctxKey){
+  const mem=botMemory[botId];
+  const ctx=type==='server'?mem.servers[ctxKey]:mem.dms[ctxKey];
+  const botName=deployedBots.find(b=>b.id===botId)?.name||botId;
+  const ctxName=ctx?(ctx.channel||'@'+ctx.username):ctxKey;
+  toast(`Memory full — evicted oldest in ${botName} ${ctxName}`,'warn');
+}
+
+function getBotMemUsage(botId) {
+  const mem=botMemory[botId]; if(!mem) return{used:0,max:0,pct:0};
+  const m=models.find(x=>x.id===mem.model);
+  let used=0,max=0;
+  for(const k in mem.servers){used+=mem.servers[k].entries.length;}
+  for(const k in mem.dms){used+=mem.dms[k].entries.length;}
+  max=(Object.keys(mem.servers).length*m.serverMemLimit)+(Object.keys(mem.dms).length*m.dmMemLimit);
+  if(!max)max=1;
+  return{used,max,pct:Math.min(100,Math.round((used/max)*100))};
+}
+
+function memColor(pct){return pct<60?'var(--green)':pct<85?'var(--yellow)':'var(--red)';}
+function memClass(pct){return pct<60?'green':pct<85?'yellow':'red';}
+
+function totalMemEntries(){
+  let t=0;
+  for(const id in botMemory){const m=botMemory[id];for(const k in m.servers)t+=m.servers[k].entries.length;for(const k in m.dms)t+=m.dms[k].entries.length;}
+  return t;
+}
+function updateStats(){
+  document.getElementById('statMemEntries').textContent=totalMemEntries();
+  document.getElementById('statActiveBots').textContent=deployedBots.filter(b=>b.online).length;
+}
+
+// ═══════════════════════════════════════
+//  PERSISTENT STORAGE
+// ═══════════════════════════════════════
+const STORE_KEY = 'kiiakira_session';
+const ACCOUNTS_KEY = 'kiiakira_accounts';
+
+function saveSession(){
+  if(!currentUser)return;
+  try{
+    localStorage.setItem(STORE_KEY,JSON.stringify({
+      username:currentUser.username,
+      role:currentUser.role,
+      isVIP:currentUser.isVIP,
+      email:currentUser.email||'',
+      discordLinked:currentUser.discordLinked||false,
+      savedAt:Date.now()
+    }));
+    // also save all accounts so they persist
+    localStorage.setItem(ACCOUNTS_KEY,JSON.stringify(managedUsers));
+  }catch(e){}
+}
+function loadSavedAccounts(){
+  try{
+    const a=localStorage.getItem(ACCOUNTS_KEY);
+    if(a){const parsed=JSON.parse(a);parsed.forEach(p=>{if(!managedUsers.find(u=>u.id===p.id))managedUsers.push(p);});}
+  }catch(e){}
+}
+function loadSession(){
+  try{
+    const s=localStorage.getItem(STORE_KEY);
+    if(!s)return null;
+    const d=JSON.parse(s);
+    // expire after 7 days
+    if(Date.now()-d.savedAt>7*24*60*60*1000){localStorage.removeItem(STORE_KEY);return null;}
+    return d;
+  }catch(e){return null;}
+}
+function clearSession(){
+  try{localStorage.removeItem(STORE_KEY);}catch(e){}
+}
+
+// auto-save on page close / navigation away
+window.addEventListener('beforeunload',()=>{saveSession();});
+// restore on load
+const BACKEND_URL='https://kii-akira-backen-production.up.railway.app';
+
+window.addEventListener('DOMContentLoaded',async()=>{
+  loadSavedAccounts();
+  checkMaintenanceOnLoad();
+
+  // Check if Discord just redirected back
+  const params=new URLSearchParams(window.location.search);
+  if(params.get('discord_login')==='success'){
+    window.history.replaceState({},'',window.location.pathname);
+  }
+
+  // Ask backend if session is active
+  try{
+    const res=await fetch(`${BACKEND_URL}/auth/me`,{credentials:'include'});
+    const data=await res.json();
+    if(data.loggedIn){
+      const u=data.user;
+      const found=managedUsers.find(x=>x.username===u.username);
+      currentUser=found||{
+        id:u.username,username:u.username,role:'user',isVIP:false,
+        bots:0,banned:false,email:u.email,discordId:u.discordId,
+        avatar:u.avatar,discordLinked:true,
+      };
+      if(!found)managedUsers.push(currentUser);
+      currentUser.email=u.email;
+      currentUser.discordLinked=true;
+      currentUser.discordId=u.discordId;
+      document.getElementById('loginView').classList.remove('active');
+      document.getElementById('mainView').classList.add('active');
+      initApp();
+      toast(`Welcome back, ${currentUser.username}!`);
+      return;
+    }
+  }catch(e){console.warn('Backend unreachable — using offline mode');}
+
+  // Fallback: localStorage session
+  const sess=loadSession();
+  if(sess){
+    const found=managedUsers.find(u=>u.username===sess.username)||{
+      id:sess.username,username:sess.username,role:sess.role||'user',
+      isVIP:sess.isVIP||false,email:sess.email||'',discordLinked:sess.discordLinked||false,bots:0,banned:false
+    };
+    if(found.banned){clearSession();return;}
+    currentUser=found;
+    currentUser.discordLinked=sess.discordLinked||true;
+    currentUser.email=sess.email||'';
+    document.getElementById('loginView').classList.remove('active');
+    document.getElementById('mainView').classList.add('active');
+    initApp();
+    toast(`Welcome back, ${currentUser.username}!`);
+  }
+});
+
+// ═══════════════════════════════════════
+//  LOGIN
+// ═══════════════════════════════════════
+function verifyKey(){
+  const v=document.getElementById('keyInput').value;
+  if(v===ACCESS_KEY){toast('Key verified! Connect your Discord →');setTimeout(openDiscordModal,700);}
+  else{toast('Invalid access key','err');const inp=document.getElementById('keyInput');inp.style.borderColor='var(--red)';setTimeout(()=>{inp.style.borderColor='';},800);}
+}
+function togglePwd(){
+  const inp=document.getElementById('keyInput');
+  inp.type=inp.type==='password'?'text':'password';
+}
+
+// ═══════════════════════════════════════
+//  DISCORD AUTH — multi-step
+// ═══════════════════════════════════════
+let authStep=1;
+let authEmailValue='';
+let authCodeGenerated='';
+let resendInterval=null;
+
+function openDiscordModal(){
+  goStep(1);
+  document.getElementById('discordBackdrop').classList.add('open');
+}
+function closeDiscord(){
+  if(authStep>=4)return; // don't close mid-success
+  document.getElementById('discordBackdrop').classList.remove('open');
+}
+function goStep(n){
+  authStep=n;
+  [1,2,3,4].forEach(i=>document.getElementById('authStep'+i).style.display=i===n?'block':'none');
+}
+
+// Step 1 — send email code
+async function sendEmailCode(){
+  const email=document.getElementById('authEmail').value.trim();
+  const errEl=document.getElementById('authEmailErr');
+  errEl.style.display='none';
+  if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    errEl.textContent='Please enter a valid email address.';errEl.style.display='block';return;
+  }
+  const btn=document.getElementById('sendCodeBtn');
+  btn.disabled=true;btn.textContent='Sending...';
+  try{
+    const res=await fetch(`${BACKEND_URL}/auth/send-code`,{
+      method:'POST',credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email}),
+    });
+    const data=await res.json();
+    authEmailValue=email;
+    document.getElementById('emailDisplay').textContent=email;
+    clearCode();startResendTimer();
+    if(data.dev_code){
+      authCodeGenerated=data.dev_code;
+      document.getElementById('codeDisplay').textContent=formatCode(data.dev_code);
+      document.getElementById('codeHint').style.display='block';
+    } else {
+      authCodeGenerated=null;
+      document.getElementById('codeHint').style.display='none';
+    }
+    goStep(2);
+  }catch(e){
+    // Fallback offline mode
+    authEmailValue=email;
+    authCodeGenerated=generateCode();
+    document.getElementById('emailDisplay').textContent=email;
+    document.getElementById('codeDisplay').textContent=formatCode(authCodeGenerated);
+    document.getElementById('codeHint').style.display='block';
+    clearCode();startResendTimer();goStep(2);
+    toast('Using offline mode','warn');
+  }finally{
+    btn.disabled=false;
+    btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Send Code';
+  }
+}
+function generateCode(){return Math.floor(100000+Math.random()*900000).toString();}
+function formatCode(c){return c.slice(0,3)+' '+c.slice(3);}
+function clearCode(){[0,1,2,3,4,5].forEach(i=>{const e=document.getElementById('ci'+i);if(e)e.value='';});document.getElementById('ci0')?.focus();}
+function codeNav(inp,idx){
+  inp.value=inp.value.replace(/[^0-9]/g,'');
+  if(inp.value&&idx<5){document.getElementById('ci'+(idx+1))?.focus();}
+  // auto-submit when all 6 filled
+  const full=[0,1,2,3,4,5].map(i=>document.getElementById('ci'+i)?.value||'').join('');
+  if(full.length===6)setTimeout(verifyEmailCode,200);
+}
+async function verifyEmailCode(){
+  const entered=[0,1,2,3,4,5].map(i=>document.getElementById('ci'+i)?.value||'').join('');
+  const errEl=document.getElementById('authCodeErr');
+  errEl.style.display='none';
+  if(entered.length!==6){errEl.textContent='Enter all 6 digits.';errEl.style.display='block';return;}
+  // Local verification (offline/dev mode)
+  if(authCodeGenerated){
+    if(entered!==authCodeGenerated){
+      errEl.textContent='Incorrect code. Please try again.';errEl.style.display='block';
+      [0,1,2,3,4,5].forEach(i=>{const e=document.getElementById('ci'+i);if(e){e.style.borderColor='var(--red)';setTimeout(()=>e.style.borderColor='',800);}});
+      return;
+    }
+    clearInterval(resendInterval);goStep(3);toast('Email verified!');return;
+  }
+  // Backend verification
+  try{
+    const res=await fetch(`${BACKEND_URL}/auth/verify-code`,{
+      method:'POST',credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:authEmailValue,code:entered}),
+    });
+    const data=await res.json();
+    if(data.success){clearInterval(resendInterval);goStep(3);toast('Email verified!');}
+    else{errEl.textContent=data.error||'Incorrect code.';errEl.style.display='block';}
+  }catch(e){errEl.textContent='Could not reach server.';errEl.style.display='block';}
+}
+function resendCode(){
+  authCodeGenerated=generateCode();
+  document.getElementById('codeDisplay').textContent=formatCode(authCodeGenerated);
+  clearCode();
+  startResendTimer();
+  toast('New code generated');
+}
+function startResendTimer(){
+  const btn=document.getElementById('resendBtn');
+  const timer=document.getElementById('resendTimer');
+  const cnt=document.getElementById('resendCount');
+  btn.style.display='none';timer.style.display='inline';
+  let sec=30;cnt.textContent=sec;
+  clearInterval(resendInterval);
+  resendInterval=setInterval(()=>{
+    sec--;cnt.textContent=sec;
+    if(sec<=0){clearInterval(resendInterval);btn.style.display='inline';timer.style.display='none';}
+  },1000);
+}
+
+function openDiscordOAuth(){
+  window.location.href=`${BACKEND_URL}/auth/discord`;
+}
+
+function authorizeDiscord(){
+  const name=document.getElementById('discordUsername').value.trim().toLowerCase();
+  if(!name){toast('Enter your Discord username','err');return;}
+  finalizeAuth(name);
+}
+
+function finalizeAuth(username){
+  const found=managedUsers.find(u=>u.id===username||u.username===username);
+  // check email uniqueness
+  const emailConflict=managedUsers.find(u=>u.email===authEmailValue&&(u.username!==username));
+  if(emailConflict){
+    toast(`That email is already linked to @${emailConflict.username}`,'err');return;
+  }
+  if(found&&found.banned){toast('This account is banned.','err');return;}
+  currentUser=found||{id:username,username,role:'user',isVIP:false,bots:0,banned:false};
+  if(!found)managedUsers.push(currentUser);
+  currentUser.email=authEmailValue;
+  currentUser.discordLinked=true;
+  // success step
+  document.getElementById('successUsername').textContent=username;
+  goStep(4);
+  saveSession();
+  setTimeout(()=>{
+    document.getElementById('discordBackdrop').classList.remove('open');
+    document.getElementById('loginView').classList.remove('active');
+    document.getElementById('mainView').classList.add('active');
+    initApp();
+    toast(`Welcome, ${currentUser.username}! 🎉`);
+  },2000);
+}
+
+function checkReturnUser(){
+  // Quick login for returning users — check localStorage
+  const sess=loadSession();
+  if(!sess){toast('No saved session found. Complete setup.','warn');return;}
+  const found=managedUsers.find(u=>u.username===sess.username);
+  if(!found||found.banned){clearSession();toast('Session expired or account banned.','err');return;}
+  currentUser=found;currentUser.discordLinked=true;
+  document.getElementById('discordBackdrop').classList.remove('open');
+  document.getElementById('loginView').classList.remove('active');
+  document.getElementById('mainView').classList.add('active');
+  initApp();
+  toast(`Welcome back, ${currentUser.username}!`);
+}
+
+function loginAs(username){
+  // kept for compatibility
+  finalizeAuth(username);
+}
+
+// ═══════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════
+function initApp(){
+  updateUserUI();
+  renderCreateModels();
+  renderFullModels();
+  renderHomeBotsRef();
+  renderHubScripts();
+  renderVip();
+  renderActivityLog();
+  renderWhitelist();
+  renderUserMgmt();
+  startSysLog();
+  spawnDefaultBot();
+  startSimulation();
+  if(currentUser.role==='developer'||currentUser.role==='admin'){
+    document.getElementById('nav-admin').classList.remove('hidden');
+  }
+  addLog(currentUser.username,'website','Logged into platform');
+  saveSession(); // persist immediately after login
+}
+
+function spawnDefaultBot(){
+  const m=models[1];
+  const bot={id:'bot_default',name:'Akira-Helper',modelId:m.id,personality:'helpful',online:true,serverMemEnabled:true,dmMemEnabled:true};
+  deployedBots.push(bot);
+  seedBotMemory(bot.id,bot.modelId);
+  renderBotList();
+  updateBotMemSelect();
+  renderHomeBotsRef();
+  updateStats();
+}
+
+function updateUserUI(){
+  const u=currentUser;
+  const init=u.username.slice(0,2).toUpperCase();
+  document.getElementById('sidebarAvatar').textContent=init;
+  document.getElementById('sidebarUsername').textContent=u.username;
+  document.getElementById('menuAvatar').textContent=init;
+  document.getElementById('menuUsername').textContent=u.username;
+  const roles={developer:'🔧 Developer',admin:'🛡️ Admin',beta_tester:'🧪 Beta Tester',user:'User'};
+  const cls={developer:'badge-dev',admin:'badge-admin',beta_tester:'badge-beta',user:'badge-user'};
+  const roleLabel=(u.discordLinked?'<svg width="10" height="10" viewBox="0 0 22 16" fill="#5865f2" style="margin-right:3px;vertical-align:middle;"><path d="M18.59 1.33A18.17 18.17 0 0 0 14.1 0a.07.07 0 0 0-.07.03 12.68 12.68 0 0 0-.56 1.15 16.77 16.77 0 0 0-5.03 0A11.65 11.65 0 0 0 7.88.03a.07.07 0 0 0-.07-.03 18.13 18.13 0 0 0-4.49 1.33.06.06 0 0 0-.03.02C.48 5.57-.29 9.7.09 13.77a.07.07 0 0 0 .03.05 18.26 18.26 0 0 0 5.5 2.78.07.07 0 0 0 .08-.03c.42-.58.8-1.19 1.12-1.83a.07.07 0 0 0-.04-.09 12.03 12.03 0 0 1-1.72-.82.07.07 0 0 1-.01-.11c.12-.09.23-.18.34-.27a.07.07 0 0 1 .07-.01 13.01 13.01 0 0 0 11.06 0 .07.07 0 0 1 .07.01c.11.09.23.18.34.27a.07.07 0 0 1-.01.11 11.3 11.3 0 0 1-1.72.82.07.07 0 0 0-.04.09 20.5 20.5 0 0 0 1.12 1.83.07.07 0 0 0 .08.03 18.21 18.21 0 0 0 5.51-2.78.07.07 0 0 0 .03-.05c.46-4.74-.77-8.86-3.26-12.41a.05.05 0 0 0-.03-.03Z"/></svg>':'')+(roles[u.role]||'User');
+  document.getElementById('sidebarRole').innerHTML=roleLabel;
+  document.getElementById('menuRoleBadge').textContent=roles[u.role]||'User';
+  document.getElementById('menuRoleBadge').className='badge '+(cls[u.role]||'badge-user');
+}
+
+// ═══════════════════════════════════════
+//  PAGE SWITCHING
+// ═══════════════════════════════════════
+const pageMap={
+  home:{el:'homePage',type:'page',title:'Dashboard',sub:'Overview of your platform'},
+  createAI:{el:'createAIPage',type:'flex',title:'Create AI',sub:'Build and deploy Discord bots'},
+  executor:{el:'executorPage',type:'flex',title:'Akira Executor',sub:'Roblox script executor'},
+  vip:{el:'vipPage',type:'page',title:'VIP Store',sub:'Unlock the full platform'},
+  admin:{el:'adminPage',type:'flex',title:'Admin Panel',sub:'Platform management'},
+};
+
+function switchPage(page,navBtn){
+  document.querySelectorAll('.page,.page-flex').forEach(p=>{p.classList.remove('active');p.style.display='none';});
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  if(navBtn)navBtn.classList.add('active');
+  const cfg=pageMap[page];
+  if(!cfg)return;
+  const el=document.getElementById(cfg.el);
+  if(el){el.style.display=cfg.type==='flex'?'flex':'block';el.classList.add('active');}
+  document.getElementById('topbarTitle').textContent=cfg.title;
+  document.getElementById('topbarSub').textContent=cfg.sub;
+  if(page==='createAI')setStudio('createAI');
+  if(page==='admin'){setAdmin('activity');addLog(currentUser.username,'website','Accessed Admin Panel');}
+  if(page==='executor')addLog(currentUser.username,'executor','Opened Akira Executor');
+}
+
+// ═══════════════════════════════════════
+//  STUDIO PANELS
+// ═══════════════════════════════════════
+function setStudio(panel){
+  ['apiModels','createAI','memory'].forEach(id=>{
+    document.getElementById('panel-'+id).style.display=id===panel?'block':'none';
+    document.getElementById('sb-'+id)?.classList.toggle('active',id===panel);
+  });
+  if(panel==='memory'){updateBotMemSelect();updateStats();}
+}
+
+// ═══════════════════════════════════════
+//  MODEL RENDERING
+// ═══════════════════════════════════════
+function renderCreateModels(){
+  const c=document.getElementById('createModelList');if(!c)return;
+  c.innerHTML=models.map(m=>{
+    const locked=m.vip&&!(currentUser&&(currentUser.isVIP||currentUser.role==='developer'));
+    const sel=selectedModel===m.id;
+    return`<div class="model-card flex items-center gap-12 ${sel?'selected':''}" style="cursor:${locked?'not-allowed':'pointer'};" onclick="${locked?`toast('Akira AI is VIP only!','err')`:`selectModel('${m.id}')`}">
+      <div class="model-icon flex-shrink-0" style="background:${m.color}18;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${m.color}" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10,8 16,12 10,16"/></svg>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="model-name">${m.name}</span>
+          ${m.vip?`<span class="badge badge-vip" style="font-size:.6rem;">👑 VIP</span>`:`<span class="badge badge-user" style="font-size:.6rem;">${m.tier}</span>`}
+          ${locked?`<span class="badge" style="font-size:.6rem;background:rgba(237,66,69,.1);color:var(--red);border-color:rgba(237,66,69,.2);">Locked</span>`:''}
+        </div>
+        <div class="model-desc">${m.desc}</div>
+        <div class="model-mem">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          ${m.memoryLabel}
+        </div>
+      </div>
+      ${sel?`<div class="check-mark flex-shrink-0">✓</div>`:''}
+    </div>`;
+  }).join('');
+  updateMemPreview();
+}
+
+function renderFullModels(){
+  const c=document.getElementById('fullModelList');if(!c)return;
+  c.innerHTML=models.map(m=>{
+    const locked=m.vip&&!(currentUser&&(currentUser.isVIP||currentUser.role==='developer'));
+    return`<div class="card" style="margin-bottom:10px;">
+      <div class="card-body" style="padding:16px;">
+        <div class="flex items-start gap-14 mb-12">
+          <div class="model-icon flex-shrink-0" style="background:${m.color}18;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${m.color}" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10,8 16,12 10,16"/></svg>
+          </div>
+          <div class="flex-1">
+            <div class="flex items-center gap-2 flex-wrap mb-4">
+              <span style="font-size:.9375rem;font-weight:700;">${m.name}</span>
+              ${m.vip?`<span class="badge badge-vip" style="font-size:.6rem;">👑 VIP ONLY</span>`:`<span class="badge badge-user" style="font-size:.6rem;">${m.tier}</span>`}
+              ${locked?`<span class="badge" style="font-size:.6rem;background:rgba(237,66,69,.1);color:var(--red);border-color:rgba(237,66,69,.2);">🔒 Locked</span>`:''}
+            </div>
+            <p class="text-sm text-3" style="margin-bottom:12px;">${m.desc}</p>
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;font-size:.75rem;">
+              <div style="background:var(--bg-300);border-radius:6px;padding:8px;"><div class="text-4 text-xxs uppercase tracking-wide" style="margin-bottom:3px;">Context</div><div style="font-weight:700;color:${m.color};">${m.specs.tokens}</div></div>
+              <div style="background:var(--bg-300);border-radius:6px;padding:8px;"><div class="text-4 text-xxs uppercase tracking-wide" style="margin-bottom:3px;">Memory</div><div style="font-weight:700;color:${m.color};">${m.specs.memory}</div></div>
+              <div style="background:var(--bg-300);border-radius:6px;padding:8px;"><div class="text-4 text-xxs uppercase tracking-wide" style="margin-bottom:3px;">Speed</div><div style="font-weight:700;color:${m.color};">${m.specs.speed}</div></div>
+              <div style="background:var(--bg-300);border-radius:6px;padding:8px;"><div class="text-4 text-xxs uppercase tracking-wide" style="margin-bottom:3px;">Multimodal</div><div style="font-weight:700;color:${m.specs.multimodal?'var(--green)':'var(--text-4)'};">${m.specs.multimodal?'Yes':'No'}</div></div>
+            </div>
+          </div>
+        </div>
+        <div style="background:rgba(88,101,242,.07);border:1px solid rgba(88,101,242,.15);border-radius:var(--r-sm);padding:10px;display:flex;align-items:center;gap:8px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--brand-light)" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          <span style="font-size:.75rem;color:var(--text-3);">Memory: ${m.serverMemLimit} entries/server · ${m.dmMemLimit} entries/DM · Auto-eviction · ${m.maxContexts} max contexts</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectModel(id){selectedModel=id;renderCreateModels();}
+function selectP(btn,type){document.querySelectorAll('.p-btn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');selectedPersonality=type;}
+function updateMemPreview(){
+  const m=models.find(x=>x.id===selectedModel);
+  const prev=document.getElementById('memCapPreview');
+  if(!m){if(prev)prev.style.display='none';return;}
+  if(prev)prev.style.display='block';
+  const hasS=document.getElementById('serverMemToggle')?.classList.contains('on');
+  const hasD=document.getElementById('dmMemToggle')?.classList.contains('on');
+  const total=((hasS?m.serverMemLimit*m.maxContexts:0)+(hasD?m.dmMemLimit*m.maxContexts:0)).toLocaleString();
+  if(document.getElementById('memCapLabel'))document.getElementById('memCapLabel').textContent=m.memoryLabel;
+  if(document.getElementById('memCapMax'))document.getElementById('memCapMax').textContent=total+' total entries';
+  if(document.getElementById('memCapBar'))document.getElementById('memCapBar').style.background=m.color;
+}
+
+// ═══════════════════════════════════════
+//  BOT MANAGEMENT
+// ═══════════════════════════════════════
+function makeBotCard(bot){
+  const m=models.find(x=>x.id===bot.modelId);
+  const{used,max,pct}=getBotMemUsage(bot.id);
+  const mem=botMemory[bot.id];
+  const srvCnt=mem?Object.keys(mem.servers).length:0;
+  const dmCnt=mem?Object.keys(mem.dms).length:0;
+  return`<div class="bot-card" id="botcard_${bot.id}">
+    <div class="flex items-center gap-3" style="margin-bottom:14px;">
+      <div class="bot-avatar" style="background:${m.color}18;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${m.color}" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="bot-name">${bot.name}</div>
+        <div class="bot-model" style="color:${m.color};">${m.name}</div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="openMemoryForBot('${bot.id}')" class="btn btn-ghost btn-sm">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          Memory
+        </button>
+        <div class="toggle ${bot.online?'on':''}" id="toggle_${bot.id}" onclick="toggleBot('${bot.id}')"></div>
+      </div>
+    </div>
+    <div class="mem-section">
+      <div class="mem-label-row">
+        <div class="mem-label">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          Memory Usage
+          ${pct>=85?`<span class="badge" style="background:rgba(237,66,69,.1);color:var(--red);border-color:rgba(237,66,69,.2);font-size:.6rem;">Near Full</span>`:''}
+        </div>
+        <span class="mem-pct" id="memPct_${bot.id}" style="color:${memColor(pct)};">${pct}%</span>
+      </div>
+      <div class="mem-track"><div class="mem-fill ${memClass(pct)}" id="membar_${bot.id}" style="width:${pct}%;"></div></div>
+      <div class="mem-stats-row">
+        <div class="mem-stat" id="memLabel_${bot.id}">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          ${used} / ${max} entries
+        </div>
+        <div class="flex gap-3">
+          <div class="mem-stat">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+            ${srvCnt} servers
+          </div>
+          <div class="mem-stat">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            ${dmCnt} DMs
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="flex items-center justify-between" style="margin-top:12px;">
+      <div class="bot-status">
+        <div class="status-dot ${bot.online?'online':'offline'}"></div>
+        <span id="botStatusText_${bot.id}" style="color:${bot.online?'var(--green)':'var(--text-4)'};">${bot.online?'Online':'Paused'}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderBotList(){
+  const c=document.getElementById('botsList');if(!c)return;
+  c.innerHTML=deployedBots.map(b=>makeBotCard(b)).join('');
+}
+function renderHomeBotsRef(){
+  const c=document.getElementById('homeBotsRef');if(!c)return;
+  if(!deployedBots.length){c.innerHTML=`<div style="text-align:center;padding:32px;color:var(--text-4);background:var(--bg-200);border:1px solid var(--border);border-radius:var(--r-lg);">No bots deployed yet. <button onclick="switchPage('createAI',document.getElementById('nav-createAI'))" style="color:var(--brand-light);background:none;border:none;cursor:pointer;font-family:inherit;font-size:inherit;">Create one →</button></div>`;return;}
+  c.innerHTML=deployedBots.map(b=>makeBotCard(b)).join('');
+}
+
+function createBot(){
+  if(!selectedModel){toast('Select a model first','err');return;}
+  const name=document.getElementById('botName').value.trim();
+  if(!name){toast('Enter a bot name','err');return;}
+  const m=models.find(x=>x.id===selectedModel);
+  if(m.vip&&!(currentUser.isVIP||currentUser.role==='developer')){toast('Akira AI requires VIP!','err');return;}
+  const serverMem=document.getElementById('serverMemToggle').classList.contains('on');
+  const dmMem=document.getElementById('dmMemToggle').classList.contains('on');
+  toast(`Deploying ${name}...`);
+  setTimeout(()=>{
+    const botId='bot_'+Math.random().toString(36).slice(2,9);
+    const bot={id:botId,name,modelId:selectedModel,personality:selectedPersonality,online:true,serverMemEnabled:serverMem,dmMemEnabled:dmMem};
+    deployedBots.push(bot);
+    seedBotMemory(botId,selectedModel);
+    if(!serverMem)botMemory[botId].servers={};
+    if(!dmMem)botMemory[botId].dms={};
+    renderBotList();
+    updateBotMemSelect();
+    updateStats();
+    renderHomeBotsRef();
+    document.getElementById('botName').value='';
+    selectedModel=null;
+    renderCreateModels();
+    toast(`${name} deployed!`);
+    addLog(currentUser.username,'ai',`Deployed bot: ${name} (${m.name})`);
+  },1100);
+}
+
+function toggleBot(botId){
+  const bot=deployedBots.find(b=>b.id===botId);if(!bot)return;
+  bot.online=!bot.online;
+  document.getElementById('toggle_'+botId)?.classList.toggle('on',bot.online);
+  const statusEl=document.getElementById('botStatusText_'+botId);
+  if(statusEl){statusEl.textContent=bot.online?'Online':'Paused';statusEl.style.color=bot.online?'var(--green)':'var(--text-4)';}
+  const dotEl=document.querySelector(`#botcard_${botId} .status-dot`);
+  if(dotEl){dotEl.className='status-dot '+(bot.online?'online':'offline');}
+  toast(bot.online?`${bot.name} activated`:`${bot.name} paused`);
+  updateStats();
+}
+
+function updateBotMemBar(botId){
+  const{pct}=getBotMemUsage(botId);
+  const bar=document.getElementById('membar_'+botId);
+  const pctEl=document.getElementById('memPct_'+botId);
+  if(bar){bar.className='mem-fill '+memClass(pct);bar.style.width=pct+'%';}
+  if(pctEl){pctEl.style.color=memColor(pct);pctEl.textContent=pct+'%';}
+  const lbl=document.getElementById('memLabel_'+botId);
+  if(lbl){const{used,max}=getBotMemUsage(botId);lbl.innerHTML=`<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>${used} / ${max} entries`;}
+}
+
+function openMemoryForBot(botId){
+  switchPage('createAI',document.getElementById('nav-createAI'));
+  setTimeout(()=>{setStudio('memory');loadBotMemoryById(botId);},100);
+}
+
+// ═══════════════════════════════════════
+//  MEMORY MANAGER
+// ═══════════════════════════════════════
+function updateBotMemSelect(){
+  const s=document.getElementById('memBotSelect');if(!s)return;
+  s.innerHTML='<option value="">Choose a bot...</option>'+deployedBots.map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
+}
+function loadBotMemory(){loadBotMemoryById(document.getElementById('memBotSelect').value);}
+function loadBotMemoryById(botId){
+  const sel=document.getElementById('memBotSelect');
+  if(sel&&botId)sel.value=botId;
+  if(!botId||!botMemory[botId]){
+    document.getElementById('memoryView').style.display='none';
+    document.getElementById('noMemSelected').style.display='block';
+    currentMemBot=null;return;
+  }
+  currentMemBot=botId;
+  document.getElementById('memoryView').style.display='block';
+  document.getElementById('noMemSelected').style.display='none';
+  refreshMemoryView();setSrcTab('servers');
+}
+function refreshMemoryView(){
+  if(!currentMemBot||!botMemory[currentMemBot])return;
+  const mem=botMemory[currentMemBot];
+  const bot=deployedBots.find(b=>b.id===currentMemBot);
+  const{used,max,pct}=getBotMemUsage(currentMemBot);
+  document.getElementById('memBotName').textContent=bot?.name||currentMemBot;
+  const bar=document.getElementById('overallMemBar');
+  bar.className='mem-fill '+memClass(pct);bar.style.width=pct+'%';
+  document.getElementById('memUsedCount').textContent=used+' entries used';
+  document.getElementById('memMaxCount').textContent=max+' max';
+  document.getElementById('memEvictCount').textContent=mem.evictionCount;
+  const badge=document.getElementById('memUsageBadge');
+  badge.textContent=pct+'%';badge.className='badge '+(pct<60?'badge-green':pct<85?'badge-beta':'badge-err');
+  document.getElementById('memServerCount').textContent=Object.keys(mem.servers).length;
+  document.getElementById('memDMCount').textContent=Object.keys(mem.dms).length;
+  renderServerMemList();renderDMMemList();
+}
+function renderServerMemList(){
+  if(!currentMemBot)return;
+  const mem=botMemory[currentMemBot];
+  const m=models.find(x=>x.id===mem.model);
+  const c=document.getElementById('serverMemList');if(!c)return;
+  const keys=Object.keys(mem.servers);
+  if(!keys.length){c.innerHTML='<div style="text-align:center;padding:32px;color:var(--text-4);font-size:.875rem;">No server memory enabled.</div>';return;}
+  c.innerHTML=keys.map(key=>{
+    const srv=mem.servers[key];
+    const pct=Math.round((srv.entries.length/m.serverMemLimit)*100);
+    return`<div class="mem-ctx-card">
+      <div class="flex items-center justify-between" style="margin-bottom:10px;">
+        <div class="flex items-center gap-2">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--brand-light)" stroke-width="2"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+          <div><div style="font-size:.875rem;font-weight:600;">${srv.channel}</div><div class="text-xxs text-4">${srv.name}</div></div>
+        </div>
+        <button onclick="openMemDetail('server','${key}')" class="btn btn-ghost btn-sm">View →</button>
+      </div>
+      <div class="mem-track" style="margin-bottom:5px;"><div class="mem-fill ${memClass(pct)}" style="width:${pct}%;"></div></div>
+      <div class="flex justify-between" style="font-size:.6875rem;color:var(--text-4);">
+        <span style="color:${memColor(pct)};font-weight:600;">${srv.entries.length} / ${m.serverMemLimit} entries</span>
+        <span>${pct}% · Auto-evict active</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+function renderDMMemList(){
+  if(!currentMemBot)return;
+  const mem=botMemory[currentMemBot];
+  const m=models.find(x=>x.id===mem.model);
+  const c=document.getElementById('dmMemList');if(!c)return;
+  const keys=Object.keys(mem.dms);
+  if(!keys.length){c.innerHTML='<div style="text-align:center;padding:32px;color:var(--text-4);font-size:.875rem;">No DM memory enabled.</div>';return;}
+  c.innerHTML=keys.map(key=>{
+    const dm=mem.dms[key];
+    const pct=Math.round((dm.entries.length/m.dmMemLimit)*100);
+    return`<div class="mem-ctx-card">
+      <div class="flex items-center justify-between" style="margin-bottom:10px;">
+        <div class="flex items-center gap-2">
+          <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#5865f2,#8338ec);display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:#fff;flex-shrink:0;">${dm.username.slice(0,2).toUpperCase()}</div>
+          <div><div style="font-size:.875rem;font-weight:600;">@${dm.username}</div><div class="text-xxs text-4">${dm.entries.length} messages</div></div>
+        </div>
+        <button onclick="openMemDetail('dm','${key}')" class="btn btn-ghost btn-sm">View →</button>
+      </div>
+      <div class="mem-track" style="margin-bottom:5px;"><div class="mem-fill ${memClass(pct)}" style="width:${pct}%;"></div></div>
+      <div class="flex justify-between" style="font-size:.6875rem;color:var(--text-4);">
+        <span style="color:${memColor(pct)};font-weight:600;">${dm.entries.length} / ${m.dmMemLimit} entries</span>
+        <span>${pct}%</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+function setSrcTab(tab){
+  document.getElementById('srcTabServers').classList.toggle('active',tab==='servers');
+  document.getElementById('srcTabDMs').classList.toggle('active',tab==='dms');
+  document.getElementById('serverMemView').style.display=tab==='servers'?'block':'none';
+  document.getElementById('dmMemView').style.display=tab==='dms'?'block':'none';
+}
+function clearAllMemory(){
+  if(!currentMemBot||!botMemory[currentMemBot])return;
+  const mem=botMemory[currentMemBot];
+  Object.keys(mem.servers).forEach(k=>mem.servers[k].entries=[]);
+  Object.keys(mem.dms).forEach(k=>mem.dms[k].entries=[]);
+  mem.evictionCount=0;
+  refreshMemoryView();updateBotMemBar(currentMemBot);updateStats();
+  toast('All memory cleared');
+}
+function openMemDetail(type,ctxKey){
+  if(!currentMemBot)return;
+  currentMemDetail={type,ctxKey};
+  const mem=botMemory[currentMemBot];
+  const m=models.find(x=>x.id===mem.model);
+  const ctx=type==='server'?mem.servers[ctxKey]:mem.dms[ctxKey];
+  if(!ctx)return;
+  memDetailEntries=ctx.entries;
+  memDetailLimit=type==='server'?m.serverMemLimit:m.dmMemLimit;
+  document.getElementById('detailTitle').textContent=type==='server'?`${ctx.channel} — ${ctx.name}`:`DM with @${ctx.username}`;
+  renderMemEntries();
+  document.getElementById('memDetailBackdrop').classList.add('open');
+}
+function renderMemEntries(){
+  const pct=Math.round((memDetailEntries.length/memDetailLimit)*100);
+  document.getElementById('detailMemBar').className='mem-fill '+memClass(pct);
+  document.getElementById('detailMemBar').style.width=pct+'%';
+  document.getElementById('detailMemStats').textContent=`${memDetailEntries.length} / ${memDetailLimit}`;
+  const list=document.getElementById('memEntryList');
+  const none=document.getElementById('noMemEntries');
+  if(!memDetailEntries.length){list.innerHTML='';none.style.display='block';return;}
+  none.style.display='none';
+  list.innerHTML=[...memDetailEntries].reverse().map((e,i)=>{
+    const isOldest=i===memDetailEntries.length-1;
+    return`<div class="mem-entry role-${e.role} ${isOldest?'evict-warn':''}">
+      ${isOldest?'<div class="evict-tag">⚠ Next to evict</div>':''}
+      <div class="flex items-center justify-between">
+        <span class="mem-role ${e.role}">${e.role}</span>
+        <span class="mem-time">${e.timestamp}</span>
+      </div>
+      <div class="mem-text">${e.content}</div>
+    </div>`;
+  }).join('');
+}
+function closeMemDetail(){document.getElementById('memDetailBackdrop').classList.remove('open');currentMemDetail=null;memDetailEntries=null;}
+function clearContextMemory(){
+  if(!currentMemDetail||!currentMemBot)return;
+  const{type,ctxKey}=currentMemDetail;
+  const mem=botMemory[currentMemBot];
+  if(type==='server'&&mem.servers[ctxKey])mem.servers[ctxKey].entries=[];
+  else if(type==='dm'&&mem.dms[ctxKey])mem.dms[ctxKey].entries=[];
+  memDetailEntries=[];renderMemEntries();refreshMemoryView();updateBotMemBar(currentMemBot);updateStats();
+  toast('Context memory cleared');
+}
+
+// ═══════════════════════════════════════
+//  API KEYS
+// ═══════════════════════════════════════
+function generateAPIKey(){
+  const model=document.getElementById('keyModelSelect').value;
+  if(!model){toast('Select a model first','err');return;}
+  const m=models.find(x=>x.id===model);
+  if(m.vip&&!(currentUser.isVIP||currentUser.role==='developer')){toast('Akira AI requires VIP!','err');return;}
+  toast('Generating key...');
+  setTimeout(()=>{
+    const key='sk-kii-'+Math.random().toString(36).slice(2,18);
+    const html=`<div style="background:var(--bg-300);border:1px solid var(--border);border-radius:var(--r-md);padding:14px;margin-bottom:8px;">
+      <div class="flex items-center justify-between" style="margin-bottom:8px;"><span class="text-xs font-semibold text-3 uppercase tracking-wide">${m.name}</span><span class="badge badge-brand" style="font-size:.6rem;">New</span></div>
+      <div class="font-mono text-xs" style="color:#79c0ff;word-break:break-all;">${key}</div>
+      <div class="flex gap-2" style="margin-top:10px;">
+        <button onclick="copyKey(this)" class="btn btn-ghost btn-xs flex-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy</button>
+        <button onclick="revokeKey(this)" class="btn btn-danger btn-xs flex-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14H6L5,6"/></svg>Revoke</button>
+      </div>
+    </div>`;
+    document.getElementById('apiKeyList').insertAdjacentHTML('afterbegin',html);
+    toast('API key generated!');
+    addLog(currentUser.username,'ai',`Generated key for ${m.name}`);
+  },900);
+}
+function copyKey(btn){navigator.clipboard.writeText(btn.closest('div[style]').querySelector('.font-mono').textContent.trim()).catch(()=>{});toast('Key copied!');}
+function revokeKey(btn){btn.closest('div[style]').remove();toast('Key revoked');}
+
+// ═══════════════════════════════════════
+//  EXECUTOR
+// ═══════════════════════════════════════
+const hubScripts=[
+  {name:'Infinite Jump',code:'-- Infinite Jump\nlocal plr = game.Players.LocalPlayer\nlocal hum = plr.Character:WaitForChild("Humanoid")\ngame:GetService("UserInputService").JumpRequest:Connect(function()\n  hum:ChangeState("Jumping")\nend)'},
+  {name:'Speed Hack',code:'-- Speed Hack\ngame.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 100'},
+  {name:'NoClip',code:'-- NoClip\nlocal char = game.Players.LocalPlayer.Character\ngame:GetService("RunService").Stepped:Connect(function()\n  for _, p in pairs(char:GetDescendants()) do\n    if p:IsA("BasePart") then p.CanCollide = false end\n  end\nend)'},
+  {name:'Fly Script',code:'-- Fly\nloadstring(game:HttpGet("https://raw.githubusercontent.com/flyv2/main.lua"))()'},
+  {name:'ESP',code:'-- ESP Hack\nfor _, plr in pairs(game.Players:GetPlayers()) do\n  -- highlight logic\nend'},
+  {name:'Auto Farm',code:'-- Auto Farm\nwhile task.wait(0.1) do\n  -- farming logic\nend'},
+];
+function renderHubScripts(){
+  const c=document.getElementById('scriptHubList');if(!c)return;
+  c.innerHTML=hubScripts.map((s,i)=>`<button onclick="loadScript(${i})" class="hub-item">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+    <span>${s.name}</span>
+  </button>`).join('');
+}
+function loadScript(i){document.getElementById('codeEditor').value=hubScripts[i].code;toast('Loaded: '+hubScripts[i].name);}
+function attachExecutor(){
+  toast('Attaching to Roblox...');
+  setTimeout(()=>{
+    const s=document.getElementById('execStatus');
+    s.className='exec-status attached';
+    document.getElementById('execStatusText').textContent='Attached';
+    toast('Executor attached!');
+    addLog(currentUser.username,'executor','Attached Akira Executor');
+  },1500);
+}
+function executeScript(){
+  const code=document.getElementById('codeEditor').value.trim();
+  if(!code){toast('Write a script first','err');return;}
+  if(!document.getElementById('execStatus').classList.contains('attached')){toast('Attach first!','err');return;}
+  toast('Executing...');
+  setTimeout(()=>{toast('Script executed!');addLog(currentUser.username,'executor','Script executed');},600);
+}
+function clearEditor(){document.getElementById('codeEditor').value='';toast('Editor cleared');}
+function saveScript(){toast('Script saved');}
+function newScriptTab(){toast('New tab created');}
+
+// ═══════════════════════════════════════
+//  VIP
+// ═══════════════════════════════════════
+const prices=[
+  {flag:'🇵🇭',country:'Philippines',currency:'PHP',symbol:'₱',amount:500,featured:true},
+  {flag:'🇺🇸',country:'United States',currency:'USD',symbol:'$',amount:8.85},
+  {flag:'🇪🇺',country:'Europe',currency:'EUR',symbol:'€',amount:8.20},
+  {flag:'🇬🇧',country:'United Kingdom',currency:'GBP',symbol:'£',amount:7.05},
+  {flag:'🇯🇵',country:'Japan',currency:'JPY',symbol:'¥',amount:1330},
+  {flag:'🇦🇺',country:'Australia',currency:'AUD',symbol:'A$',amount:13.50},
+  {flag:'🇸🇬',country:'Singapore',currency:'SGD',symbol:'S$',amount:11.90},
+  {flag:'🇲🇾',country:'Malaysia',currency:'MYR',symbol:'RM',amount:41.50},
+  {flag:'🇰🇷',country:'South Korea',currency:'KRW',symbol:'₩',amount:11800},
+];
+const benefits=[
+  'Akira AI Model — 500,000+ tokens, 500MB memory',
+  '1,000 memory entries per server channel (auto-eviction)',
+  '1,000 memory entries per DM thread (auto-eviction)',
+  'Unlimited bot deployments',
+  'Priority API access and faster inference',
+  'Full Akira Executor premium features',
+  'VIP badge and exclusive Discord role',
+  'Beta tester access for upcoming features',
+];
+function renderVip(){
+  const b=document.getElementById('vipBenefits');
+  if(b)b.innerHTML=benefits.map(x=>`<div style="display:flex;align-items:flex-start;gap:10px;">
+    <div style="width:20px;height:20px;border-radius:50%;background:rgba(240,180,41,.12);border:1px solid rgba(240,180,41,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2.5"><polyline points="20,6 9,17 4,12"/></svg>
+    </div>
+    <span style="font-size:.875rem;color:var(--text-2);">${x}</span>
+  </div>`).join('');
+  const c=document.getElementById('priceCards');
+  if(c)c.innerHTML=prices.map(p=>`<div class="price-card ${p.featured?'featured':''}" onclick="toast('Redirecting to payment: ${p.symbol}${p.amount}/year')">
+    <span class="price-flag">${p.flag}</span>
+    <div>
+      <div class="price-country">${p.country}</div>
+      <div class="price-currency">${p.currency} · Yearly</div>
+    </div>
+    <div style="margin-left:auto;text-align:right;">
+      <div class="price-amount" style="${p.featured?'color:var(--gold);':''}">${p.symbol}${p.amount}</div>
+      <div class="price-per">/year</div>
+    </div>
+    ${p.featured?`<span class="badge badge-vip" style="font-size:.6rem;flex-shrink:0;">Default</span>`:''}
+  </div>`).join('');
+}
+
+// ═══════════════════════════════════════
+//  ADMIN
+// ═══════════════════════════════════════
+
+// ── AI usage log data ──
+const aiUsageLogs = [
+  {time:'14:32:01', user:'starplayer99', model:'gpt4',    modelName:'GPT-4 Turbo',   server:'Anime Hub',  channel:'#general',  tokens:2300,  status:'OK'},
+  {time:'14:28:55', user:'shadow_mod',   model:'akira',   modelName:'Akira AI',      server:'Dev Server', channel:'#bot-cmds', tokens:15400, status:'OK'},
+  {time:'14:20:10', user:'anime_fan21',  model:'claude',  modelName:'Claude 3 Opus', server:'Anime Hub',  channel:'#roleplay', tokens:8800,  status:'OK'},
+  {time:'14:15:33', user:'anime_fan21',  model:'akira',   modelName:'Akira AI',      server:'Weeb Zone',  channel:'#general',  tokens:21000, status:'OK'},
+  {time:'14:12:44', user:'rxblox_dev',   model:'llama',   modelName:'Llama 3 70B',   server:'Roblox Dev', channel:'#scripting',tokens:1200,  status:'OK'},
+  {time:'14:05:17', user:'starplayer99', model:'gpt4',    modelName:'GPT-4 Turbo',   server:'Anime Hub',  channel:'#help',     tokens:3100,  status:'OK'},
+  {time:'13:58:02', user:'shadow_mod',   model:'akira',   modelName:'Akira AI',      server:'Dev Server', channel:'#testing',  tokens:9400,  status:'OK'},
+  {time:'13:45:29', user:'anime_fan21',  model:'mistral', modelName:'Mistral Large', server:'Weeb Zone',  channel:'#spam',     tokens:650,   status:'RATE_LIMIT'},
+  {time:'13:30:00', user:'kiiakira',     model:'akira',   modelName:'Akira AI',      server:'Dev Server', channel:'#admin',    tokens:500,   status:'OK'},
+];
+
+// ── Ban list data ──
+let banList = [
+  {username:'bad_actor99', reason:'Spam',       bannedAt:'2025-11-01 09:14', bannedBy:'kiiakira'},
+  {username:'troll_x',     reason:'Harassment', bannedAt:'2025-11-12 17:32', bannedBy:'shadow_mod'},
+];
+
+function setAdmin(panel){
+  ['activity','ailogs','bans','whitelist','users','aicontrol','shutdown'].forEach(id=>{
+    const key='admin'+id.charAt(0).toUpperCase()+id.slice(1)+'Panel';
+    const el=document.getElementById(key);
+    if(el)el.style.display=id===panel?'block':'none';
+    document.getElementById('admin-'+id)?.classList.toggle('active',id===panel);
+  });
+  if(panel==='ailogs')renderAILogs();
+  if(panel==='bans')renderBanList();
+  if(panel==='aicontrol')initCSpeakPanel();
+  if(panel==='shutdown')initShutdownPanel();
+}
+
+function renderActivityLog(){
+  const filter=document.getElementById('logFilter')?.value||'all';
+  const tbody=document.getElementById('activityLogBody');if(!tbody)return;
+  const filtered=filter==='all'?activityLog:activityLog.filter(l=>l.type===filter);
+  tbody.innerHTML=filtered.map(l=>`<tr>
+    <td class="font-mono" style="font-size:.7rem;color:var(--text-4);">${l.time}</td>
+    <td style="font-weight:600;">${l.user}</td>
+    <td><span class="badge badge-${l.type==='ai'?'ai':l.type==='executor'?'exec':'web'}" style="font-size:.6rem;">${l.type}</span></td>
+    <td style="color:var(--text-3);font-size:.75rem;">${l.action}</td>
+    <td><span class="badge badge-${l.status==='OK'?'ok':'err'}" style="font-size:.6rem;">${l.status}</span></td>
+  </tr>`).join('');
+}
+function refreshLog(){addLog('system','website','Log refreshed');renderActivityLog();toast('Log refreshed');}
+function addLog(user,type,action){
+  activityLog.unshift({time:new Date().toTimeString().slice(0,8),user,type,action,status:'OK'});
+  if(activityLog.length>60)activityLog.pop();
+  const t=document.getElementById('activityLogBody');
+  if(t)renderActivityLog();
+}
+
+// ── AI Logs ──
+function renderAILogs(){
+  const filter=document.getElementById('aiLogFilter')?.value||'all';
+  const tbody=document.getElementById('aiLogsBody');if(!tbody)return;
+  const list=filter==='all'?aiUsageLogs:aiUsageLogs.filter(l=>l.model===filter);
+  const modelColors={akira:'#f0b429',gpt4:'#5865f2',claude:'#8338ec',llama:'#3a86ff',mistral:'#f97316'};
+  tbody.innerHTML=list.map(l=>`<tr class="ai-log-row">
+    <td class="font-mono" style="font-size:.7rem;color:var(--text-4);">${l.time}</td>
+    <td style="font-weight:600;">${l.user}</td>
+    <td><span style="display:inline-flex;align-items:center;gap:5px;font-size:.75rem;font-weight:600;color:${modelColors[l.model]||'var(--text-2)'};">
+      <span style="width:6px;height:6px;border-radius:50%;background:${modelColors[l.model]||'#888'};display:inline-block;flex-shrink:0;"></span>
+      ${l.modelName}
+    </span></td>
+    <td style="font-size:.75rem;color:var(--text-2);">${l.server}</td>
+    <td style="font-size:.75rem;color:var(--text-3);font-family:'JetBrains Mono',monospace;">${l.channel}</td>
+    <td style="font-size:.75rem;font-weight:600;font-family:'JetBrains Mono',monospace;color:var(--brand-light);">${l.tokens.toLocaleString()}</td>
+    <td><span class="badge badge-${l.status==='OK'?'ok':'err'}" style="font-size:.6rem;">${l.status}</span></td>
+  </tr>`).join('');
+}
+
+// ── Ban Management ──
+function renderBanList(){
+  const tbody=document.getElementById('banListBody');if(!tbody)return;
+  if(!banList.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-4);">No active bans.</td></tr>';return;}
+  tbody.innerHTML=banList.map((b,i)=>`<tr>
+    <td style="font-weight:600;">${b.username}</td>
+    <td><span class="badge badge-err" style="font-size:.6rem;">${b.reason}</span></td>
+    <td class="font-mono" style="font-size:.7rem;color:var(--text-4);">${b.bannedAt}</td>
+    <td style="font-size:.75rem;color:var(--text-3);">${b.bannedBy}</td>
+    <td><button onclick="unbanFromList(${i})" class="btn btn-ghost btn-xs">Unban</button></td>
+  </tr>`).join('');
+}
+function quickBanUser(){
+  const name=document.getElementById('banUsername').value.trim();
+  const reason=document.getElementById('banReason').value;
+  if(!name){toast('Enter a username','err');return;}
+  const u=managedUsers.find(x=>x.username===name);
+  if(u&&u.role==='developer'){toast('Cannot ban the developer!','err');return;}
+  if(u)u.banned=true;
+  const now=new Date();
+  banList.unshift({username:name,reason,bannedAt:now.toLocaleString(),bannedBy:currentUser.username});
+  document.getElementById('banUsername').value='';
+  renderBanList();
+  renderUserMgmt();
+  toast(`${name} banned — reason: ${reason}`);
+  addLog(currentUser.username,'website',`Banned ${name}: ${reason}`);
+}
+function quickUnbanUser(){
+  const name=document.getElementById('banUsername').value.trim();
+  if(!name){toast('Enter a username','err');return;}
+  const u=managedUsers.find(x=>x.username===name);
+  if(u)u.banned=false;
+  banList=banList.filter(b=>b.username!==name);
+  document.getElementById('banUsername').value='';
+  renderBanList();renderUserMgmt();
+  toast(`${name} unbanned`);
+  addLog(currentUser.username,'website',`Unbanned ${name}`);
+}
+function unbanFromList(i){
+  const name=banList[i].username;
+  const u=managedUsers.find(x=>x.username===name);
+  if(u)u.banned=false;
+  banList.splice(i,1);
+  renderBanList();renderUserMgmt();
+  toast(`${name} unbanned`);
+}
+
+// ── AI Control / /cspeak ──
+function initCSpeakPanel(){
+  // populate user dropdown with users who have bots
+  const sel=document.getElementById('cSpeakUser');if(!sel)return;
+  const usersWithBots=managedUsers.filter(u=>u.bots>0);
+  sel.innerHTML='<option value="">Choose user...</option>'+usersWithBots.map(u=>`<option value="${u.id}">${u.username} (${u.bots} bot${u.bots>1?'s':''})</option>`).join('');
+  document.getElementById('cSpeakBot').innerHTML='<option value="">Choose bot...</option>';
+  document.getElementById('cSpeakChannel').innerHTML='<option value="">Select channel...</option>';
+  // live preview
+  const txt=document.getElementById('cSpeakText');
+  if(txt)txt.addEventListener('input',()=>{
+    document.getElementById('cSpeakPreview').textContent='/cspeak '+(txt.value||'...');
+  });
+}
+function updateCSpeakBots(){
+  const userId=document.getElementById('cSpeakUser').value;
+  const botSel=document.getElementById('cSpeakBot');
+  const chSel=document.getElementById('cSpeakChannel');
+  botSel.innerHTML='<option value="">Choose bot...</option>';
+  chSel.innerHTML='<option value="">Select channel...</option>';
+  if(!userId)return;
+  // simulate bots for user
+  const fakeBots=[
+    {id:'bot1',name:'Akira-Helper',model:'GPT-4 Turbo',channels:['#general','#help','#bot-cmds']},
+    {id:'bot2',name:'Weeb-Bot',model:'Claude 3 Opus',channels:['#roleplay','#anime','#general']},
+    {id:'bot3',name:'Dev-Assistant',model:'Akira AI',channels:['#scripting','#testing','#admin']},
+  ];
+  const u=managedUsers.find(x=>x.id===userId);
+  const count=u?u.bots:1;
+  fakeBots.slice(0,count).forEach(b=>{
+    botSel.insertAdjacentHTML('beforeend',`<option value="${b.id}">${b.name} · ${b.model}</option>`);
+  });
+  botSel.addEventListener('change',()=>{
+    const bid=botSel.value;
+    const bot=fakeBots.find(x=>x.id===bid);
+    chSel.innerHTML='<option value="">Select channel...</option>';
+    if(bot)bot.channels.forEach(ch=>chSel.insertAdjacentHTML('beforeend',`<option value="${ch}">${ch}</option>`));
+  },{once:false});
+}
+function sendCSpeak(){
+  const userId=document.getElementById('cSpeakUser').value;
+  const botVal=document.getElementById('cSpeakBot').value;
+  const channel=document.getElementById('cSpeakChannel').value;
+  const text=document.getElementById('cSpeakText').value.trim();
+  if(!userId){toast('Select a target user','err');return;}
+  if(!botVal){toast('Select a bot','err');return;}
+  if(!channel){toast('Select a channel','err');return;}
+  if(!text){toast('Enter a message','err');return;}
+  const user=managedUsers.find(x=>x.id===userId);
+  const botName=document.getElementById('cSpeakBot').selectedOptions[0]?.text||botVal;
+  const now=new Date();
+  const timeStr=now.toTimeString().slice(0,8);
+  // Add to history
+  const hist=document.getElementById('cSpeakHistory');
+  if(hist.querySelector('div[style*="text-align:center"]'))hist.innerHTML='';
+  hist.insertAdjacentHTML('afterbegin',`<div class="cspeak-msg">
+    <span class="font-mono" style="font-size:.65rem;color:var(--text-4);flex-shrink:0;margin-top:2px;">${timeStr}</span>
+    <div style="flex:1;min-width:0;">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap;">
+        <span class="badge badge-brand" style="font-size:.6rem;font-family:'JetBrains Mono',monospace;">/cspeak</span>
+        <span style="font-size:.75rem;font-weight:600;">→ @${user?.username||userId}</span>
+        <span style="font-size:.7rem;color:var(--text-4);">via ${botName.split('·')[0].trim()}</span>
+        <span style="font-size:.7rem;color:var(--text-3);font-family:'JetBrains Mono',monospace;">${channel}</span>
+      </div>
+      <div style="font-size:.8125rem;color:var(--text-2);background:rgba(88,101,242,.06);border-left:2px solid var(--brand);padding:5px 8px;border-radius:0 var(--r-sm) var(--r-sm) 0;">${text}</div>
+    </div>
+  </div>`);
+  addLog(currentUser.username,'ai',`/cspeak → ${user?.username} [${channel}]: "${text.slice(0,40)}${text.length>40?'...':''}"`);
+  toast(`✓ /cspeak sent to ${user?.username} in ${channel}`);
+  document.getElementById('cSpeakText').value='';
+  document.getElementById('cSpeakPreview').textContent='/cspeak ...';
+}
+function clearCSpeak(){
+  document.getElementById('cSpeakText').value='';
+  document.getElementById('cSpeakPreview').textContent='/cspeak ...';
+}
+function renderWhitelist(){
+  const tbody=document.getElementById('whitelistBody');if(!tbody)return;
+  const cls={admin:'badge-admin',beta_tester:'badge-beta',vip:'badge-vip',none:'badge-user'};
+  tbody.innerHTML=whitelist.map((w,i)=>`<tr>
+    <td style="font-weight:600;">${w.username}</td>
+    <td><span class="badge badge-${w.status==='whitelist'?'ok':'err'}" style="font-size:.6rem;">${w.status}</span></td>
+    <td><span class="badge ${cls[w.role]||'badge-user'}" style="font-size:.6rem;">${w.role}</span></td>
+    <td><button onclick="removeFromList(${i})" class="btn btn-danger btn-xs">Remove</button></td>
+  </tr>`).join('');
+}
+function addToWhitelist(){
+  const name=document.getElementById('wlUsername').value.trim();
+  const role=document.getElementById('wlRole').value;
+  if(!name){toast('Enter a username','err');return;}
+  whitelist.unshift({username:name,status:'whitelist',role});
+  document.getElementById('wlUsername').value='';
+  renderWhitelist();toast(`${name} whitelisted as ${role}`);
+  addLog(currentUser.username,'website',`Whitelisted ${name}`);
+}
+function addToBlacklist(){
+  const name=document.getElementById('wlUsername').value.trim();
+  if(!name){toast('Enter a username','err');return;}
+  whitelist.unshift({username:name,status:'blacklist',role:'none'});
+  document.getElementById('wlUsername').value='';
+  renderWhitelist();toast(`${name} blacklisted`);
+  addLog(currentUser.username,'website',`Blacklisted ${name}`);
+}
+function removeFromList(i){whitelist.splice(i,1);renderWhitelist();toast('Removed');}
+function renderUserMgmt(){
+  const c=document.getElementById('userMgmtList');if(!c)return;
+  const cls={developer:'badge-dev',admin:'badge-admin',beta_tester:'badge-beta',user:'badge-user'};
+  c.innerHTML=managedUsers.map((u,i)=>`<div class="card" style="padding:16px;opacity:${u.banned?.6:1};">
+    <div class="flex items-center gap-3">
+      <div class="user-avatar">${u.username.slice(0,2).toUpperCase()}</div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 flex-wrap" style="margin-bottom:4px;">
+          <span style="font-weight:700;font-size:.9375rem;">${u.username}</span>
+          <span class="badge ${cls[u.role]||'badge-user'}" style="font-size:.6rem;">${u.role}</span>
+          ${u.isVIP?'<span class="badge badge-vip" style="font-size:.6rem;">👑 VIP</span>':''}
+          ${u.banned?'<span class="badge badge-err" style="font-size:.6rem;">BANNED</span>':''}
+        </div>
+        <div class="text-xs text-4">${u.bots} bots · Joined ${u.joined}</div>
+      </div>
+      ${u.username!==currentUser?.username?`<div class="flex gap-2">
+        ${!u.banned?`<button onclick="banUser(${i})" class="btn btn-danger btn-sm">Ban</button>`:`<button onclick="unbanUser(${i})" class="btn btn-ghost btn-sm">Unban</button>`}
+        ${u.bots>0?`<button onclick="destroyAI(${i})" class="btn btn-ghost btn-sm" style="color:var(--yellow);border-color:rgba(250,166,26,.25);">Destroy AI</button>`:''}
+      </div>`:'<span class="badge badge-user" style="font-size:.6rem;">You</span>'}
+    </div>
+  </div>`).join('');
+}
+function banUser(i){if(managedUsers[i].role==='developer'){toast('Cannot ban the developer!','err');return;}managedUsers[i].banned=true;renderUserMgmt();toast(`${managedUsers[i].username} banned`);addLog(currentUser.username,'website',`Banned ${managedUsers[i].username}`);}
+function unbanUser(i){managedUsers[i].banned=false;renderUserMgmt();toast(`${managedUsers[i].username} unbanned`);}
+function destroyAI(i){managedUsers[i].bots=0;renderUserMgmt();toast(`Destroyed AI for ${managedUsers[i].username}`);addLog(currentUser.username,'website',`Destroyed AI for ${managedUsers[i].username}`);}
+
+// ═══════════════════════════════════════
+//  USER MENU
+// ═══════════════════════════════════════
+function openUserMenu(){document.getElementById('userMenuModal').style.display='block';document.getElementById('userMenuOverlay').style.display='block';}
+function closeUserMenu(){document.getElementById('userMenuModal').style.display='none';document.getElementById('userMenuOverlay').style.display='none';}
+
+// ═══════════════════════════════════════
+//  SYSTEM LOG
+// ═══════════════════════════════════════
+const logMsgs=['Connection established','API gateway online','Bot orchestrator ready','Memory eviction engine active','Discord webhook listener OK','Rate limiter nominal','Auth service connected','Heartbeat: 24ms latency','Memory pool: 2.1GB','Auto-eviction FIFO healthy','Token cache warmed'];
+function startSysLog(){
+  const c=document.getElementById('sysLog');if(!c)return;
+  function add(){
+    const msg=logMsgs[Math.floor(Math.random()*logMsgs.length)];
+    const now=new Date().toTimeString().slice(0,8);
+    const d=document.createElement('div');
+    d.className='log-entry';
+    d.innerHTML=`<span class="log-time">${now}</span><span class="log-msg">${msg}</span>`;
+    c.insertBefore(d,c.firstChild);
+    while(c.children.length>8)c.removeChild(c.lastChild);
+  }
+  add();add();add();
+  setInterval(add,4000);
+}
+
+// ═══════════════════════════════════════
+//  SIMULATION
+// ═══════════════════════════════════════
+function startSimulation(){
+  setInterval(()=>{
+    for(const bot of deployedBots){
+      if(!bot.online)continue;
+      const mem=botMemory[bot.id];if(!mem)continue;
+      const sKeys=Object.keys(mem.servers);
+      if(sKeys.length&&mem.serverMemEnabled){
+        const key=sKeys[Math.floor(Math.random()*sKeys.length)];
+        const msgs=[['user','Hello!'],['assistant','Hi! How can I help?'],['user','Tell me a joke'],['assistant','Why do programmers prefer dark mode? Light attracts bugs! 😄']];
+        const msg=msgs[Math.floor(Math.random()*msgs.length)];
+        pushMemEntry(bot.id,'server',key,msg[0],msg[1]);
+        updateBotMemBar(bot.id);
+        if(currentMemBot===bot.id)refreshMemoryView();
+      }
+    }
+  },9000);
+}
+
+// ═══════════════════════════════════════
+//  LOGOUT
+// ═══════════════════════════════════════
+async function logout(){
+  try{await fetch(`${BACKEND_URL}/auth/logout`,{method:'POST',credentials:'include'});}catch(e){}
+  saveSession();clearSession();
+  currentUser=null;selectedModel=null;
+  document.getElementById('mainView').classList.remove('active');
+  document.getElementById('loginView').classList.add('active');
+  document.getElementById('keyInput').value='';
+  document.getElementById('nav-admin').classList.add('hidden');
+  authStep=1;authEmailValue='';authCodeGenerated='';
+  toast('Signed out');
+}
+
+// ═══════════════════════════════════════
+//  SHUT DOWN WEB SYSTEM
+// ═══════════════════════════════════════
+const MAINT_KEY = 'kiiakira_maintenance';
+let updateNotes = [];
+let countdownTimer = null;
+
+// Load maintenance state from localStorage on startup
+function checkMaintenanceOnLoad(){
+  try{
+    const raw = localStorage.getItem(MAINT_KEY);
+    if(!raw) return;
+    const m = JSON.parse(raw);
+    if(m.active){
+      // Show maintenance screen to everyone
+      showMaintenanceScreen(m);
+      // If admin/dev is already logged in, show bypass button
+      if(currentUser && (currentUser.role==='developer'||currentUser.role==='admin')){
+        document.getElementById('maintAdminBypass').style.display = 'block';
+      }
+    }
+  } catch(e){}
+}
+
+function showMaintenanceScreen(m){
+  const scr = document.getElementById('maintenanceScreen');
+  scr.style.display = 'flex';
+  document.getElementById('maintMsgDisplay').textContent = m.message || 'Under maintenance. Back soon.';
+  document.getElementById('maintVersionDisplay').textContent = m.version || 'v1.0.0';
+
+  // ETA
+  if(m.eta){
+    document.getElementById('maintEtaBox').style.display = 'block';
+    const etaDate = new Date(m.eta);
+    document.getElementById('maintEtaDisplay').textContent = etaDate.toLocaleString();
+    startCountdown(etaDate);
+  }
+
+  // Update notes
+  if(m.notes && m.notes.length){
+    document.getElementById('maintUpdateBox').style.display = 'block';
+    document.getElementById('maintUpdateDisplay').innerHTML = m.notes.map(n=>`<div style="display:flex;align-items:flex-start;gap:8px;padding:3px 0;"><span style="color:#5865f2;flex-shrink:0;margin-top:1px;">→</span><span>${n}</span></div>`).join('');
+  }
+}
+
+function startCountdown(etaDate){
+  clearInterval(countdownTimer);
+  function update(){
+    const diff = etaDate - Date.now();
+    const el = document.getElementById('maintCountdown');
+    if(!el) return;
+    if(diff <= 0){ el.textContent = 'Return time has passed — check back soon'; clearInterval(countdownTimer); return; }
+    const h = Math.floor(diff/3600000);
+    const m = Math.floor((diff%3600000)/60000);
+    const s = Math.floor((diff%60000)/1000);
+    el.textContent = `${h > 0 ? h+'h ' : ''}${m}m ${s}s remaining`;
+  }
+  update();
+  countdownTimer = setInterval(update, 1000);
+}
+
+function initShutdownPanel(){
+  updateShutdownStatusUI();
+  renderUpdateNotes();
+}
+
+function updateShutdownStatusUI(){
+  try{
+    const raw = localStorage.getItem(MAINT_KEY);
+    const m = raw ? JSON.parse(raw) : {active: false};
+    const isDown = m.active;
+    const badge = document.getElementById('siteStatusBadge');
+    const ring = document.getElementById('shutdownIconRing');
+    const icon = document.getElementById('shutdownIconSvg');
+    const label = document.getElementById('shutdownStatusLabel');
+    const sub = document.getElementById('shutdownStatusSub');
+    const toggle = document.getElementById('siteOnlineToggle');
+    const shutBtn = document.getElementById('shutdownBtn');
+    const pubBtn = document.getElementById('publishUpdateBtn');
+
+    if(badge){badge.className='badge '+(isDown?'badge-err':'badge-ok');badge.textContent=isDown?'● OFFLINE':'● ONLINE';}
+    if(ring){ring.style.borderColor=isDown?'var(--red)':'var(--green)';}
+    if(icon){icon.setAttribute('stroke',isDown?'#ed4245':'#3ba55d');}
+    if(label){label.style.color=isDown?'var(--red)':'var(--green)';label.textContent=isDown?'Site is Offline':'Site is Online';}
+    if(sub){sub.textContent=isDown?'Users are seeing the maintenance screen.':'All users can access the dashboard normally.';}
+    if(toggle){toggle.classList.toggle('on',!isDown);}
+    if(shutBtn){shutBtn.style.display=isDown?'none':'flex';}
+    if(pubBtn){pubBtn.style.display=isDown?'flex':'none';}
+  } catch(e){}
+}
+
+function renderUpdateNotes(){
+  const c = document.getElementById('updateNotesList');
+  if(!c) return;
+  if(!updateNotes.length){ c.innerHTML='<div style="font-size:.8125rem;color:var(--text-4);padding:6px 2px;">No update notes yet. Add some below.</div>'; return; }
+  c.innerHTML = updateNotes.map((n,i)=>`<div style="display:flex;align-items:center;gap:8px;background:var(--bg-300);border-radius:var(--r-sm);padding:8px 12px;">
+    <span style="font-size:.8125rem;flex:1;color:var(--text-2);">${n}</span>
+    <button onclick="removeUpdateNote(${i})" style="background:none;border:none;cursor:pointer;color:var(--text-4);padding:2px;" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text-4)'">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>`).join('');
+}
+
+function addUpdateNote(){
+  const inp = document.getElementById('newUpdateNote');
+  const val = inp.value.trim();
+  if(!val){ toast('Enter a note first','err'); return; }
+  updateNotes.push(val);
+  inp.value = '';
+  renderUpdateNotes();
+}
+
+function removeUpdateNote(i){
+  updateNotes.splice(i,1);
+  renderUpdateNotes();
+}
+
+function confirmShutdown(){
+  document.getElementById('shutdownConfirmInput').value = '';
+  document.getElementById('confirmShutdownBtn').disabled = true;
+  document.getElementById('confirmShutdownBtn').style.opacity = '.4';
+  document.getElementById('confirmShutdownBtn').style.cursor = 'not-allowed';
+  document.getElementById('shutdownConfirmBackdrop').classList.add('open');
+}
+
+function closeShutdownConfirm(){
+  document.getElementById('shutdownConfirmBackdrop').classList.remove('open');
+}
+
+function checkShutdownConfirm(){
+  const val = document.getElementById('shutdownConfirmInput').value;
+  const btn = document.getElementById('confirmShutdownBtn');
+  const ok = val === 'SHUTDOWN';
+  btn.disabled = !ok;
+  btn.style.opacity = ok ? '1' : '.4';
+  btn.style.cursor = ok ? 'pointer' : 'not-allowed';
+}
+
+function confirmToggleMaintenance(){
+  try{
+    const raw = localStorage.getItem(MAINT_KEY);
+    const m = raw ? JSON.parse(raw) : {active:false};
+    if(!m.active){ confirmShutdown(); }
+    else { publishUpdate(); }
+  } catch(e){ confirmShutdown(); }
+}
+
+function executeShutdown(){
+  const message = document.getElementById('maintMsgInput')?.value.trim() || 'Kii Akira is currently offline for maintenance. We\'ll be back shortly.';
+  const eta = document.getElementById('maintEtaInput')?.value || '';
+  const version = document.getElementById('maintVersionInput')?.value.trim() || 'v1.0.0';
+
+  const maintData = {
+    active: true,
+    message,
+    eta,
+    version,
+    notes: [...updateNotes],
+    shutdownAt: new Date().toLocaleString(),
+    shutdownBy: currentUser?.username || 'admin'
+  };
+
+  try{ localStorage.setItem(MAINT_KEY, JSON.stringify(maintData)); } catch(e){}
+
+  closeShutdownConfirm();
+  addShutdownLogEntry('🔴 Shutdown', message, version);
+  addLog(currentUser?.username||'admin', 'website', `Site shut down — ${version}`);
+  updateShutdownStatusUI();
+  toast('Website is now offline. Users see maintenance screen.', 'warn');
+
+  // Show the maintenance screen overlay (they can bypass as admin)
+  showMaintenanceScreen(maintData);
+  document.getElementById('maintAdminBypass').style.display = 'block';
+}
+
+function publishUpdate(){
+  const message = document.getElementById('maintMsgInput')?.value.trim() || '';
+  const version = document.getElementById('maintVersionInput')?.value.trim() || 'v1.0.0';
+
+  // Bring site back online
+  try{
+    const raw = localStorage.getItem(MAINT_KEY);
+    const m = raw ? JSON.parse(raw) : {};
+    m.active = false;
+    m.bringOnlineAt = new Date().toLocaleString();
+    m.bringOnlineBy = currentUser?.username || 'admin';
+    localStorage.setItem(MAINT_KEY, JSON.stringify(m));
+  } catch(e){}
+
+  // Hide maintenance screen
+  const scr = document.getElementById('maintenanceScreen');
+  if(scr) scr.style.display = 'none';
+  clearInterval(countdownTimer);
+
+  addShutdownLogEntry('🟢 Back Online', `Update pushed — ${version}`, version);
+  addLog(currentUser?.username||'admin', 'website', `Site back online — update ${version} pushed`);
+  updateShutdownStatusUI();
+
+  // Clear notes after push
+  updateNotes = [];
+  renderUpdateNotes();
+  if(document.getElementById('maintMsgInput')) document.getElementById('maintMsgInput').value = 'Kii Akira is currently offline for maintenance and improvements. We\'ll be back shortly.';
+  if(document.getElementById('maintEtaInput')) document.getElementById('maintEtaInput').value = '';
+
+  toast(`✓ Update ${version} pushed — site is back online!`);
+}
+
+function bypassMaintenance(){
+  const scr = document.getElementById('maintenanceScreen');
+  if(scr){ scr.style.display = 'none'; }
+  clearInterval(countdownTimer);
+  toast('Admin bypass — you are in the dashboard');
+}
+
+function addShutdownLogEntry(action, details, version){
+  const c = document.getElementById('shutdownLog');
+  if(!c) return;
+  // Remove empty state message
+  const empty = c.querySelector('div[style*="text-align:center"]');
+  if(empty) empty.remove();
+
+  const now = new Date().toLocaleString();
+  const isShutdown = action.includes('Shutdown');
+  c.insertAdjacentHTML('afterbegin', `<div style="display:flex;gap:12px;align-items:flex-start;padding:12px 16px;border-bottom:1px solid var(--border);">
+    <div style="width:8px;height:8px;border-radius:50%;background:${isShutdown?'var(--red)':'var(--green)'};margin-top:5px;flex-shrink:0;"></div>
+    <div style="flex:1;min-width:0;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap;">
+        <span style="font-weight:700;font-size:.875rem;color:${isShutdown?'var(--red)':'var(--green)'};">${action}</span>
+        <span style="font-size:.6875rem;font-family:'JetBrains Mono',monospace;color:var(--text-4);">${version}</span>
+        <span style="font-size:.6875rem;color:var(--text-4);margin-left:auto;">${now}</span>
+      </div>
+      <div style="font-size:.8125rem;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${details}</div>
+      <div style="font-size:.6875rem;color:var(--text-4);margin-top:2px;">by ${currentUser?.username||'admin'}</div>
+    </div>
+  </div>`);
+}
+
+// ═══════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════
+function toast(msg,type='ok'){
+  const t=document.getElementById('toast');
+  const icon=document.getElementById('toastIcon');
+  document.getElementById('toastMsg').textContent=msg;
+  const configs={
+    ok:{stroke:'var(--green)',d:'M20 6 9 17l-5-5',borderColor:'rgba(59,165,93,.3)'},
+    err:{stroke:'var(--red)',d:'M18 6 6 18M6 6l12 12',borderColor:'rgba(237,66,69,.3)'},
+    warn:{stroke:'var(--yellow)',d:'M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z',borderColor:'rgba(250,166,26,.3)'},
+  };
+  const cfg=configs[type]||configs.ok;
+  icon.setAttribute('stroke',cfg.stroke);
+  icon.querySelector('path,polyline')?.remove();
+  t.style.borderColor=cfg.borderColor;
+  t.classList.add('show');
+  clearTimeout(window._tt);
+  window._tt=setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// ─── Keyboard ───
+document.getElementById('keyInput').addEventListener('keypress',e=>{if(e.key==='Enter')verifyKey();});
+document.getElementById('authEmail')?.addEventListener('keypress',e=>{if(e.key==='Enter')sendEmailCode();});
+// Code inputs — backspace navigation
+[0,1,2,3,4,5].forEach(i=>{
+  document.getElementById('ci'+i)?.addEventListener('keydown',e=>{
+    if(e.key==='Backspace'&&!e.target.value&&i>0)document.getElementById('ci'+(i-1))?.focus();
+  });
+});
+
+// ─── Auto-save every 60s while logged in ───
+setInterval(()=>{if(currentUser)saveSession();},60000);
+
+// ═══════════════════════════════════════
+//  DRAG-TO-SCROLL (all scrollable containers)
+// ═══════════════════════════════════════
+function enableDragScroll(el){
+  if(!el)return;
+  let isDown=false,startY,startX,scrollTop,scrollLeft;
+  el.addEventListener('mousedown',e=>{
+    if(e.target.closest('button,input,select,textarea,a'))return;
+    isDown=true;el.style.cursor='grabbing';el.style.userSelect='none';
+    startY=e.pageY-el.offsetTop;startX=e.pageX-el.offsetLeft;
+    scrollTop=el.scrollTop;scrollLeft=el.scrollLeft;
+  });
+  el.addEventListener('mouseleave',()=>{isDown=false;el.style.cursor='';el.style.userSelect='';});
+  el.addEventListener('mouseup',()=>{isDown=false;el.style.cursor='';el.style.userSelect='';});
+  el.addEventListener('mousemove',e=>{
+    if(!isDown)return;e.preventDefault();
+    const y=e.pageY-el.offsetTop;const x=e.pageX-el.offsetLeft;
+    el.scrollTop=scrollTop-(y-startY);el.scrollLeft=scrollLeft-(x-startX);
+  });
+}
+// Apply drag-scroll to all major scrollable areas after DOM ready
+window.addEventListener('load',()=>{
+  ['.sidebar','.studio-content','.studio-sidebar','.admin-content','.admin-sidebar','.exec-hub','.page']
+    .forEach(sel=>document.querySelectorAll(sel).forEach(enableDragScroll));
+});
+</script>
+</body>
+</html>
