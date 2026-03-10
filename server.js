@@ -211,9 +211,9 @@ app.post('/auth/verify-code', (req, res) => {
 // ─────────────────────────────────────────────────────────────
 //  Start server
 // ─────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`\n🚀 Kii Akira backend running → http://localhost:${PORT}`);
-  console.log(`   Discord OAuth:  http://localhost:${PORT}/auth/discord`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n🚀 Kii Akira backend running → http://0.0.0.0:${PORT}`);
+  console.log(`   Discord OAuth:  http://0.0.0.0:${PORT}/auth/discord`);
   console.log(`   Callback URL:   ${DISCORD_REDIRECT_URI}`);
-  console.log(`   Auth check:     http://localhost:${PORT}/auth/me\n`);
+  console.log(`   Auth check:     http://0.0.0.0:${PORT}/auth/me\n`);
 });
