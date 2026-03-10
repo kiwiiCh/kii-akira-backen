@@ -25,7 +25,7 @@ const {
 
 // ── Middleware ──────────────────────────────────────────────
 app.use(cors({
-  origin: FRONTEND_URL || 'http://localhost:3000',
+  origin: true, // allow all origins
   credentials: true,
 }));
 app.use(express.json());
