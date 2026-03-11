@@ -1197,16 +1197,15 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
             <div class="field" style="margin:0;"><label>Bot Name</label><input type="text" id="editBotName" class="input"></div>
             <div class="field" style="margin:0;">
               <label>AI Model</label>
-              <select id="editBotModel" class="input" style="appearance:none;" onchange="updateEditKeyHint()">
-                <option value="groq|llama3-8b-8192">Akira AI — Fast & Free (Groq)</option>
-                <option value="groq|llama3-70b-8192">Llama 3 70B — Powerful (Groq)</option>
-                <option value="groq|mixtral-8x7b-32768">Mistral Large — Ultra Fast (Groq)</option>
+              <select id="editBotModel" class="input" style="appearance:none;">
+                <option value="groq|llama-3.1-8b-instant">Akira AI — Fast & Free (Groq)</option>
+                <option value="groq|llama-3.3-70b-versatile">Llama 3 70B — Powerful (Groq)</option>
+                <option value="groq|mixtral-8x7b-32768">Mistral Large (Groq)</option>
                 <option value="cerebras|llama3.1-8b">Cerebras Ultra — Fastest</option>
-                <option value="openai|gpt-4-turbo">GPT-4 Turbo (OpenAI)</option>
                 <option value="openai|gpt-4o-mini">GPT-4o Mini (OpenAI)</option>
+                <option value="openai|gpt-4-turbo">GPT-4 Turbo — VIP only (OpenAI)</option>
               </select>
             </div>
-            <div class="field" style="margin:0;"><label>API Key <span id="editKeyHint" style="color:var(--text-4);font-weight:400;font-size:.75rem;"></span></label><input type="password" id="editBotKey" class="input" placeholder="Leave blank to keep current key"></div>
             <div class="field" style="margin:0;"><label>Personality / System Prompt</label><textarea id="editBotPersonality" class="input" style="height:80px;resize:none;"></textarea></div>
             <div class="field" style="margin:0;">
               <label style="display:flex;align-items:center;justify-content:space-between;">
@@ -3869,46 +3868,53 @@ async function saveEditBot(){
   const bot = deployedBots.find(b => b.id === editingBotId);
   if(!bot) return;
 
-  const name = document.getElementById('editBotName').value.trim();
-  const modelVal = document.getElementById('editBotModel').value;
+  const name         = document.getElementById('editBotName').value.trim();
+  const modelVal     = document.getElementById('editBotModel').value;
   const [provider, model] = modelVal.split('|');
-  const apiKey = document.getElementById('editBotKey').value.trim();
   const systemPrompt = document.getElementById('editBotPersonality').value.trim();
-  const temperature = parseFloat(document.getElementById('editBotTemp').value);
-
-  // Get selected channels
+  const temperature  = parseFloat(document.getElementById('editBotTemp').value);
   const channelBoxes = document.querySelectorAll('#editBotServers input[type=checkbox]');
   const activeChannels = [...channelBoxes].filter(c=>c.checked).map(c=>c.dataset.channel);
 
   if(!name){ toast('Enter a name','err'); return; }
 
+  // Map display model value back to modelId
+  const modelIdMap = {
+    'groq|llama-3.1-8b-instant':'akira',
+    'groq|llama3-8b-8192':'akira',
+    'groq|llama-3.3-70b-versatile':'llama70b',
+    'groq|llama3-70b-8192':'llama70b',
+    'groq|mixtral-8x7b-32768':'mistral',
+    'cerebras|llama3.1-8b':'cerebras',
+    'openai|gpt-4o-mini':'gpt4mini',
+    'openai|gpt-4-turbo':'gpt4',
+  };
+  const modelId = modelIdMap[modelVal] || bot.modelId;
+
   // Update local
   bot.name = name;
+  bot.modelId = modelId;
   bot.provider = provider;
   bot.model = model;
   bot.systemPrompt = systemPrompt;
   bot.temperature = temperature;
   bot.activeChannels = activeChannels;
-  if(apiKey) bot.apiKey = apiKey;
 
-  // Tell backend to update (re-deploy with new settings)
-  if(apiKey){
-    try{
-      await fetch(`${BACKEND_URL}/user-bots/create`, {
-        method:'POST', credentials:'include',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          name, provider, model, apiKey, systemPrompt, temperature,
-          token: bot.token || '',
-          ownerId: currentUser.username,
-        }),
-      });
-    }catch(e){ console.warn('Bot update failed', e); }
+  // Always tell backend — PATCH updates live running bot
+  try{
+    await fetch(`${BACKEND_URL}/user-bots/${editingBotId}`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ modelId, systemPrompt, temperature }),
+    });
+    toast(`${name} updated!`);
+  } catch(e) {
+    toast(`${name} saved locally (backend unreachable)`,'warn');
   }
 
   closeEditBot();
   renderMyBotCards();
-  toast(`${name} updated!`);
 }
 
 function confirmDeleteBot(){
