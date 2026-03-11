@@ -928,30 +928,53 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
         <!-- Create AI -->
         <div id="panel-createAI">
           <div class="section-header" style="margin-bottom:20px;">
-            <div class="section-title">Create Discord AI</div>
-            <span class="badge badge-brand">Memory enabled</span>
+            <div class="section-title">Create Your AI Bot</div>
+            <span class="badge badge-brand">Invite to any server</span>
           </div>
 
-          <!-- Model Selection -->
+          <!-- Step 1: Get bot token guide -->
           <div class="card" style="margin-bottom:16px;">
-            <div class="card-header"><div class="card-title">1 — Select Model</div></div>
-            <div class="card-body" style="display:flex;flex-direction:column;gap:8px;" id="createModelList"></div>
+            <div class="card-header"><div class="card-title">1 — Get Your Bot Token</div></div>
+            <div class="card-body" style="font-size:.8125rem;color:var(--text-3);line-height:1.7;">
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <div>① Go to <a href="https://discord.com/developers/applications" target="_blank" style="color:var(--brand-light);">discord.com/developers/applications</a></div>
+                <div>② Tap <strong style="color:var(--text-1);">New Application</strong> → give it a name</div>
+                <div>③ Tap <strong style="color:var(--text-1);">Bot</strong> in the left menu</div>
+                <div>④ Tap <strong style="color:var(--text-1);">Reset Token</strong> → copy it</div>
+                <div>⑤ Turn on <strong style="color:var(--text-1);">Message Content Intent</strong></div>
+                <div>⑥ Paste the token below 👇</div>
+              </div>
+            </div>
           </div>
 
-          <!-- Config -->
+          <!-- Step 2: Configure -->
           <div class="card" style="margin-bottom:16px;">
-            <div class="card-header"><div class="card-title">2 — Configuration</div></div>
+            <div class="card-header"><div class="card-title">2 — Configure Your Bot</div></div>
             <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
-              <div class="field" style="margin:0;"><label>Bot Name</label><input type="text" id="botName" class="input" placeholder="e.g. Akira-Helper"></div>
-              <div class="field" style="margin:0;"><label>Discord Bot Token</label><input type="password" id="botToken" class="input" placeholder="Token from Discord Developer Portal"></div>
               <div class="field" style="margin:0;">
-                <label>Personality</label>
-                <div class="p-grid">
-                  <button class="p-btn on" onclick="selectP(this,'helpful')">Helpful</button>
-                  <button class="p-btn" onclick="selectP(this,'creative')">Creative</button>
-                  <button class="p-btn" onclick="selectP(this,'technical')">Technical</button>
-                  <button class="p-btn" onclick="selectP(this,'custom')">Custom</button>
-                </div>
+                <label>Bot Name</label>
+                <input type="text" id="botName" class="input" placeholder="e.g. My AI Helper">
+              </div>
+              <div class="field" style="margin:0;">
+                <label>Discord Bot Token</label>
+                <input type="password" id="botToken" class="input" placeholder="Paste token from Discord Developer Portal">
+              </div>
+              <div class="field" style="margin:0;">
+                <label>AI Provider</label>
+                <select id="botAIProvider" class="input" style="appearance:none;">
+                  <option value="groq">Groq (Fast &amp; Free)</option>
+                  <option value="cerebras">Cerebras (Ultra Fast)</option>
+                  <option value="openai">OpenAI (GPT-4)</option>
+                </select>
+              </div>
+              <div class="field" style="margin:0;" id="providerKeyField">
+                <label>AI API Key <span style="color:var(--text-4);font-weight:400;">(your own key)</span></label>
+                <input type="password" id="botAPIKey" class="input" placeholder="sk-... or gsk_...">
+                <div style="font-size:.75rem;color:var(--text-4);margin-top:4px;">Free keys: <a href="https://console.groq.com" target="_blank" style="color:var(--brand-light);">Groq</a> · <a href="https://cerebras.ai" target="_blank" style="color:var(--brand-light);">Cerebras</a></div>
+              </div>
+              <div class="field" style="margin:0;">
+                <label>Personality / System Prompt</label>
+                <textarea id="botSystemPrompt" class="input" style="height:80px;resize:none;" placeholder="You are a helpful assistant named [Bot Name]. Be friendly and concise."></textarea>
               </div>
               <div class="field" style="margin:0;">
                 <label style="display:flex;align-items:center;justify-content:space-between;">
@@ -964,58 +987,17 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
             </div>
           </div>
 
-          <!-- Memory Config -->
-          <div class="card" style="margin-bottom:16px;">
-            <div class="card-header">
-              <div class="card-title">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-                3 — Memory Settings
-              </div>
-            </div>
-            <div class="card-body" style="display:flex;flex-direction:column;gap:8px;">
-              <div class="setting-row">
-                <div class="setting-row-info">
-                  <div class="setting-row-label">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                    Server Memory
-                  </div>
-                  <div class="setting-row-sub">Remember conversations per server channel</div>
-                </div>
-                <div class="toggle on" id="serverMemToggle" onclick="this.classList.toggle('on');updateMemPreview()"></div>
-              </div>
-              <div class="setting-row">
-                <div class="setting-row-info">
-                  <div class="setting-row-label">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-                    DM Memory
-                  </div>
-                  <div class="setting-row-sub">Remember conversations in direct messages</div>
-                </div>
-                <div class="toggle on" id="dmMemToggle" onclick="this.classList.toggle('on');updateMemPreview()"></div>
-              </div>
-              <div style="background:rgba(250,166,26,.06);border:1px solid rgba(250,166,26,.18);border-radius:var(--r-md);padding:12px;display:flex;gap:10px;">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#faa61a" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                <div style="font-size:.75rem;color:var(--text-3);line-height:1.5;"><strong style="color:var(--yellow);">Auto-Eviction Active</strong> — When memory reaches capacity, the oldest messages are automatically deleted to make room for new ones (FIFO queue).</div>
-              </div>
-              <div id="memCapPreview" style="background:var(--bg-300);border-radius:var(--r-md);padding:12px;display:none;">
-                <div class="flex items-center justify-between" style="margin-bottom:8px;">
-                  <span class="text-xxs font-semibold text-3 uppercase tracking-wide">Capacity Preview</span>
-                  <span id="memCapLabel" class="badge badge-brand text-xxs">—</span>
-                </div>
-                <div class="mem-track"><div class="mem-fill green" id="memCapBar" style="width:18%;"></div></div>
-                <div class="flex justify-between" style="margin-top:6px;"><span class="text-xxs text-4">0 entries</span><span class="text-xxs text-4" id="memCapMax">—</span></div>
-              </div>
-            </div>
-          </div>
-
           <button class="btn btn-primary btn-full" style="height:44px;font-size:.9375rem;" onclick="createBot()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><polygon points="22,2 15,22 11,13 2,9"/></svg>
-            Deploy Instance
+            Deploy Bot
           </button>
 
-          <!-- Bot List -->
+          <!-- Result: invite link -->
+          <div id="botInviteResult" style="display:none;margin-top:16px;"></div>
+
+          <!-- Deployed Bots List -->
           <div style="margin-top:28px;">
-            <div class="section-header"><div class="section-title">Deployed Instances</div></div>
+            <div class="section-header"><div class="section-title">Your Deployed Bots</div></div>
             <div id="botsList"></div>
           </div>
         </div>
@@ -1193,6 +1175,10 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
           <button class="nav-item" id="admin-aicontrol" onclick="setAdmin('aicontrol')">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             <span>AI Control</span>
+          </button>
+          <button class="nav-item" id="admin-bot" onclick="setAdmin('bot')">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
+            <span>Kiara Bot</span>
           </button>
           <div class="nav-divider"></div>
           <button class="nav-item" id="admin-shutdown" onclick="setAdmin('shutdown')" style="color:var(--red);">
@@ -1396,6 +1382,45 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
           </div>
 
           <!-- ══ SHUT DOWN WEB PANEL ══ -->
+          <!-- Kiara Bot Panel -->
+          <div id="adminBotPanel" style="display:none;">
+            <div class="section-header" style="margin-bottom:16px;">
+              <div class="section-title">Kiara Bot Control</div>
+            </div>
+            <!-- Bot Status Card -->
+            <div class="card" style="margin-bottom:16px;padding:16px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <div id="botStatusDot" style="width:12px;height:12px;border-radius:50%;background:var(--red);flex-shrink:0;"></div>
+                <div>
+                  <div style="font-weight:600;font-size:.9375rem;" id="botStatusLabel">Bot Offline</div>
+                  <div style="font-size:.75rem;color:var(--text-3);" id="botStatusTag">DISCORD_BOT_TOKEN not set</div>
+                </div>
+              </div>
+            </div>
+            <!-- Channel Selector -->
+            <div class="card" style="margin-bottom:16px;padding:16px;">
+              <div style="font-weight:600;margin-bottom:12px;">Active Channels</div>
+              <div style="font-size:.8125rem;color:var(--text-3);margin-bottom:12px;">Kiara will automatically respond in these channels. She also always responds when @mentioned.</div>
+              <div id="botChannelList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">
+                <div style="color:var(--text-4);font-size:.8125rem;">Loading channels...</div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="saveBotChannels()">Save Channels</button>
+            </div>
+            <!-- Send Message -->
+            <div class="card" style="margin-bottom:16px;padding:16px;">
+              <div style="font-weight:600;margin-bottom:12px;">Send Message as Kiara</div>
+              <select id="botSayChannel" class="input" style="margin-bottom:8px;width:100%;"></select>
+              <textarea id="botSayMessage" class="input" style="width:100%;height:80px;resize:none;margin-bottom:8px;" placeholder="Type a message..."></textarea>
+              <button class="btn btn-primary btn-sm" onclick="botSay()">Send Message</button>
+            </div>
+            <!-- Personality -->
+            <div class="card" style="padding:16px;">
+              <div style="font-weight:600;margin-bottom:12px;">Bot Personality</div>
+              <textarea id="botPersonality" class="input" style="width:100%;height:100px;resize:none;margin-bottom:8px;" placeholder="System prompt for Kiara..."></textarea>
+              <button class="btn btn-primary btn-sm" onclick="saveBotPersonality()">Save Personality</button>
+            </div>
+          </div>
+
           <div id="adminShutdownPanel" style="display:none;">
             <div class="section-header" style="margin-bottom:20px;">
               <div class="section-title" style="color:var(--red);display:flex;align-items:center;gap:8px;">
@@ -2470,32 +2495,67 @@ function renderHomeBotsRef(){
   c.innerHTML=deployedBots.map(b=>makeBotCard(b)).join('');
 }
 
-function createBot(){
-  if(!selectedModel){toast('Select a model first','err');return;}
+async function createBot(){
   const name=document.getElementById('botName').value.trim();
+  const token=document.getElementById('botToken').value.trim();
+  const provider=document.getElementById('botAIProvider').value;
+  const apiKey=document.getElementById('botAPIKey').value.trim();
+  const systemPrompt=document.getElementById('botSystemPrompt').value.trim();
+  const temperature=parseFloat(document.getElementById('tempVal').textContent)||0.7;
+
   if(!name){toast('Enter a bot name','err');return;}
-  const m=models.find(x=>x.id===selectedModel);
-  if(m.vip&&!(currentUser.isVIP||currentUser.role==='developer')){toast('Akira AI requires VIP!','err');return;}
-  const serverMem=document.getElementById('serverMemToggle').classList.contains('on');
-  const dmMem=document.getElementById('dmMemToggle').classList.contains('on');
-  toast(`Deploying ${name}...`);
-  setTimeout(()=>{
-    const botId='bot_'+Math.random().toString(36).slice(2,9);
-    const bot={id:botId,name,modelId:selectedModel,personality:selectedPersonality,online:true,serverMemEnabled:serverMem,dmMemEnabled:dmMem};
-    deployedBots.push(bot);
-    seedBotMemory(botId,selectedModel);
-    if(!serverMem)botMemory[botId].servers={};
-    if(!dmMem)botMemory[botId].dms={};
+  if(!token){toast('Enter your Discord bot token','err');return;}
+  if(!apiKey){toast('Enter your AI API key','err');return;}
+
+  const btn=document.querySelector('[onclick="createBot()"]');
+  btn.disabled=true;btn.textContent='Deploying...';
+
+  try{
+    const res=await fetch(`${BACKEND_URL}/user-bots/create`,{
+      method:'POST',credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        name,token,provider,apiKey,
+        systemPrompt:systemPrompt||`You are ${name}, a helpful AI assistant. Be friendly and concise.`,
+        temperature,
+        ownerId:currentUser.username,
+      }),
+    });
+    const data=await res.json();
+    if(data.error){toast(data.error,'err');return;}
+
+    // Show invite link
+    const resultEl=document.getElementById('botInviteResult');
+    resultEl.style.display='block';
+    resultEl.innerHTML=`
+      <div class="card" style="border-color:var(--green);padding:16px;">
+        <div style="font-weight:600;color:var(--green);margin-bottom:8px;">✓ ${name} deployed!</div>
+        <div style="font-size:.8125rem;color:var(--text-3);margin-bottom:12px;">Invite your bot to a server:</div>
+        <a href="${data.inviteUrl}" target="_blank" class="btn btn-primary btn-sm" style="display:inline-flex;gap:8px;text-decoration:none;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          Invite ${name} to a Server
+        </a>
+        <div style="font-size:.75rem;color:var(--text-4);margin-top:8px;">Bot ID: ${data.botId}</div>
+      </div>
+    `;
+
+    // Add to local list
+    deployedBots.push({id:data.botId,name,provider,online:true,inviteUrl:data.inviteUrl});
     renderBotList();
-    updateBotMemSelect();
     updateStats();
-    renderHomeBotsRef();
+
+    // Clear form
     document.getElementById('botName').value='';
-    selectedModel=null;
-    renderCreateModels();
-    toast(`${name} deployed!`);
-    addLog(currentUser.username,'ai',`Deployed bot: ${name} (${m.name})`);
-  },1100);
+    document.getElementById('botToken').value='';
+    document.getElementById('botAPIKey').value='';
+    document.getElementById('botSystemPrompt').value='';
+    toast(`${name} is live!`);
+    addLog(currentUser.username,'ai',`Deployed user bot: ${name}`);
+  }catch(e){
+    toast('Deploy failed — check your token','err');
+  }finally{
+    btn.disabled=false;btn.textContent='Deploy Bot';
+  }
 }
 
 function toggleBot(botId){
@@ -2813,7 +2873,7 @@ let banList = [
 ];
 
 function setAdmin(panel){
-  ['activity','ailogs','bans','whitelist','users','aicontrol','shutdown'].forEach(id=>{
+  ['activity','ailogs','bans','whitelist','users','aicontrol','bot','shutdown'].forEach(id=>{
     const key='admin'+id.charAt(0).toUpperCase()+id.slice(1)+'Panel';
     const el=document.getElementById(key);
     if(el)el.style.display=id===panel?'block':'none';
@@ -2823,6 +2883,7 @@ function setAdmin(panel){
   if(panel==='bans')renderBanList();
   if(panel==='aicontrol')initCSpeakPanel();
   if(panel==='shutdown')initShutdownPanel();
+  if(panel==='bot')initBotPanel();
 }
 
 function renderActivityLog(){
@@ -3399,6 +3460,109 @@ window.addEventListener('load',()=>{
   ['.sidebar','.studio-content','.studio-sidebar','.admin-content','.admin-sidebar','.exec-hub','.page']
     .forEach(sel=>document.querySelectorAll(sel).forEach(enableDragScroll));
 });
+
+// ═══════════════════════════════════════
+//  KIARA BOT PANEL
+// ═══════════════════════════════════════
+let botChannels=[];
+let selectedBotChannels=new Set();
+
+async function initBotPanel(){
+  // Load bot status
+  try{
+    const res=await fetch(`${BACKEND_URL}/bot/status`,{credentials:'include'});
+    const data=await res.json();
+    const dot=document.getElementById('botStatusDot');
+    const label=document.getElementById('botStatusLabel');
+    const tag=document.getElementById('botStatusTag');
+    if(data.online){
+      dot.style.background='var(--green)';
+      label.textContent='Bot Online';
+      tag.textContent=data.tag||'Connected';
+    }else{
+      dot.style.background='var(--red)';
+      label.textContent='Bot Offline';
+      tag.textContent='Add DISCORD_BOT_TOKEN in Railway variables';
+    }
+    selectedBotChannels=new Set(data.activeChannels||[]);
+    if(data.personality){
+      const pel=document.getElementById('botPersonality');
+      if(pel)pel.value=data.personality;
+    }
+  }catch(e){console.warn('Bot status error',e);}
+
+  // Load channels
+  try{
+    const res=await fetch(`${BACKEND_URL}/bot/channels`,{credentials:'include'});
+    const data=await res.json();
+    botChannels=data.channels||[];
+    renderBotChannels();
+    populateBotSayDropdown();
+  }catch(e){
+    document.getElementById('botChannelList').innerHTML='<div style="color:var(--text-4);font-size:.8125rem;">Could not load channels — is the bot online?</div>';
+  }
+}
+
+function renderBotChannels(){
+  const list=document.getElementById('botChannelList');
+  if(!botChannels.length){list.innerHTML='<div style="color:var(--text-4);font-size:.8125rem;">No channels found — bot may be offline or not in your server.</div>';return;}
+  list.innerHTML=botChannels.map(c=>`
+    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px;border-radius:6px;background:var(--bg-3);">
+      <input type="checkbox" ${selectedBotChannels.has(c.id)?'checked':''} onchange="toggleBotChannel('${c.id}',this.checked)" style="accent-color:var(--accent);">
+      <span style="font-size:.875rem;"># ${c.name}</span>
+    </label>
+  `).join('');
+}
+
+function toggleBotChannel(id,checked){
+  if(checked)selectedBotChannels.add(id);
+  else selectedBotChannels.delete(id);
+}
+
+async function saveBotChannels(){
+  try{
+    await fetch(`${BACKEND_URL}/bot/channels`,{
+      method:'POST',credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({channelIds:[...selectedBotChannels]}),
+    });
+    toast('Bot channels saved!');
+  }catch(e){toast('Failed to save channels','err');}
+}
+
+function populateBotSayDropdown(){
+  const sel=document.getElementById('botSayChannel');
+  if(!sel||!botChannels.length)return;
+  sel.innerHTML=botChannels.map(c=>`<option value="${c.id}"># ${c.name}</option>`).join('');
+}
+
+async function botSay(){
+  const channelId=document.getElementById('botSayChannel')?.value;
+  const message=document.getElementById('botSayMessage')?.value?.trim();
+  if(!channelId||!message){toast('Select a channel and type a message','err');return;}
+  try{
+    await fetch(`${BACKEND_URL}/bot/say`,{
+      method:'POST',credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({channelId,message}),
+    });
+    document.getElementById('botSayMessage').value='';
+    toast('Message sent!');
+  }catch(e){toast('Failed to send message','err');}
+}
+
+async function saveBotPersonality(){
+  const personality=document.getElementById('botPersonality')?.value?.trim();
+  if(!personality){toast('Enter a personality','err');return;}
+  try{
+    await fetch(`${BACKEND_URL}/bot/personality`,{
+      method:'POST',credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({personality}),
+    });
+    toast('Personality saved!');
+  }catch(e){toast('Failed to save','err');}
+}
 </script>
 </body>
 </html>
