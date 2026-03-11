@@ -36,8 +36,135 @@ function checkVIP(discordId, username) {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  KIARA BOT
+//  MEMORY ENGINE
+//  Per-user memory: persists across servers, DMs, and bot restarts
+//  Structure: userId → { facts: string[], history: { role, content }[], updatedAt }
 // ─────────────────────────────────────────────────────────────
+
+const userMemory = new Map(); // userId (discordId) → memory object
+
+const MAX_HISTORY_FREE = 30;
+const MAX_HISTORY_VIP  = 1000;
+const MAX_FACTS_FREE   = 50;
+const MAX_FACTS_VIP    = 200;
+
+function getMemoryLimits(userId) {
+  // Check if this discord user has VIP
+  for (const [discordId, vip] of vipUsers) {
+    if (discordId === userId && Date.now() < vip.expiresAt) {
+      return { history: MAX_HISTORY_VIP, facts: MAX_FACTS_VIP };
+    }
+  }
+  // Also check admin/developer whitelist by cross-referencing sessions
+  // (admins/devs get VIP limits too)
+  return { history: MAX_HISTORY_FREE, facts: MAX_FACTS_FREE };
+}
+
+function getMemory(userId) {
+  if (!userMemory.has(userId)) {
+    userMemory.set(userId, { facts: [], history: [], updatedAt: Date.now() });
+  }
+  return userMemory.get(userId);
+}
+
+// Add a message turn — oldest auto-removed when limit hit
+function addToHistory(userId, role, content) {
+  const mem    = getMemory(userId);
+  const limits = getMemoryLimits(userId);
+  mem.history.push({ role, content: content.slice(0, 500) });
+  while (mem.history.length > limits.history) mem.history.shift(); // rolling delete
+  mem.updatedAt = Date.now();
+}
+
+// Extract and save facts — oldest auto-removed when limit hit
+function extractFacts(userId, userMsg) {
+  const mem    = getMemory(userId);
+  const limits = getMemoryLimits(userId);
+
+  const patterns = [
+    { regex: /my name is ([a-zA-Z]+)/i,                    template: m => `User's name is ${m[1]}` },
+    { regex: /i(?:'m| am) (\d+) years? old/i,              template: m => `User is ${m[1]} years old` },
+    { regex: /i(?:'m| am) from ([a-zA-Z\s,]+)/i,           template: m => `User is from ${m[1].trim()}` },
+    { regex: /i live in ([a-zA-Z\s,]+)/i,                  template: m => `User lives in ${m[1].trim()}` },
+    { regex: /i(?:'m| am) a ([a-zA-Z\s]+)/i,               template: m => `User is a ${m[1].trim()}` },
+    { regex: /i(?:\s+really)? like ([a-zA-Z\s,]+)/i,       template: m => `User likes ${m[1].trim()}` },
+    { regex: /i love ([a-zA-Z\s,]+)/i,                     template: m => `User loves ${m[1].trim()}` },
+    { regex: /i hate ([a-zA-Z\s,]+)/i,                     template: m => `User hates ${m[1].trim()}` },
+    { regex: /i play ([a-zA-Z\s,]+)/i,                     template: m => `User plays ${m[1].trim()}` },
+    { regex: /my favorite ([a-zA-Z]+) is ([a-zA-Z\s,]+)/i, template: m => `User's favorite ${m[1]} is ${m[2].trim()}` },
+    { regex: /remember (?:that )?(.{5,80})/i,              template: m => m[1].trim() },
+    { regex: /don'?t forget (?:that )?(.{5,80})/i,         template: m => m[1].trim() },
+  ];
+
+  for (const { regex, template } of patterns) {
+    const match = userMsg.match(regex);
+    if (match) {
+      const fact = template(match);
+      if (!mem.facts.some(f => f.toLowerCase() === fact.toLowerCase())) {
+        mem.facts.push(fact);
+        while (mem.facts.length > limits.facts) mem.facts.shift(); // rolling delete
+      }
+    }
+  }
+}
+
+// Build the memory context string to inject into system prompt
+function buildMemoryContext(userId) {
+  const mem = getMemory(userId);
+  const parts = [];
+
+  if (mem.facts.length > 0) {
+    parts.push(`Things you know about this user:\n${mem.facts.map(f => `- ${f}`).join('\n')}`);
+  }
+
+  return parts.length > 0
+    ? `\n\n[MEMORY]\n${parts.join('\n\n')}\n[/MEMORY]`
+    : '';
+}
+
+// Build full message array with history for the AI call
+function buildMessages(systemPrompt, userId, userMsg) {
+  const mem = getMemory(userId);
+  const memContext = buildMemoryContext(userId);
+  const fullSystem = systemPrompt + memContext;
+
+  // Include last N history turns + new message
+  const historyToSend = mem.history.slice(-20); // last 20 turns for context
+  return [
+    { role: 'system', content: fullSystem },
+    ...historyToSend,
+    { role: 'user', content: userMsg },
+  ];
+}
+
+// Memory API routes
+app.get('/memory/:userId', requireAdmin, (req, res) => {
+  const mem = userMemory.get(req.params.userId);
+  res.json(mem || { facts: [], history: [], updatedAt: null });
+});
+
+app.delete('/memory/:userId', requireAdmin, (req, res) => {
+  userMemory.delete(req.params.userId);
+  res.json({ success: true });
+});
+
+app.get('/memory/me/stats', (req, res) => {
+  if (!req.session?.user?.loggedIn) return res.json({ facts: 0, history: 0, sizeKB: 0 });
+  const userId  = req.session.user.discordId;
+  const mem     = userMemory.get(userId);
+  const limits  = getMemoryLimits(userId);
+  if (!mem) return res.json({ facts: 0, history: 0, sizeKB: '0.00', maxHistory: limits.history, maxFacts: limits.facts });
+  const sizeKB  = (JSON.stringify(mem).length / 1024).toFixed(2);
+  res.json({ facts: mem.facts.length, history: mem.history.length, sizeKB, maxHistory: limits.history, maxFacts: limits.facts, updatedAt: mem.updatedAt });
+});
+
+app.delete('/memory/me/clear', (req, res) => {
+  if (!req.session?.user?.loggedIn) return res.status(401).json({ error: 'Not logged in' });
+  userMemory.delete(req.session.user.discordId);
+  res.json({ success: true });
+});
+
+
 const { Client: DJSClientKiara, GatewayIntentBits: GWI, Events: DJSEvents } = require('discord.js');
 
 global.kiaraConfig = global.kiaraConfig || {
@@ -67,31 +194,23 @@ kiaraBot.on(DJSEvents.MessageCreate, async message => {
     const groqKey = process.env.GROQ_API_KEY;
     if (!groqKey) return message.reply('⚠️ AI not configured yet — admin needs to set GROQ_API_KEY.');
 
+    const userId   = message.author.id;
+    const messages = buildMessages(global.kiaraConfig.personality, userId, userMsg);
+
     let reply = null;
 
-    // Primary: Groq llama-3.1-8b-instant
+    // Primary: Groq
     try {
       const r = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-        model: 'llama-3.1-8b-instant',
-        messages: [
-          { role: 'system', content: global.kiaraConfig.personality },
-          { role: 'user',   content: userMsg },
-        ],
-        max_tokens: 400, temperature: 0.75,
+        model: 'llama-3.1-8b-instant', messages, max_tokens: 400, temperature: 0.75,
       }, { headers: { Authorization: `Bearer ${groqKey}` }, timeout: 15000 });
       reply = r.data.choices[0]?.message?.content;
     } catch (groqErr) {
       console.error('Kiara Groq error:', groqErr.response?.data?.error?.message || groqErr.message);
-      // Fallback: Cerebras
       try {
         const cerebrasKey = process.env.CEREBRAS_API_KEY || groqKey;
         const r2 = await axios.post('https://api.cerebras.ai/v1/chat/completions', {
-          model: 'llama3.1-8b',
-          messages: [
-            { role: 'system', content: global.kiaraConfig.personality },
-            { role: 'user',   content: userMsg },
-          ],
-          max_tokens: 400,
+          model: 'llama3.1-8b', messages, max_tokens: 400,
         }, { headers: { Authorization: `Bearer ${cerebrasKey}` }, timeout: 15000 });
         reply = r2.data.choices[0]?.message?.content;
       } catch (fallbackErr) {
@@ -100,6 +219,12 @@ kiaraBot.on(DJSEvents.MessageCreate, async message => {
     }
 
     if (!reply) return message.reply("I couldn't get a response right now. Try again in a moment!");
+
+    // Save to memory
+    addToHistory(userId, 'user', userMsg);
+    addToHistory(userId, 'assistant', reply);
+    extractFacts(userId, userMsg);
+
     await message.reply(reply.slice(0, 1900));
   } catch (e) {
     console.error('Kiara bot error:', e.message);
@@ -285,9 +410,9 @@ function getPlatformKey(provider) {
   return null;
 }
 
-async function callAI(provider, apiKey, systemPrompt, userMsg, temperature, model) {
+async function callAI(provider, apiKey, messages, temperature, model) {
   const opts = { headers: { Authorization: `Bearer ${apiKey}` }, timeout: 15000 };
-  const body = { model, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMsg }], max_tokens: 400, temperature };
+  const body = { model, messages, max_tokens: 400, temperature };
   if (provider === 'groq')     { const r = await axios.post('https://api.groq.com/openai/v1/chat/completions', body, opts);     return r.data.choices[0].message.content; }
   if (provider === 'cerebras') { const r = await axios.post('https://api.cerebras.ai/v1/chat/completions', body, opts);         return r.data.choices[0].message.content; }
   if (provider === 'openai')   { const r = await axios.post('https://api.openai.com/v1/chat/completions',   body, opts);         return r.data.choices[0].message.content; }
@@ -328,8 +453,14 @@ app.post('/user-bots/create', async (req, res) => {
         await message.channel.sendTyping();
         const userMsg = message.content.replace(`<@${botClient.user.id}>`, '').trim();
         if (!userMsg) return message.reply(`Hey! I'm ${name}. How can I help? 👋`);
-        const md = PLATFORM_MODELS[cfg.modelId];
-        const reply = await callAI(md.provider, getPlatformKey(md.provider), cfg.systemPrompt, userMsg, cfg.temperature, md.model);
+        const md       = PLATFORM_MODELS[cfg.modelId];
+        const userId   = message.author.id;
+        const messages = buildMessages(cfg.systemPrompt, userId, userMsg);
+        const reply    = await callAI(md.provider, getPlatformKey(md.provider), messages, cfg.temperature, md.model);
+        // Save to memory
+        addToHistory(userId, 'user', userMsg);
+        addToHistory(userId, 'assistant', reply);
+        extractFacts(userId, userMsg);
         await message.reply(reply.slice(0, 1900));
       } catch (e) { await message.reply('Having trouble right now. Try again shortly!'); }
     });
