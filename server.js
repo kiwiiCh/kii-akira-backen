@@ -25,8 +25,52 @@ const {
 } = process.env;
 
 // ── Start Discord bot ───────────────────────────────────────
-const { startBot, client: botClient } = require('./bot');
-startBot();
+const { Client: DJSClientKiara, GatewayIntentBits: GWI, Events: DJSEvents } = require('discord.js');
+
+global.kiaraConfig = global.kiaraConfig || {
+  activeChannels: new Set(),
+  personality: 'You are Kiara KiI, a friendly and helpful AI assistant. Keep responses short and conversational.',
+};
+
+const kiaraBot = new DJSClientKiara({
+  intents: [GWI.Guilds, GWI.GuildMessages, GWI.MessageContent],
+});
+
+kiaraBot.once(DJSEvents.ClientReady, c => {
+  console.log(`🤖 Kiara KiI online as ${c.user.tag}`);
+  c.user.setPresence({ status: 'online', activities: [{ name: 'Kii Akira Dashboard', type: 0 }] });
+});
+
+kiaraBot.on(DJSEvents.MessageCreate, async message => {
+  if (message.author.bot) return;
+  const mentioned = message.mentions.has(kiaraBot.user);
+  const inActive = global.kiaraConfig.activeChannels.has(message.channel.id);
+  if (!mentioned && !inActive) return;
+  if (!mentioned && message.content.trim().length < 2) return;
+  try {
+    await message.channel.sendTyping();
+    const userMsg = message.content.replace(`<@${kiaraBot.user.id}>`, '').trim();
+    if (!userMsg) return message.reply('Hey! How can I help? 👋');
+    const groqKey = process.env.GROQ_API_KEY;
+    if (!groqKey) return message.reply('No AI key configured yet!');
+    const r = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
+      model: 'llama3-8b-8192',
+      messages: [{ role: 'system', content: global.kiaraConfig.personality }, { role: 'user', content: userMsg }],
+      max_tokens: 300, temperature: 0.7,
+    }, { headers: { Authorization: `Bearer ${groqKey}` } });
+    const reply = r.data.choices[0]?.message?.content || 'I couldn\'t think of a response!';
+    await message.reply(reply.slice(0, 1900));
+  } catch (e) {
+    console.error('Kiara bot error:', e.message);
+    await message.reply('Sorry, having trouble right now!');
+  }
+});
+
+if (DISCORD_BOT_TOKEN) {
+  kiaraBot.login(DISCORD_BOT_TOKEN).catch(e => console.warn('Kiara bot login failed:', e.message));
+} else {
+  console.warn('⚠️  DISCORD_BOT_TOKEN not set — Kiara bot offline');
+}
 
 // ── Middleware ──────────────────────────────────────────────
 app.use(cors({
@@ -342,7 +386,7 @@ async function callAI(provider, apiKey, systemPrompt, userMsg, temperature) {
 // ─────────────────────────────────────────────────────────────
 app.get('/bot/channels', async (req, res) => {
   try {
-    const guild = botClient.guilds.cache.first();
+    const guild = kiaraBot.guilds.cache.first();
     if (!guild) return res.json({ channels: [] });
     const channels = guild.channels.cache
       .filter(c => c.type === 0) // text channels only
@@ -358,8 +402,8 @@ app.get('/bot/channels', async (req, res) => {
 app.get('/bot/status', (req, res) => {
   const config = global.kiaraConfig || { activeChannels: new Set() };
   res.json({
-    online: botClient?.isReady() || false,
-    tag: botClient?.user?.tag || null,
+    online: kiaraBot?.isReady() || false,
+    tag: kiaraBot?.user?.tag || null,
     activeChannels: [...config.activeChannels],
     personality: config.personality,
   });
@@ -389,7 +433,7 @@ app.post('/bot/say', async (req, res) => {
   const { channelId, message } = req.body;
   if (!channelId || !message) return res.status(400).json({ error: 'channelId and message required' });
   try {
-    const channel = await botClient.channels.fetch(channelId);
+    const channel = await kiaraBot.channels.fetch(channelId);
     await channel.send(message);
     res.json({ success: true });
   } catch (err) {
