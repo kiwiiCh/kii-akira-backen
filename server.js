@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════
 //  Kii Akira — Discord OAuth Backend  (Node.js / Express)
 //  Run:  node server.js
-//  Needs: npm install express axios cors dotenv express-session
+//  Needs: npm install express axios cors dotenv express-session discord.js
 // ═══════════════════════════════════════════════════════════
 
 require('dotenv').config();
@@ -18,10 +18,15 @@ const PORT = process.env.PORT || 3000;
 const {
   DISCORD_CLIENT_ID,
   DISCORD_CLIENT_SECRET,
-  DISCORD_REDIRECT_URI,   // e.g. http://localhost:3000/auth/callback
+  DISCORD_REDIRECT_URI,
+  DISCORD_BOT_TOKEN,
   SESSION_SECRET,
-  FRONTEND_URL,           // e.g. http://localhost:3000  or your domain
+  FRONTEND_URL,
 } = process.env;
+
+// ── Start Discord bot ───────────────────────────────────────
+const { startBot, client: botClient } = require('./bot');
+startBot();
 
 // ── Middleware ──────────────────────────────────────────────
 app.use(cors({
@@ -208,6 +213,188 @@ app.post('/auth/verify-code', (req, res) => {
   pendingCodes.delete(email);
   req.session.verifiedEmail = email;
   res.json({ success: true, verifiedEmail: email });
+});
+
+// ─────────────────────────────────────────────────────────────
+//  USER BOT SYSTEM — Each user deploys their own bot
+// ─────────────────────────────────────────────────────────────
+const { Client: DJSClient, GatewayIntentBits, Events } = require('discord.js');
+
+// Store active user bot instances: botId → { client, config }
+const userBotInstances = new Map();
+
+// Create + start a user's bot
+app.post('/user-bots/create', async (req, res) => {
+  const { name, token, provider, apiKey, systemPrompt, temperature, ownerId } = req.body;
+  if (!name || !token || !apiKey) return res.status(400).json({ error: 'name, token and apiKey required' });
+
+  // First validate the token by logging in
+  const testClient = new DJSClient({ intents: [GatewayIntentBits.Guilds] });
+  try {
+    await testClient.login(token);
+    const botId = testClient.user.id;
+    const botTag = testClient.user.tag;
+    testClient.destroy();
+
+    // Stop existing instance if any
+    if (userBotInstances.has(botId)) {
+      userBotInstances.get(botId).client.destroy();
+    }
+
+    // Start full bot instance
+    const botClient = new DJSClient({
+      intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+      ],
+    });
+
+    botClient.once(Events.ClientReady, c => {
+      console.log(`🤖 User bot online: ${c.user.tag} (owner: ${ownerId})`);
+      c.user.setPresence({ status: 'online', activities: [{ name: name, type: 0 }] });
+    });
+
+    botClient.on(Events.MessageCreate, async message => {
+      if (message.author.bot) return;
+      const mentioned = message.mentions.has(botClient.user);
+      if (!mentioned) return;
+      try {
+        await message.channel.sendTyping();
+        const userMsg = message.content.replace(`<@${botClient.user.id}>`, '').trim();
+        if (!userMsg) return message.reply(`Hey! I'm ${name}. How can I help? 👋`);
+
+        const aiRes = await callAI(provider, apiKey, systemPrompt, userMsg, temperature);
+        await message.reply(aiRes.slice(0, 1900));
+      } catch (e) {
+        await message.reply('Sorry, I\'m having trouble right now!');
+      }
+    });
+
+    await botClient.login(token);
+    userBotInstances.set(botId, { client: botClient, config: { name, provider, apiKey, systemPrompt, temperature, ownerId } });
+
+    const inviteUrl = `https://discord.com/api/oauth2/authorize?client_id=${botId}&permissions=277025459200&scope=bot`;
+    res.json({ success: true, botId, botTag, inviteUrl });
+
+  } catch (err) {
+    console.error('User bot error:', err.message);
+    res.status(400).json({ error: 'Invalid bot token — please check and try again' });
+  }
+});
+
+// Get user's bots
+app.get('/user-bots', (req, res) => {
+  const ownerId = req.query.ownerId;
+  const bots = [];
+  for (const [botId, { client, config }] of userBotInstances) {
+    if (!ownerId || config.ownerId === ownerId) {
+      bots.push({ botId, name: config.name, tag: client.user?.tag, online: client.isReady(), provider: config.provider });
+    }
+  }
+  res.json({ bots });
+});
+
+// Stop a user's bot
+app.delete('/user-bots/:botId', (req, res) => {
+  const { botId } = req.params;
+  if (userBotInstances.has(botId)) {
+    userBotInstances.get(botId).client.destroy();
+    userBotInstances.delete(botId);
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ error: 'Bot not found' });
+  }
+});
+
+// AI call helper
+async function callAI(provider, apiKey, systemPrompt, userMsg, temperature) {
+  if (provider === 'groq') {
+    const r = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
+      model: 'llama3-8b-8192',
+      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMsg }],
+      max_tokens: 300, temperature,
+    }, { headers: { Authorization: `Bearer ${apiKey}` } });
+    return r.data.choices[0].message.content;
+  }
+  if (provider === 'cerebras') {
+    const r = await axios.post('https://api.cerebras.ai/v1/chat/completions', {
+      model: 'llama3.1-8b',
+      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMsg }],
+      max_tokens: 300, temperature,
+    }, { headers: { Authorization: `Bearer ${apiKey}` } });
+    return r.data.choices[0].message.content;
+  }
+  if (provider === 'openai') {
+    const r = await axios.post('https://api.openai.com/v1/chat/completions', {
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMsg }],
+      max_tokens: 300, temperature,
+    }, { headers: { Authorization: `Bearer ${apiKey}` } });
+    return r.data.choices[0].message.content;
+  }
+  return 'Unknown AI provider.';
+}
+
+// ─────────────────────────────────────────────────────────────
+//  BOT API — Get list of channels in the guild
+//  GET /bot/channels?guild_id=xxx
+// ─────────────────────────────────────────────────────────────
+app.get('/bot/channels', async (req, res) => {
+  try {
+    const guild = botClient.guilds.cache.first();
+    if (!guild) return res.json({ channels: [] });
+    const channels = guild.channels.cache
+      .filter(c => c.type === 0) // text channels only
+      .map(c => ({ id: c.id, name: c.name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    res.json({ channels });
+  } catch (err) {
+    res.json({ channels: [] });
+  }
+});
+
+// GET /bot/status — returns bot online status + active channels
+app.get('/bot/status', (req, res) => {
+  const config = global.kiaraConfig || { activeChannels: new Set() };
+  res.json({
+    online: botClient?.isReady() || false,
+    tag: botClient?.user?.tag || null,
+    activeChannels: [...config.activeChannels],
+    personality: config.personality,
+  });
+});
+
+// POST /bot/channels — set which channels the bot talks in
+app.post('/bot/channels', (req, res) => {
+  const { channelIds } = req.body; // array of channel IDs
+  if (!Array.isArray(channelIds)) return res.status(400).json({ error: 'channelIds must be array' });
+  if (!global.kiaraConfig) global.kiaraConfig = { activeChannels: new Set() };
+  global.kiaraConfig.activeChannels = new Set(channelIds);
+  console.log('Bot active channels updated:', channelIds);
+  res.json({ success: true, activeChannels: channelIds });
+});
+
+// POST /bot/personality — update bot personality/system prompt
+app.post('/bot/personality', (req, res) => {
+  const { personality } = req.body;
+  if (!personality) return res.status(400).json({ error: 'personality required' });
+  if (!global.kiaraConfig) global.kiaraConfig = { activeChannels: new Set() };
+  global.kiaraConfig.personality = personality;
+  res.json({ success: true });
+});
+
+// POST /bot/say — send a message as the bot to a channel
+app.post('/bot/say', async (req, res) => {
+  const { channelId, message } = req.body;
+  if (!channelId || !message) return res.status(400).json({ error: 'channelId and message required' });
+  try {
+    const channel = await botClient.channels.fetch(channelId);
+    await channel.send(message);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────
