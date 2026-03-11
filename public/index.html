@@ -3765,13 +3765,14 @@ function renderMyBotCards(){
     return;
   }
   container.innerHTML = myBots.map(bot => {
-    const mem = botMemory[bot.id];
-    const memUsed = mem ? (JSON.stringify(mem).length / 1024).toFixed(1) : 0;
-    const memMax = bot.provider === 'openai' ? 32 : 16;
-    const memPct = Math.min(100, Math.round((memUsed / memMax) * 100));
+    const id       = bot.id || bot.botId;
+    const mem      = botMemory[id];
+    const memUsed  = mem ? (JSON.stringify(mem).length / 1024).toFixed(1) : 0;
+    const memMax   = bot.provider === 'openai' ? 32 : 16;
+    const memPct   = Math.min(100, Math.round((memUsed / memMax) * 100));
     const memColor = memPct > 80 ? 'var(--red)' : memPct > 50 ? 'var(--yellow)' : 'var(--green)';
-    const providerLabel = {groq:'Groq', cerebras:'Cerebras', openai:'OpenAI'}[bot.provider] || bot.provider;
-    const modelLabel = bot.model || '';
+    const providerLabel = {groq:'Groq', cerebras:'Cerebras', openai:'OpenAI'}[bot.provider] || bot.provider || '';
+    const modelLabel = bot.model || bot.modelId || '';
     return `
     <div class="card" style="padding:0;overflow:hidden;">
       <div style="padding:14px 16px;display:flex;align-items:center;gap:12px;">
@@ -3785,7 +3786,6 @@ function renderMyBotCards(){
           <span style="font-size:.75rem;color:var(--text-3);">${bot.online?'Online':'Offline'}</span>
         </div>
       </div>
-      <!-- Memory bar -->
       <div style="padding:0 16px 10px;">
         <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
           <span style="font-size:.7rem;color:var(--text-4);">Memory</span>
@@ -3797,44 +3797,55 @@ function renderMyBotCards(){
       </div>
       ${bot.inviteUrl ? `<div style="padding:0 16px 10px;"><a href="${bot.inviteUrl}" target="_blank" style="font-size:.75rem;color:var(--brand-light);text-decoration:none;">🔗 Invite link</a></div>` : ''}
       <div style="border-top:1px solid var(--border);padding:10px 16px;display:flex;gap:8px;">
-        <button onclick="openEditBot('${bot.id}')" class="btn btn-sm flex-1" style="background:var(--bg-3);">⚙️ Edit</button>
-        <button onclick="toggleBotOnline('${bot.id}')" class="btn btn-sm flex-1" style="background:var(--bg-3);">${bot.online?'⏸ Pause':'▶ Resume'}</button>
+        <button onclick="openEditBot('${id}')" class="btn btn-sm flex-1" style="background:var(--bg-3);">⚙️ Edit</button>
+        <button onclick="toggleBotOnline('${id}')" class="btn btn-sm flex-1" style="background:var(--bg-3);">${bot.online?'⏸ Pause':'▶ Resume'}</button>
       </div>
     </div>`;
   }).join('');
 }
 
 function openEditBot(botId){
-  const bot = deployedBots.find(b => b.id === botId);
-  if(!bot) return;
-  editingBotId = botId;
+  const bot = deployedBots.find(b => b.id === botId || b.botId === botId);
+  if(!bot){ toast('Bot not found','err'); return; }
+  editingBotId = bot.id || bot.botId;
 
-  document.getElementById('editBotName').value = bot.name || '';
+  document.getElementById('editBotName').value        = bot.name || '';
   document.getElementById('editBotPersonality').value = bot.systemPrompt || '';
-  document.getElementById('editBotTemp').value = bot.temperature || 0.7;
-  document.getElementById('editTempVal').textContent = bot.temperature || 0.7;
-  document.getElementById('editBotKey').value = '';
+  document.getElementById('editBotTemp').value        = bot.temperature || 0.7;
+  document.getElementById('editTempVal').textContent  = bot.temperature || 0.7;
 
-  // Set model dropdown
+  // Match model dropdown — try modelId first, then provider|model combo
   const modelSel = document.getElementById('editBotModel');
-  const modelVal = `${bot.provider}|${bot.model}`;
-  for(let opt of modelSel.options){ if(opt.value === modelVal){ opt.selected = true; break; } }
-  updateEditKeyHint();
+  const modelIdToVal = {
+    'akira':    'groq|llama-3.1-8b-instant',
+    'llama70b': 'groq|llama-3.3-70b-versatile',
+    'mistral':  'groq|mixtral-8x7b-32768',
+    'cerebras': 'cerebras|llama3.1-8b',
+    'gpt4mini': 'openai|gpt-4o-mini',
+    'gpt4':     'openai|gpt-4-turbo',
+  };
+  const targetVal = modelIdToVal[bot.modelId] || `${bot.provider}|${bot.model}`;
+  for(let opt of modelSel.options){ opt.selected = opt.value === targetVal; }
 
-  // Memory info
-  const mem = botMemory[botId];
-  const memUsed = mem ? (JSON.stringify(mem).length / 1024).toFixed(1) : 0;
-  const memMax = bot.provider === 'openai' ? 32 : 16;
-  const memPct = Math.min(100, Math.round((memUsed / memMax) * 100));
-  document.getElementById('editBotMemFill').style.width = memPct + '%';
-  document.getElementById('editBotMemFill').style.background = memPct > 80 ? 'var(--red)' : memPct > 50 ? 'var(--yellow)' : 'var(--green)';
-  document.getElementById('editBotMemLabel').textContent = `${memUsed}KB used of ${memMax}KB · ${memPct}% full`;
+  // Memory info from backend
+  fetch(`${BACKEND_URL}/memory/me/stats`, {credentials:'include'})
+    .then(r=>r.json()).then(stats => {
+      const used   = parseFloat(stats.sizeKB)||0;
+      const maxKB  = stats.maxHistory >= 1000 ? 500 : 16;
+      const pct    = Math.min(100, Math.round((used/maxKB)*100));
+      const color  = pct>80?'var(--red)':pct>50?'var(--yellow)':'var(--green)';
+      document.getElementById('editBotMemFill').style.width       = pct+'%';
+      document.getElementById('editBotMemFill').style.background  = color;
+      document.getElementById('editBotMemLabel').textContent      = `${used}KB used · ${stats.history||0} msgs / ${stats.maxHistory||30} max`;
+    }).catch(()=>{
+      document.getElementById('editBotMemLabel').textContent = 'Memory stats unavailable';
+    });
 
-  // Load servers from backend
+  // Load servers from Kiara bot
   fetch(`${BACKEND_URL}/bot/channels`, {credentials:'include'})
     .then(r=>r.json())
     .then(data => {
-      const channels = data.channels || [];
+      const channels      = data.channels || [];
       const activeChannels = bot.activeChannels || [];
       document.getElementById('editBotServers').innerHTML = channels.length
         ? channels.map(c => `
@@ -3842,9 +3853,9 @@ function openEditBot(botId){
               <input type="checkbox" ${activeChannels.includes(c.id)?'checked':''} data-channel="${c.id}" style="accent-color:var(--accent);">
               <span># ${c.name}</span>
             </label>`).join('')
-        : '<span style="color:var(--text-4);">No channels found — is Kiara bot online?</span>';
+        : '<span style="color:var(--text-4);font-size:.8125rem;">No channels found — Kiara bot needs to be in your server</span>';
     })
-    .catch(() => { document.getElementById('editBotServers').textContent = 'Could not load servers'; });
+    .catch(() => { document.getElementById('editBotServers').textContent = 'Could not load channels'; });
 
   document.getElementById('editBotModal').style.display = 'block';
   document.body.style.overflow = 'hidden';
