@@ -1180,9 +1180,8 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
             <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);margin-bottom:8px;">Yearly Plan</div>
             <div style="font-size:2.5rem;font-weight:800;color:var(--text-1);">₱299</div>
             <div style="color:var(--text-4);font-size:.8125rem;margin-bottom:20px;">per year · that's less than ₱25/month</div>
-            <button class="btn btn-full" style="height:48px;font-size:1rem;font-weight:700;background:linear-gradient(135deg,#0060af,#00a0e3);border:none;color:#fff;border-radius:var(--r-md);gap:10px;" onclick="startGCashPayment()">
-              <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/GCash_logo_updated.svg/512px-GCash_logo_updated.svg.png" style="height:22px;filter:brightness(10);" onerror="this.style.display='none'">
-              Pay with GCash
+            <button class="btn btn-full" style="height:48px;font-size:1rem;font-weight:700;background:linear-gradient(135deg,#0060af,#00a0e3);border:none;color:#fff;border-radius:var(--r-md);" onclick="startGCashPayment()">
+              💙 Pay with GCash
             </button>
             <div style="font-size:.75rem;color:var(--text-4);margin-top:12px;">Secure payment via PayMongo · Instant activation</div>
           </div>
@@ -3682,7 +3681,7 @@ async function startGCashPayment(){
   }catch(e){
     toast('Could not open checkout. Try again!','err');
   }finally{
-    if(btn){btn.disabled=false;btn.innerHTML='<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/GCash_logo_updated.svg/512px-GCash_logo_updated.svg.png" style="height:22px;filter:brightness(10);" onerror="this.style.display=\'none\'"> Pay with GCash';}
+    if(btn){btn.disabled=false;btn.textContent='💙 Pay with GCash';}
   }
 }
 
