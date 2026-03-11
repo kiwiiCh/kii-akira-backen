@@ -960,17 +960,20 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
                 <input type="password" id="botToken" class="input" placeholder="Paste token from Discord Developer Portal">
               </div>
               <div class="field" style="margin:0;">
-                <label>AI Provider</label>
-                <select id="botAIProvider" class="input" style="appearance:none;">
-                  <option value="groq">Groq (Fast &amp; Free)</option>
-                  <option value="cerebras">Cerebras (Ultra Fast)</option>
-                  <option value="openai">OpenAI (GPT-4)</option>
+                <label>AI Model</label>
+                <select id="botAIProvider" class="input" style="appearance:none;" onchange="updateProviderHint()">
+                  <option value="groq|llama3-8b-8192">Akira AI — Fast &amp; Free (Groq)</option>
+                  <option value="groq|llama3-70b-8192">Llama 3 70B — Powerful (Groq)</option>
+                  <option value="groq|mixtral-8x7b-32768">Mistral Large — Ultra Fast (Groq)</option>
+                  <option value="cerebras|llama3.1-8b">Cerebras Ultra — Fastest (Cerebras)</option>
+                  <option value="openai|gpt-4-turbo">GPT-4 Turbo — Most Capable (OpenAI)</option>
+                  <option value="openai|gpt-4o-mini">GPT-4o Mini — Smart &amp; Cheap (OpenAI)</option>
                 </select>
               </div>
               <div class="field" style="margin:0;" id="providerKeyField">
                 <label>AI API Key <span style="color:var(--text-4);font-weight:400;">(your own key)</span></label>
                 <input type="password" id="botAPIKey" class="input" placeholder="sk-... or gsk_...">
-                <div style="font-size:.75rem;color:var(--text-4);margin-top:4px;">Free keys: <a href="https://console.groq.com" target="_blank" style="color:var(--brand-light);">Groq</a> · <a href="https://cerebras.ai" target="_blank" style="color:var(--brand-light);">Cerebras</a></div>
+                <div style="font-size:.75rem;color:var(--text-4);margin-top:4px;" id="providerKeyHint">Free keys: <a href="https://console.groq.com" target="_blank" style="color:var(--brand-light);">console.groq.com</a></div>
               </div>
               <div class="field" style="margin:0;">
                 <label>Personality / System Prompt</label>
@@ -2495,10 +2498,24 @@ function renderHomeBotsRef(){
   c.innerHTML=deployedBots.map(b=>makeBotCard(b)).join('');
 }
 
+function updateProviderHint(){
+  const val=document.getElementById('botAIProvider')?.value||'';
+  const provider=val.split('|')[0];
+  const hint=document.getElementById('providerKeyHint');
+  if(!hint)return;
+  const links={
+    groq:'Free key: <a href="https://console.groq.com" target="_blank" style="color:var(--brand-light);">console.groq.com</a>',
+    cerebras:'Free key: <a href="https://cloud.cerebras.ai" target="_blank" style="color:var(--brand-light);">cloud.cerebras.ai</a>',
+    openai:'Get key: <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--brand-light);">platform.openai.com</a>',
+  };
+  hint.innerHTML=links[provider]||'';
+}
+
 async function createBot(){
   const name=document.getElementById('botName').value.trim();
   const token=document.getElementById('botToken').value.trim();
-  const provider=document.getElementById('botAIProvider').value;
+  const providerVal=document.getElementById('botAIProvider').value;
+  const [provider,model]=providerVal.split('|');
   const apiKey=document.getElementById('botAPIKey').value.trim();
   const systemPrompt=document.getElementById('botSystemPrompt').value.trim();
   const temperature=parseFloat(document.getElementById('tempVal').textContent)||0.7;
@@ -2515,7 +2532,7 @@ async function createBot(){
       method:'POST',credentials:'include',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
-        name,token,provider,apiKey,
+        name,token,provider,model,apiKey,
         systemPrompt:systemPrompt||`You are ${name}, a helpful AI assistant. Be friendly and concise.`,
         temperature,
         ownerId:currentUser.username,
@@ -2524,7 +2541,6 @@ async function createBot(){
     const data=await res.json();
     if(data.error){toast(data.error,'err');return;}
 
-    // Show invite link
     const resultEl=document.getElementById('botInviteResult');
     resultEl.style.display='block';
     resultEl.innerHTML=`
@@ -2539,18 +2555,15 @@ async function createBot(){
       </div>
     `;
 
-    // Add to local list
-    deployedBots.push({id:data.botId,name,provider,online:true,inviteUrl:data.inviteUrl});
+    deployedBots.push({id:data.botId,name,provider,model,online:true,inviteUrl:data.inviteUrl});
     renderBotList();
     updateStats();
-
-    // Clear form
     document.getElementById('botName').value='';
     document.getElementById('botToken').value='';
     document.getElementById('botAPIKey').value='';
     document.getElementById('botSystemPrompt').value='';
     toast(`${name} is live!`);
-    addLog(currentUser.username,'ai',`Deployed user bot: ${name}`);
+    addLog(currentUser.username,'ai',`Deployed user bot: ${name} (${model})`);
   }catch(e){
     toast('Deploy failed — check your token','err');
   }finally{
