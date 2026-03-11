@@ -1,40 +1,51 @@
 // ═══════════════════════════════════════════════════════════
 //  Kii Akira — Discord OAuth Backend  (Node.js / Express)
-//  Run:  node server.js
-//  Needs: npm install express axios cors dotenv express-session discord.js
 // ═══════════════════════════════════════════════════════════
 
 require('dotenv').config();
-const express    = require('express');
-const axios      = require('axios');
-const cors       = require('cors');
-const session    = require('express-session');
-const path       = require('path');
+const express = require('express');
+const axios   = require('axios');
+const cors    = require('cors');
+const session = require('express-session');
+const path    = require('path');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// ── Config (loaded from .env) ──────────────────────────────
-const {
-  DISCORD_CLIENT_ID,
-  DISCORD_CLIENT_SECRET,
-  DISCORD_REDIRECT_URI,
-  DISCORD_BOT_TOKEN,
-  SESSION_SECRET,
-  FRONTEND_URL,
-} = process.env;
+const { DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_REDIRECT_URI,
+        DISCORD_BOT_TOKEN, SESSION_SECRET, FRONTEND_URL } = process.env;
 
-// ── Start Discord bot ───────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+//  ROLE & WHITELIST SYSTEM
+// ─────────────────────────────────────────────────────────────
+const OWNER_USERNAME = 'kiiakira';
+const adminWhitelist = new Map(); // username → { addedAt, addedBy }
+const vipUsers       = new Map(); // discordId → { expiresAt, plan, grantedBy, username }
+
+function getUserRole(username) {
+  if (username === OWNER_USERNAME)  return 'developer';
+  if (adminWhitelist.has(username)) return 'admin';
+  return 'user';
+}
+
+function checkVIP(discordId, username) {
+  const role = getUserRole(username);
+  if (role === 'developer' || role === 'admin') return true;
+  const vip = vipUsers.get(discordId);
+  return !!(vip && Date.now() < vip.expiresAt);
+}
+
+// ─────────────────────────────────────────────────────────────
+//  KIARA BOT
+// ─────────────────────────────────────────────────────────────
 const { Client: DJSClientKiara, GatewayIntentBits: GWI, Events: DJSEvents } = require('discord.js');
 
 global.kiaraConfig = global.kiaraConfig || {
   activeChannels: new Set(),
-  personality: 'You are Kiara KiI, a friendly and helpful AI assistant. Keep responses short and conversational.',
+  personality: 'You are Kiara KiI, a friendly and helpful AI assistant for the Kii Akira platform. Keep responses short and conversational.',
 };
 
-const kiaraBot = new DJSClientKiara({
-  intents: [GWI.Guilds, GWI.GuildMessages, GWI.MessageContent],
-});
+const kiaraBot = new DJSClientKiara({ intents: [GWI.Guilds, GWI.GuildMessages, GWI.MessageContent] });
 
 kiaraBot.once(DJSEvents.ClientReady, c => {
   console.log(`🤖 Kiara KiI online as ${c.user.tag}`);
@@ -44,237 +55,227 @@ kiaraBot.once(DJSEvents.ClientReady, c => {
 kiaraBot.on(DJSEvents.MessageCreate, async message => {
   if (message.author.bot) return;
   const mentioned = message.mentions.has(kiaraBot.user);
-  const inActive = global.kiaraConfig.activeChannels.has(message.channel.id);
+  const inActive  = global.kiaraConfig.activeChannels.has(message.channel.id);
   if (!mentioned && !inActive) return;
   if (!mentioned && message.content.trim().length < 2) return;
+
   try {
     await message.channel.sendTyping();
     const userMsg = message.content.replace(`<@${kiaraBot.user.id}>`, '').trim();
     if (!userMsg) return message.reply('Hey! How can I help? 👋');
+
     const groqKey = process.env.GROQ_API_KEY;
-    if (!groqKey) return message.reply('No AI key configured yet!');
-    const r = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-      model: 'llama3-8b-8192',
-      messages: [{ role: 'system', content: global.kiaraConfig.personality }, { role: 'user', content: userMsg }],
-      max_tokens: 300, temperature: 0.7,
-    }, { headers: { Authorization: `Bearer ${groqKey}` } });
-    const reply = r.data.choices[0]?.message?.content || 'I couldn\'t think of a response!';
+    if (!groqKey) return message.reply('⚠️ AI not configured yet — admin needs to set GROQ_API_KEY.');
+
+    let reply = null;
+
+    // Primary: Groq llama-3.1-8b-instant
+    try {
+      const r = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
+        model: 'llama-3.1-8b-instant',
+        messages: [
+          { role: 'system', content: global.kiaraConfig.personality },
+          { role: 'user',   content: userMsg },
+        ],
+        max_tokens: 400, temperature: 0.75,
+      }, { headers: { Authorization: `Bearer ${groqKey}` }, timeout: 15000 });
+      reply = r.data.choices[0]?.message?.content;
+    } catch (groqErr) {
+      console.error('Kiara Groq error:', groqErr.response?.data?.error?.message || groqErr.message);
+      // Fallback: Cerebras
+      try {
+        const cerebrasKey = process.env.CEREBRAS_API_KEY || groqKey;
+        const r2 = await axios.post('https://api.cerebras.ai/v1/chat/completions', {
+          model: 'llama3.1-8b',
+          messages: [
+            { role: 'system', content: global.kiaraConfig.personality },
+            { role: 'user',   content: userMsg },
+          ],
+          max_tokens: 400,
+        }, { headers: { Authorization: `Bearer ${cerebrasKey}` }, timeout: 15000 });
+        reply = r2.data.choices[0]?.message?.content;
+      } catch (fallbackErr) {
+        console.error('Kiara fallback error:', fallbackErr.message);
+      }
+    }
+
+    if (!reply) return message.reply("I couldn't get a response right now. Try again in a moment!");
     await message.reply(reply.slice(0, 1900));
   } catch (e) {
     console.error('Kiara bot error:', e.message);
-    await message.reply('Sorry, having trouble right now!');
+    await message.reply('Something went wrong on my end. Try again shortly!');
   }
 });
 
 if (DISCORD_BOT_TOKEN) {
-  kiaraBot.login(DISCORD_BOT_TOKEN).catch(e => console.warn('Kiara bot login failed:', e.message));
+  kiaraBot.login(DISCORD_BOT_TOKEN).catch(e => console.warn('Kiara login failed:', e.message));
 } else {
-  console.warn('⚠️  DISCORD_BOT_TOKEN not set — Kiara bot offline');
+  console.warn('⚠️  DISCORD_BOT_TOKEN not set — Kiara offline');
 }
 
 // ── Middleware ──────────────────────────────────────────────
-app.use(cors({
-  origin: true, // allow all origins
-  credentials: true,
-}));
-app.set('trust proxy', 1); // trust Railway's proxy
+app.use(cors({ origin: true, credentials: true }));
+app.set('trust proxy', 1);
 app.use(express.json());
 app.use(session({
   secret: SESSION_SECRET || 'change-this-secret',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: true,
-    httpOnly: true,
-    sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  },
+  resave: false, saveUninitialized: false,
+  cookie: { secure: true, httpOnly: true, sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 },
 }));
-
-// Serve the dashboard HTML from /public folder
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ─────────────────────────────────────────────────────────────
-//  STEP 1 — Redirect user to Discord's OAuth page
-//  Frontend hits: GET /auth/discord
+//  AUTH — Discord OAuth
 // ─────────────────────────────────────────────────────────────
 app.get('/auth/discord', (req, res) => {
-  const params = new URLSearchParams({
-    client_id:     DISCORD_CLIENT_ID,
-    redirect_uri:  DISCORD_REDIRECT_URI,
-    response_type: 'code',
-    scope:         'identify email',
-    prompt:        'consent',
-  });
+  const params = new URLSearchParams({ client_id: DISCORD_CLIENT_ID, redirect_uri: DISCORD_REDIRECT_URI, response_type: 'code', scope: 'identify email', prompt: 'consent' });
   res.redirect(`https://discord.com/oauth2/authorize?${params}`);
 });
 
-// ─────────────────────────────────────────────────────────────
-//  STEP 2 — Discord redirects back here with a "code"
-//  Discord hits: GET /auth/callback?code=XXXX
-// ─────────────────────────────────────────────────────────────
 app.get('/auth/callback', async (req, res) => {
   const { code } = req.query;
-
-  if (!code) {
-    return res.redirect('/?error=no_code');
-  }
-
+  if (!code) return res.redirect('/?error=no_code');
   try {
-    // Exchange the code for an access token
-    const tokenRes = await axios.post(
-      'https://discord.com/api/oauth2/token',
-      new URLSearchParams({
-        client_id:     DISCORD_CLIENT_ID,
-        client_secret: DISCORD_CLIENT_SECRET,
-        grant_type:    'authorization_code',
-        code,
-        redirect_uri:  DISCORD_REDIRECT_URI,
-      }),
+    const tokenRes = await axios.post('https://discord.com/api/oauth2/token',
+      new URLSearchParams({ client_id: DISCORD_CLIENT_ID, client_secret: DISCORD_CLIENT_SECRET, grant_type: 'authorization_code', code, redirect_uri: DISCORD_REDIRECT_URI }),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
     );
-
     const { access_token, token_type } = tokenRes.data;
-
-    // Use the token to fetch the user's Discord profile
-    const userRes = await axios.get('https://discord.com/api/users/@me', {
-      headers: { Authorization: `${token_type} ${access_token}` },
-    });
-
-    const discordUser = userRes.data;
-    // discordUser = { id, username, discriminator, email, avatar, ... }
-
-    // Save to session
+    const userRes = await axios.get('https://discord.com/api/users/@me', { headers: { Authorization: `${token_type} ${access_token}` } });
+    const d = userRes.data;
     req.session.user = {
-      discordId:  discordUser.id,
-      username:   discordUser.username,
-      email:      discordUser.email,
-      avatar:     discordUser.avatar
-        ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
-        : null,
-      loggedIn:   true,
+      discordId: d.id, username: d.username, email: d.email,
+      avatar: d.avatar ? `https://cdn.discordapp.com/avatars/${d.id}/${d.avatar}.png` : null,
+      role: getUserRole(d.username), isVIP: checkVIP(d.id, d.username), loggedIn: true,
     };
-
-    // Redirect back to the dashboard (it will call /auth/me to get the user)
     res.redirect(`${FRONTEND_URL || '/'}?discord_login=success`);
-
   } catch (err) {
     console.error('OAuth error:', err.response?.data || err.message);
     res.redirect('/?error=oauth_failed');
   }
 });
 
-// ─────────────────────────────────────────────────────────────
-//  STEP 3 — Frontend polls this to check if logged in
-//  Frontend hits: GET /auth/me
-// ─────────────────────────────────────────────────────────────
 app.get('/auth/me', (req, res) => {
-  if (req.session?.user?.loggedIn) {
-    res.json({ loggedIn: true, user: req.session.user });
-  } else {
-    res.json({ loggedIn: false });
-  }
+  if (!req.session?.user?.loggedIn) return res.json({ loggedIn: false });
+  const u = req.session.user;
+  u.role  = getUserRole(u.username);  // re-check live
+  u.isVIP = checkVIP(u.discordId, u.username);
+  res.json({ loggedIn: true, user: u });
 });
 
-// ─────────────────────────────────────────────────────────────
-//  STEP 4 — Log out
-//  Frontend hits: POST /auth/logout
-// ─────────────────────────────────────────────────────────────
-app.post('/auth/logout', (req, res) => {
-  req.session.destroy(() => {
-    res.json({ success: true });
-  });
-});
+app.post('/auth/logout', (req, res) => req.session.destroy(() => res.json({ success: true })));
 
-// ─────────────────────────────────────────────────────────────
-//  OPTIONAL — Send verification email code
-//  Frontend hits: POST /auth/send-code  { email: "x@y.com" }
-//  Requires: npm install nodemailer
-// ─────────────────────────────────────────────────────────────
-const nodemailerAvailable = (() => {
-  try { require.resolve('nodemailer'); return true; } catch { return false; }
-})();
-
-const pendingCodes = new Map(); // email → { code, expiresAt }
-
+// Email verification
+const nodemailerAvailable = (() => { try { require.resolve('nodemailer'); return true; } catch { return false; } })();
+const pendingCodes = new Map();
 app.post('/auth/send-code', async (req, res) => {
   const { email } = req.body;
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return res.status(400).json({ error: 'Invalid email' });
-  }
-
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Invalid email' });
   const code = Math.floor(100000 + Math.random() * 900000).toString();
-  pendingCodes.set(email, { code, expiresAt: Date.now() + 10 * 60 * 1000 }); // 10 min TTL
-
-  if (!nodemailerAvailable || !process.env.SMTP_USER) {
-    // No mail server configured — return code directly (for development)
-    console.log(`[DEV] Verification code for ${email}: ${code}`);
-    return res.json({ success: true, dev_code: code, note: 'Mail not configured — code returned in response for dev.' });
-  }
-
+  pendingCodes.set(email, { code, expiresAt: Date.now() + 10 * 60 * 1000 });
+  if (!nodemailerAvailable || !process.env.SMTP_USER) { console.log(`[DEV] Code for ${email}: ${code}`); return res.json({ success: true, dev_code: code }); }
   try {
     const nodemailer = require('nodemailer');
-    const transporter = nodemailer.createTransport({
-      host:   process.env.SMTP_HOST || 'smtp.gmail.com',
-      port:   parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_PORT === '465',
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-
-    await transporter.sendMail({
-      from:    `"Kii Akira" <${process.env.SMTP_USER}>`,
-      to:      email,
-      subject: 'Your Kii Akira verification code',
-      html: `
-        <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0b0c10;color:#e3e5e8;border-radius:12px;padding:32px;">
-          <h2 style="color:#fff;margin-bottom:8px;">Your verification code</h2>
-          <p style="color:#80848e;">Use this code to log in to Kii Akira Dashboard.</p>
-          <div style="background:#17191f;border:1px solid #2a2d36;border-radius:8px;padding:20px 28px;text-align:center;margin:24px 0;">
-            <span style="font-size:2rem;font-weight:800;letter-spacing:.25em;font-family:monospace;color:#5865f2;">${code}</span>
-          </div>
-          <p style="color:#4e5058;font-size:13px;">This code expires in 10 minutes. If you didn't request this, ignore this email.</p>
-        </div>
-      `,
-    });
-
+    const t = nodemailer.createTransport({ host: process.env.SMTP_HOST || 'smtp.gmail.com', port: parseInt(process.env.SMTP_PORT || '587'), auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } });
+    await t.sendMail({ from: `"Kii Akira" <${process.env.SMTP_USER}>`, to: email, subject: 'Your Kii Akira verification code', html: `<div style="font-family:Arial;background:#0b0c10;color:#e3e5e8;padding:32px;border-radius:12px"><h2>Verification Code</h2><div style="background:#17191f;padding:20px;text-align:center;border-radius:8px;font-size:2rem;font-family:monospace;color:#5865f2;letter-spacing:.25em">${code}</div><p style="color:#4e5058;font-size:13px">Expires in 10 minutes.</p></div>` });
     res.json({ success: true });
-  } catch (err) {
-    console.error('Mail error:', err);
-    res.status(500).json({ error: 'Failed to send email' });
-  }
+  } catch { res.status(500).json({ error: 'Failed to send email' }); }
 });
-
-// Frontend hits: POST /auth/verify-code  { email, code }
 app.post('/auth/verify-code', (req, res) => {
   const { email, code } = req.body;
   const entry = pendingCodes.get(email);
-  if (!entry) return res.status(400).json({ error: 'No code sent to this email' });
+  if (!entry) return res.status(400).json({ error: 'No code sent' });
   if (Date.now() > entry.expiresAt) { pendingCodes.delete(email); return res.status(400).json({ error: 'Code expired' }); }
   if (entry.code !== code) return res.status(400).json({ error: 'Incorrect code' });
   pendingCodes.delete(email);
-  req.session.verifiedEmail = email;
-  res.json({ success: true, verifiedEmail: email });
+  res.json({ success: true });
 });
 
 // ─────────────────────────────────────────────────────────────
-//  USER BOT SYSTEM — Each user deploys their own bot
+//  ADMIN WHITELIST — only developer can manage
+// ─────────────────────────────────────────────────────────────
+function requireDev(req, res, next) {
+  if (req.session?.user?.username !== OWNER_USERNAME) return res.status(403).json({ error: 'Owner only' });
+  next();
+}
+function requireAdmin(req, res, next) {
+  const role = getUserRole(req.session?.user?.username);
+  if (role !== 'developer' && role !== 'admin') return res.status(403).json({ error: 'Admin required' });
+  next();
+}
+
+app.get('/admin/whitelist', requireDev, (req, res) => {
+  res.json({ admins: [...adminWhitelist.entries()].map(([username, data]) => ({ username, ...data })) });
+});
+app.post('/admin/whitelist', requireDev, (req, res) => {
+  const { username } = req.body;
+  if (!username) return res.status(400).json({ error: 'username required' });
+  if (username === OWNER_USERNAME) return res.status(400).json({ error: 'Owner is already developer' });
+  adminWhitelist.set(username, { addedAt: Date.now(), addedBy: req.session.user.username });
+  console.log(`🛡️ Admin granted: ${username}`);
+  res.json({ success: true });
+});
+app.delete('/admin/whitelist/:username', requireDev, (req, res) => {
+  if (!adminWhitelist.has(req.params.username)) return res.status(404).json({ error: 'Not found' });
+  adminWhitelist.delete(req.params.username);
+  res.json({ success: true });
+});
+
+// ─────────────────────────────────────────────────────────────
+//  VIP SYSTEM
+// ─────────────────────────────────────────────────────────────
+const VIP_DURATION_MS = 365 * 24 * 60 * 60 * 1000;
+
+app.get('/vip/status', (req, res) => {
+  if (!req.session?.user?.loggedIn) return res.json({ isVIP: false });
+  const { discordId, username } = req.session.user;
+  const isVIP = checkVIP(discordId, username);
+  if (!isVIP) return res.json({ isVIP: false });
+  const role = getUserRole(username);
+  if (role === 'developer' || role === 'admin')
+    return res.json({ isVIP: true, plan: 'complimentary', daysLeft: 99999, role });
+  const vip = vipUsers.get(discordId);
+  res.json({ isVIP: true, expiresAt: vip.expiresAt, daysLeft: Math.ceil((vip.expiresAt - Date.now()) / 86400000), plan: vip.plan });
+});
+app.get('/vip/list', requireAdmin, (req, res) => {
+  res.json({ vipUsers: [...vipUsers.entries()].map(([id, data]) => ({ discordId: id, ...data })) });
+});
+app.post('/vip/grant', requireAdmin, (req, res) => {
+  const { discordId, username, duration } = req.body;
+  if (!discordId) return res.status(400).json({ error: 'discordId required' });
+  const days = { week: 7, month: 30, year: 365, lifetime: 99999 }[duration] || 365;
+  vipUsers.set(discordId, { expiresAt: Date.now() + days * 86400000, plan: duration || 'manual', grantedBy: req.session.user.username, grantedAt: Date.now(), username: username || '' });
+  console.log(`👑 VIP granted: ${username || discordId} (${duration}) by ${req.session.user.username}`);
+  res.json({ success: true });
+});
+app.delete('/vip/grant/:discordId', requireAdmin, (req, res) => {
+  vipUsers.delete(req.params.discordId);
+  res.json({ success: true });
+});
+app.post('/vip/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+  try {
+    const event = JSON.parse(req.body.toString());
+    if (event.data?.attributes?.type === 'link.payment.paid') {
+      const discordId = (event.data?.attributes?.data?.attributes?.remarks || '').replace('vip_', '');
+      if (discordId) vipUsers.set(discordId, { expiresAt: Date.now() + VIP_DURATION_MS, paidAt: Date.now(), plan: 'yearly' });
+    }
+    res.json({ received: true });
+  } catch { res.json({ received: true }); }
+});
+
+// ─────────────────────────────────────────────────────────────
+//  USER BOT SYSTEM
 // ─────────────────────────────────────────────────────────────
 const { Client: DJSClient, GatewayIntentBits, Events } = require('discord.js');
-
-// Store active user bot instances: botId → { client, config }
 const userBotInstances = new Map();
 
-// Platform model registry — no user API keys needed
 const PLATFORM_MODELS = {
-  'akira':    { label: 'Akira AI',         provider: 'groq',     model: 'llama3-8b-8192',     vipOnly: true  },
-  'llama70b': { label: 'Llama 3 70B',      provider: 'groq',     model: 'llama3-70b-8192',    vipOnly: false },
-  'mistral':  { label: 'Mistral Large',    provider: 'groq',     model: 'mixtral-8x7b-32768', vipOnly: false },
-  'cerebras': { label: 'Cerebras Ultra',   provider: 'cerebras', model: 'llama3.1-8b',        vipOnly: false },
-  'gpt4':     { label: 'GPT-4 Turbo',      provider: 'openai',   model: 'gpt-4-turbo',        vipOnly: true  },
-  'gpt4mini': { label: 'GPT-4o Mini',      provider: 'openai',   model: 'gpt-4o-mini',        vipOnly: false },
+  'akira':    { label: 'Akira AI',       provider: 'groq',     model: 'llama-3.1-8b-instant',     vipOnly: true  },
+  'llama70b': { label: 'Llama 3 70B',    provider: 'groq',     model: 'llama-3.3-70b-versatile',  vipOnly: false },
+  'mistral':  { label: 'Mistral Large',  provider: 'groq',     model: 'mixtral-8x7b-32768',       vipOnly: false },
+  'cerebras': { label: 'Cerebras Ultra', provider: 'cerebras', model: 'llama3.1-8b',              vipOnly: false },
+  'gpt4mini': { label: 'GPT-4o Mini',    provider: 'openai',   model: 'gpt-4o-mini',              vipOnly: false },
+  'gpt4':     { label: 'GPT-4 Turbo',    provider: 'openai',   model: 'gpt-4-turbo',              vipOnly: true  },
 };
 
 function getPlatformKey(provider) {
@@ -284,333 +285,113 @@ function getPlatformKey(provider) {
   return null;
 }
 
-function isUserVIP(session) {
-  const discordId = session?.user?.discordId;
-  const username  = session?.user?.username;
-  if (username === 'kiiakira') return true;
-  const vip = vipUsers.get(discordId);
-  return vip && Date.now() < vip.expiresAt;
+async function callAI(provider, apiKey, systemPrompt, userMsg, temperature, model) {
+  const opts = { headers: { Authorization: `Bearer ${apiKey}` }, timeout: 15000 };
+  const body = { model, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMsg }], max_tokens: 400, temperature };
+  if (provider === 'groq')     { const r = await axios.post('https://api.groq.com/openai/v1/chat/completions', body, opts);     return r.data.choices[0].message.content; }
+  if (provider === 'cerebras') { const r = await axios.post('https://api.cerebras.ai/v1/chat/completions', body, opts);         return r.data.choices[0].message.content; }
+  if (provider === 'openai')   { const r = await axios.post('https://api.openai.com/v1/chat/completions',   body, opts);         return r.data.choices[0].message.content; }
+  return 'Unknown provider.';
 }
 
-// Get available models for current user
 app.get('/user-bots/models', (req, res) => {
-  const vip = isUserVIP(req.session);
-  const models = Object.entries(PLATFORM_MODELS).map(([id, def]) => ({
-    id, label: def.label, provider: def.provider,
-    vipOnly: def.vipOnly,
-    available: !def.vipOnly || vip,
-    keyConfigured: !!getPlatformKey(def.provider),
-  }));
-  res.json({ models, isVIP: vip });
+  const { discordId, username } = req.session?.user || {};
+  const isVIP = checkVIP(discordId, username || '');
+  res.json({ models: Object.entries(PLATFORM_MODELS).map(([id, def]) => ({ id, label: def.label, provider: def.provider, vipOnly: def.vipOnly, available: !def.vipOnly || isVIP, keyConfigured: !!getPlatformKey(def.provider) })), isVIP });
 });
 
-// Create + start a user's bot
 app.post('/user-bots/create', async (req, res) => {
   const { name, token, modelId, systemPrompt, temperature, ownerId } = req.body;
   if (!name || !token || !modelId) return res.status(400).json({ error: 'name, token and modelId required' });
-
   const modelDef = PLATFORM_MODELS[modelId];
-  if (!modelDef) return res.status(400).json({ error: 'Invalid model selected' });
-
-  const vip = isUserVIP(req.session);
-  if (modelDef.vipOnly && !vip) {
-    return res.status(403).json({ error: '👑 This model requires VIP! Upgrade in the VIP section.' });
-  }
-
+  if (!modelDef) return res.status(400).json({ error: 'Invalid model' });
+  const { discordId, username } = req.session?.user || {};
+  const isVIP = checkVIP(discordId, username || '');
+  if (modelDef.vipOnly && !isVIP) return res.status(403).json({ error: '👑 This model requires VIP!' });
   const platformKey = getPlatformKey(modelDef.provider);
-  if (!platformKey) {
-    return res.status(500).json({ error: `${modelDef.provider.toUpperCase()} key not configured on this platform yet. Contact the admin.` });
-  }
+  if (!platformKey) return res.status(500).json({ error: `${modelDef.provider.toUpperCase()} key not configured. Contact admin.` });
 
   const testClient = new DJSClient({ intents: [GatewayIntentBits.Guilds] });
   try {
     await testClient.login(token);
-    const botId = testClient.user.id;
-    const botTag = testClient.user.tag;
+    const botId = testClient.user.id, botTag = testClient.user.tag;
     testClient.destroy();
+    if (userBotInstances.has(botId)) userBotInstances.get(botId).client.destroy();
 
-    if (userBotInstances.has(botId)) {
-      userBotInstances.get(botId).client.destroy();
-    }
-
-    const botClient = new DJSClient({
-      intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
-    });
-
-    botClient.once(Events.ClientReady, c => {
-      console.log(`🤖 ${c.user.tag} online (owner: ${ownerId}, model: ${modelId})`);
-      c.user.setPresence({ status: 'online', activities: [{ name: name, type: 0 }] });
-    });
-
+    const botClient = new DJSClient({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
+    botClient.once(Events.ClientReady, c => { c.user.setPresence({ status: 'online', activities: [{ name, type: 0 }] }); });
     botClient.on(Events.MessageCreate, async message => {
-      if (message.author.bot) return;
-      if (!message.mentions.has(botClient.user)) return;
+      if (message.author.bot || !message.mentions.has(botClient.user)) return;
       const cfg = userBotInstances.get(botId)?.config;
       if (!cfg) return;
-
       try {
         await message.channel.sendTyping();
         const userMsg = message.content.replace(`<@${botClient.user.id}>`, '').trim();
         if (!userMsg) return message.reply(`Hey! I'm ${name}. How can I help? 👋`);
         const md = PLATFORM_MODELS[cfg.modelId];
-        const key = getPlatformKey(md.provider);
-        const reply = await callAI(md.provider, key, cfg.systemPrompt, userMsg, cfg.temperature, md.model);
+        const reply = await callAI(md.provider, getPlatformKey(md.provider), cfg.systemPrompt, userMsg, cfg.temperature, md.model);
         await message.reply(reply.slice(0, 1900));
-      } catch (e) {
-        console.error('Bot AI error:', e.message);
-        await message.reply('Sorry, having trouble right now!');
-      }
+      } catch (e) { await message.reply('Having trouble right now. Try again shortly!'); }
     });
-
     await botClient.login(token);
-    userBotInstances.set(botId, {
-      client: botClient,
-      config: {
-        name, modelId, ownerId, isVIP: vip, token,
-        systemPrompt: systemPrompt || `You are ${name}, a helpful AI assistant. Be friendly and concise.`,
-        temperature: temperature || 0.7,
-      },
-    });
-
-    const inviteUrl = `https://discord.com/api/oauth2/authorize?client_id=${botId}&permissions=277025459200&scope=bot`;
-    res.json({ success: true, botId, botTag, inviteUrl, model: modelDef.model, provider: modelDef.provider });
-
-  } catch (err) {
-    console.error('User bot error:', err.message);
-    res.status(400).json({ error: 'Invalid bot token — please check and try again' });
-  }
+    userBotInstances.set(botId, { client: botClient, config: { name, modelId, ownerId, isVIP, token, systemPrompt: systemPrompt || `You are ${name}, a helpful AI assistant. Be friendly and concise.`, temperature: temperature || 0.7 } });
+    res.json({ success: true, botId, botTag, inviteUrl: `https://discord.com/api/oauth2/authorize?client_id=${botId}&permissions=277025459200&scope=bot`, model: modelDef.model, provider: modelDef.provider });
+  } catch (err) { res.status(400).json({ error: 'Invalid bot token — please check and try again' }); }
 });
 
-// Get user's bots
 app.get('/user-bots', (req, res) => {
   const ownerId = req.query.ownerId;
-  const bots = [];
-  for (const [botId, { client, config }] of userBotInstances) {
-    if (!ownerId || config.ownerId === ownerId) {
-      bots.push({ botId, name: config.name, tag: client.user?.tag, online: client.isReady(), modelId: config.modelId });
-    }
-  }
-  res.json({ bots });
+  res.json({ bots: [...userBotInstances.entries()].filter(([,{config}]) => !ownerId || config.ownerId === ownerId).map(([botId,{client,config}]) => ({ botId, name: config.name, tag: client.user?.tag, online: client.isReady(), modelId: config.modelId })) });
 });
-
-// Stop a user's bot
 app.delete('/user-bots/:botId', (req, res) => {
-  const { botId } = req.params;
-  if (userBotInstances.has(botId)) {
-    userBotInstances.get(botId).client.destroy();
-    userBotInstances.delete(botId);
-    res.json({ success: true });
-  } else {
-    res.status(404).json({ error: 'Bot not found' });
-  }
+  const inst = userBotInstances.get(req.params.botId);
+  if (!inst) return res.status(404).json({ error: 'Bot not found' });
+  inst.client.destroy(); userBotInstances.delete(req.params.botId);
+  res.json({ success: true });
 });
-
-// Update bot config live
 app.patch('/user-bots/:botId', (req, res) => {
-  const instance = userBotInstances.get(req.params.botId);
-  if (!instance) return res.status(404).json({ error: 'Bot not found' });
+  const inst = userBotInstances.get(req.params.botId);
+  if (!inst) return res.status(404).json({ error: 'Bot not found' });
   const { modelId, systemPrompt, temperature } = req.body;
-  if (modelId) {
-    const md = PLATFORM_MODELS[modelId];
-    if (!md) return res.status(400).json({ error: 'Invalid model' });
-    if (md.vipOnly && !instance.config.isVIP) return res.status(403).json({ error: 'VIP required' });
-    instance.config.modelId = modelId;
-  }
-  if (systemPrompt !== undefined) instance.config.systemPrompt = systemPrompt;
-  if (temperature  !== undefined) instance.config.temperature  = temperature;
+  if (modelId) { const md = PLATFORM_MODELS[modelId]; if (!md) return res.status(400).json({ error: 'Invalid model' }); if (md.vipOnly && !inst.config.isVIP) return res.status(403).json({ error: 'VIP required' }); inst.config.modelId = modelId; }
+  if (systemPrompt !== undefined) inst.config.systemPrompt = systemPrompt;
+  if (temperature  !== undefined) inst.config.temperature  = temperature;
   res.json({ success: true });
 });
 
-async function callAI(provider, apiKey, systemPrompt, userMsg, temperature, model) {
-  if (provider === 'groq') {
-    const r = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-      model: model || 'llama3-8b-8192',
-      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMsg }],
-      max_tokens: 300, temperature,
-    }, { headers: { Authorization: `Bearer ${apiKey}` } });
-    return r.data.choices[0].message.content;
-  }
-  if (provider === 'cerebras') {
-    const r = await axios.post('https://api.cerebras.ai/v1/chat/completions', {
-      model: model || 'llama3.1-8b',
-      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMsg }],
-      max_tokens: 300, temperature,
-    }, { headers: { Authorization: `Bearer ${apiKey}` } });
-    return r.data.choices[0].message.content;
-  }
-  if (provider === 'openai') {
-    const r = await axios.post('https://api.openai.com/v1/chat/completions', {
-      model: model || 'gpt-4o-mini',
-      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMsg }],
-      max_tokens: 300, temperature,
-    }, { headers: { Authorization: `Bearer ${apiKey}` } });
-    return r.data.choices[0].message.content;
-  }
-  return 'Unknown AI provider.';
-}
-
 // ─────────────────────────────────────────────────────────────
-//  BOT API — Get list of channels in the guild
-//  GET /bot/channels?guild_id=xxx
+//  BOT API (Kiara admin controls)
 // ─────────────────────────────────────────────────────────────
 app.get('/bot/channels', async (req, res) => {
   try {
     const guild = kiaraBot.guilds.cache.first();
     if (!guild) return res.json({ channels: [] });
-    const channels = guild.channels.cache
-      .filter(c => c.type === 0) // text channels only
-      .map(c => ({ id: c.id, name: c.name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    res.json({ channels });
-  } catch (err) {
-    res.json({ channels: [] });
-  }
+    res.json({ channels: guild.channels.cache.filter(c => c.type === 0).map(c => ({ id: c.id, name: c.name })).sort((a, b) => a.name.localeCompare(b.name)) });
+  } catch { res.json({ channels: [] }); }
 });
-
-// GET /bot/status — returns bot online status + active channels
-app.get('/bot/status', (req, res) => {
-  const config = global.kiaraConfig || { activeChannels: new Set() };
-  res.json({
-    online: kiaraBot?.isReady() || false,
-    tag: kiaraBot?.user?.tag || null,
-    activeChannels: [...config.activeChannels],
-    personality: config.personality,
-  });
-});
-
-// POST /bot/channels — set which channels the bot talks in
+app.get('/bot/status', (req, res) => res.json({ online: kiaraBot?.isReady() || false, tag: kiaraBot?.user?.tag || null, activeChannels: [...(global.kiaraConfig?.activeChannels || [])], personality: global.kiaraConfig?.personality }));
 app.post('/bot/channels', (req, res) => {
-  const { channelIds } = req.body; // array of channel IDs
+  const { channelIds } = req.body;
   if (!Array.isArray(channelIds)) return res.status(400).json({ error: 'channelIds must be array' });
-  if (!global.kiaraConfig) global.kiaraConfig = { activeChannels: new Set() };
   global.kiaraConfig.activeChannels = new Set(channelIds);
-  console.log('Bot active channels updated:', channelIds);
   res.json({ success: true, activeChannels: channelIds });
 });
-
-// POST /bot/personality — update bot personality/system prompt
 app.post('/bot/personality', (req, res) => {
-  const { personality } = req.body;
-  if (!personality) return res.status(400).json({ error: 'personality required' });
-  if (!global.kiaraConfig) global.kiaraConfig = { activeChannels: new Set() };
-  global.kiaraConfig.personality = personality;
+  if (!req.body.personality) return res.status(400).json({ error: 'personality required' });
+  global.kiaraConfig.personality = req.body.personality;
   res.json({ success: true });
 });
-
-// POST /bot/say — send a message as the bot to a channel
 app.post('/bot/say', async (req, res) => {
   const { channelId, message } = req.body;
   if (!channelId || !message) return res.status(400).json({ error: 'channelId and message required' });
-  try {
-    const channel = await kiaraBot.channels.fetch(channelId);
-    await channel.send(message);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ─────────────────────────────────────────────────────────────
-//  VIP SYSTEM — PayMongo GCash payments
-//  ₱299/year unlocks: Akira AI, higher limits, priority bots, exclusive theme
-// ─────────────────────────────────────────────────────────────
-
-// In-memory VIP store: discordId → { expiresAt, plan, paidAt }
-// In production you'd use a database — this persists until server restart
-const vipUsers = new Map();
-
-const PAYMONGO_SECRET = process.env.PAYMONGO_SECRET_KEY;
-const VIP_PRICE_CENTS = 29900; // ₱299 in centavos
-const VIP_DURATION_MS = 365 * 24 * 60 * 60 * 1000; // 1 year
-
-// Create GCash payment link
-app.post('/vip/checkout', async (req, res) => {
-  if (!req.session?.user?.loggedIn) return res.status(401).json({ error: 'Not logged in' });
-  if (!PAYMONGO_SECRET) return res.status(500).json({ error: 'Payment not configured yet' });
-
-  const user = req.session.user;
-  try {
-    const auth = Buffer.from(PAYMONGO_SECRET + ':').toString('base64');
-    const response = await axios.post(
-      'https://api.paymongo.com/v1/links',
-      {
-        data: {
-          attributes: {
-            amount: VIP_PRICE_CENTS,
-            currency: 'PHP',
-            description: `Kii Akira VIP — 1 Year (${user.username})`,
-            remarks: `vip_${user.discordId}`,
-          },
-        },
-      },
-      { headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json' } }
-    );
-
-    const link = response.data.data;
-    res.json({
-      checkoutUrl: link.attributes.checkout_url,
-      linkId: link.id,
-      referenceNumber: link.attributes.reference_number,
-    });
-  } catch (err) {
-    console.error('PayMongo error:', err.response?.data || err.message);
-    res.status(500).json({ error: 'Failed to create payment link' });
-  }
-});
-
-// PayMongo webhook — called when payment is successful
-app.post('/vip/webhook', express.raw({ type: 'application/json' }), (req, res) => {
-  try {
-    const event = JSON.parse(req.body.toString());
-    if (event.data?.attributes?.type === 'link.payment.paid') {
-      const remarks = event.data?.attributes?.data?.attributes?.remarks || '';
-      // remarks format: vip_DISCORD_ID
-      const discordId = remarks.replace('vip_', '');
-      if (discordId) {
-        vipUsers.set(discordId, {
-          expiresAt: Date.now() + VIP_DURATION_MS,
-          paidAt: Date.now(),
-          plan: 'yearly',
-        });
-        console.log(`✅ VIP activated for Discord ID: ${discordId}`);
-      }
-    }
-    res.json({ received: true });
-  } catch (e) {
-    res.json({ received: true });
-  }
-});
-
-// Check VIP status
-app.get('/vip/status', (req, res) => {
-  if (!req.session?.user?.loggedIn) return res.json({ isVIP: false });
-  const discordId = req.session.user.discordId;
-  const vip = vipUsers.get(discordId);
-  if (!vip || Date.now() > vip.expiresAt) {
-    return res.json({ isVIP: false });
-  }
-  const daysLeft = Math.ceil((vip.expiresAt - Date.now()) / (1000 * 60 * 60 * 24));
-  res.json({ isVIP: true, expiresAt: vip.expiresAt, daysLeft, plan: vip.plan });
-});
-
-// Admin: manually grant VIP (for testing or manual GCash transfers)
-app.post('/vip/grant', (req, res) => {
-  const { discordId, adminKey } = req.body;
-  if (adminKey !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Forbidden' });
-  vipUsers.set(discordId, {
-    expiresAt: Date.now() + VIP_DURATION_MS,
-    paidAt: Date.now(),
-    plan: 'manual',
-  });
-  res.json({ success: true, message: `VIP granted to ${discordId}` });
+  try { const channel = await kiaraBot.channels.fetch(channelId); await channel.send(message); res.json({ success: true }); }
+  catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ─────────────────────────────────────────────────────────────
 //  Start server
 // ─────────────────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🚀 Kii Akira backend running → http://0.0.0.0:${PORT}`);
-  console.log(`   Discord OAuth:  http://0.0.0.0:${PORT}/auth/discord`);
-  console.log(`   Callback URL:   ${DISCORD_REDIRECT_URI}`);
-  console.log(`   Auth check:     http://0.0.0.0:${PORT}/auth/me\n`);
+  console.log(`\n🚀 Kii Akira backend → http://0.0.0.0:${PORT}`);
+  console.log(`   Owner: ${OWNER_USERNAME} (developer + VIP always)\n`);
 });
