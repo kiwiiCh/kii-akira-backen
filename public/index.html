@@ -2864,7 +2864,7 @@ const hubScripts=[
   {name:'Infinite Jump',code:'-- Infinite Jump\nlocal plr = game.Players.LocalPlayer\nlocal hum = plr.Character:WaitForChild("Humanoid")\ngame:GetService("UserInputService").JumpRequest:Connect(function()\n  hum:ChangeState("Jumping")\nend)'},
   {name:'Speed Hack',code:'-- Speed Hack\ngame.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 100'},
   {name:'NoClip',code:'-- NoClip\nlocal char = game.Players.LocalPlayer.Character\ngame:GetService("RunService").Stepped:Connect(function()\n  for _, p in pairs(char:GetDescendants()) do\n    if p:IsA("BasePart") then p.CanCollide = false end\n  end\nend)'},
-  {name:'Fly Script',code:'-- Fly\nloadstring(game:HttpGet("https://raw.githubusercontent.com/flyv2/main.lua"))()'},
+  {name:'Fly Script',code:'-- Fly\n-- Load your fly script here'},
   {name:'ESP',code:'-- ESP Hack\nfor _, plr in pairs(game.Players:GetPlayers()) do\n  -- highlight logic\nend'},
   {name:'Auto Farm',code:'-- Auto Farm\nwhile task.wait(0.1) do\n  -- farming logic\nend'},
 ];
