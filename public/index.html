@@ -1131,23 +1131,66 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
 
     <!-- ─── VIP PAGE ─── -->
     <div class="page" id="vipPage" style="display:none;">
-      <div class="vip-hero">
-        <div class="vip-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
+      <!-- Already VIP view -->
+      <div id="vipActiveView" style="display:none;">
+        <div class="vip-hero">
+          <div class="vip-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
+          </div>
+          <h2 style="font-size:1.5rem;margin-bottom:8px;">You're <span style="color:var(--gold);">VIP!</span> 👑</h2>
+          <p style="color:var(--text-3);font-size:.875rem;" id="vipExpireLabel">Your plan is active</p>
         </div>
-        <h2 style="font-size:1.5rem;margin-bottom:8px;">Kii Akira <span style="color:var(--gold);">VIP</span></h2>
-        <p style="color:var(--text-3);font-size:.875rem;">Unlock the full platform — including the Akira AI model</p>
+        <div class="card" style="margin-bottom:16px;padding:16px;">
+          <div style="font-weight:600;margin-bottom:12px;color:var(--gold);">✓ Your VIP Perks</div>
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:.875rem;color:var(--text-2);">
+            <div>⚡ Akira AI model — flagship model access</div>
+            <div>🧠 Higher AI memory limits (1000 entries)</div>
+            <div>🤖 Priority bot creation</div>
+            <div>🎨 Exclusive VIP dashboard theme</div>
+            <div>👑 VIP badge on your profile</div>
+          </div>
+        </div>
       </div>
 
-      <!-- Benefits -->
-      <div class="card" style="margin-bottom:24px;">
-        <div class="card-header"><div class="card-title">What's included</div></div>
-        <div class="card-body" style="display:flex;flex-direction:column;gap:10px;" id="vipBenefits"></div>
-      </div>
+      <!-- Upgrade view -->
+      <div id="vipUpgradeView">
+        <div class="vip-hero">
+          <div class="vip-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
+          </div>
+          <h2 style="font-size:1.5rem;margin-bottom:8px;">Kii Akira <span style="color:var(--gold);">VIP</span></h2>
+          <p style="color:var(--text-3);font-size:.875rem;">Unlock the full platform — including the Akira AI flagship model</p>
+        </div>
 
-      <div class="section-header"><div class="section-title">Choose your region</div></div>
-      <div id="priceCards"></div>
-      <p style="text-align:center;font-size:.75rem;color:var(--text-4);margin-top:16px;">Billed annually · Cancel anytime · Secure payment</p>
+        <!-- Benefits -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header"><div class="card-title">What you get</div></div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:10px;font-size:.875rem;color:var(--text-2);">
+            <div style="display:flex;align-items:center;gap:10px;"><span style="color:var(--gold);font-size:1rem;">⚡</span><div><strong>Akira AI Model</strong><div style="color:var(--text-4);font-size:.75rem;">Flagship model — massive memory, advanced reasoning</div></div></div>
+            <div style="display:flex;align-items:center;gap:10px;"><span style="color:var(--gold);font-size:1rem;">🧠</span><div><strong>Higher Memory Limits</strong><div style="color:var(--text-4);font-size:.75rem;">1000 entries/server vs 200 on free</div></div></div>
+            <div style="display:flex;align-items:center;gap:10px;"><span style="color:var(--gold);font-size:1rem;">🤖</span><div><strong>Priority Bot Creation</strong><div style="color:var(--text-4);font-size:.75rem;">Deploy bots instantly, no queue</div></div></div>
+            <div style="display:flex;align-items:center;gap:10px;"><span style="color:var(--gold);font-size:1rem;">🎨</span><div><strong>Exclusive VIP Theme</strong><div style="color:var(--text-4);font-size:.75rem;">Gold-accented dashboard skin</div></div></div>
+            <div style="display:flex;align-items:center;gap:10px;"><span style="color:var(--gold);font-size:1rem;">👑</span><div><strong>VIP Badge</strong><div style="color:var(--text-4);font-size:.75rem;">Crown badge on your profile</div></div></div>
+          </div>
+        </div>
+
+        <!-- Pricing card -->
+        <div class="card" style="margin-bottom:16px;border-color:var(--gold);background:rgba(240,180,41,.04);">
+          <div class="card-body" style="text-align:center;padding:24px 16px;">
+            <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);margin-bottom:8px;">Yearly Plan</div>
+            <div style="font-size:2.5rem;font-weight:800;color:var(--text-1);">₱299</div>
+            <div style="color:var(--text-4);font-size:.8125rem;margin-bottom:20px;">per year · that's less than ₱25/month</div>
+            <button class="btn btn-full" style="height:48px;font-size:1rem;font-weight:700;background:linear-gradient(135deg,#0060af,#00a0e3);border:none;color:#fff;border-radius:var(--r-md);gap:10px;" onclick="startGCashPayment()">
+              <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/GCash_logo_updated.svg/512px-GCash_logo_updated.svg.png" style="height:22px;filter:brightness(10);" onerror="this.style.display='none'">
+              Pay with GCash
+            </button>
+            <div style="font-size:.75rem;color:var(--text-4);margin-top:12px;">Secure payment via PayMongo · Instant activation</div>
+          </div>
+        </div>
+
+        <p style="text-align:center;font-size:.75rem;color:var(--text-4);">After paying, tap <strong style="color:var(--text-2);">"I already paid"</strong> below to activate your VIP instantly.</p>
+        <button class="btn btn-sm" style="width:100%;margin-top:8px;background:var(--bg-3);color:var(--text-3);" onclick="checkVIPAfterPay()">I already paid — activate VIP</button>
+      </div>
     </div>
 
     <!-- ─── ADMIN PAGE ─── -->
@@ -2051,6 +2094,11 @@ window.addEventListener('DOMContentLoaded',async()=>{
       document.getElementById('loginView').classList.remove('active');
       document.getElementById('mainView').classList.add('active');
       initApp();
+      // Check VIP status from backend
+      fetch(`${BACKEND_URL}/vip/status`,{credentials:'include'})
+        .then(r=>r.json()).then(vip=>{
+          if(vip.isVIP){currentUser.isVIP=true;applyVIPTheme();}
+        }).catch(()=>{});
       toast(`Welcome back, ${currentUser.username}!`);
       return;
     }
@@ -2334,6 +2382,7 @@ function switchPage(page,navBtn){
   if(page==='createAI')setStudio('createAI');
   if(page==='admin'){setAdmin('activity');addLog(currentUser.username,'website','Accessed Admin Panel');}
   if(page==='executor')addLog(currentUser.username,'executor','Opened Akira Executor');
+  if(page==='vip')initVIPPage();
 }
 
 // ═══════════════════════════════════════
@@ -3475,8 +3524,92 @@ window.addEventListener('load',()=>{
 });
 
 // ═══════════════════════════════════════
-//  KIARA BOT PANEL
+//  VIP SYSTEM
 // ═══════════════════════════════════════
+async function initVIPPage(){
+  try{
+    const res=await fetch(`${BACKEND_URL}/vip/status`,{credentials:'include'});
+    const data=await res.json();
+    const activeView=document.getElementById('vipActiveView');
+    const upgradeView=document.getElementById('vipUpgradeView');
+    if(data.isVIP){
+      activeView.style.display='block';
+      upgradeView.style.display='none';
+      const lbl=document.getElementById('vipExpireLabel');
+      if(lbl)lbl.textContent=`VIP active · ${data.daysLeft} days remaining`;
+      // Apply VIP theme
+      applyVIPTheme();
+      // Update user object
+      currentUser.isVIP=true;
+    }else{
+      activeView.style.display='none';
+      upgradeView.style.display='block';
+      currentUser.isVIP=false;
+    }
+  }catch(e){
+    console.warn('VIP status check failed',e);
+  }
+}
+
+async function startGCashPayment(){
+  const btn=document.querySelector('[onclick="startGCashPayment()"]');
+  if(btn){btn.disabled=true;btn.textContent='Opening GCash...';}
+  try{
+    const res=await fetch(`${BACKEND_URL}/vip/checkout`,{
+      method:'POST',credentials:'include',
+      headers:{'Content-Type':'application/json'},
+    });
+    const data=await res.json();
+    if(data.error){
+      toast(data.error==='Payment not configured yet'
+        ? 'GCash payments coming soon! Contact the admin for manual VIP.'
+        : data.error,'err');
+      return;
+    }
+    // Open PayMongo checkout in new tab
+    window.open(data.checkoutUrl,'_blank');
+    toast('GCash checkout opened! Complete payment then tap "I already paid"');
+  }catch(e){
+    toast('Could not open checkout. Try again!','err');
+  }finally{
+    if(btn){btn.disabled=false;btn.innerHTML='<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/GCash_logo_updated.svg/512px-GCash_logo_updated.svg.png" style="height:22px;filter:brightness(10);" onerror="this.style.display=\'none\'"> Pay with GCash';}
+  }
+}
+
+async function checkVIPAfterPay(){
+  toast('Checking your payment...');
+  // Poll VIP status a few times
+  for(let i=0;i<5;i++){
+    await new Promise(r=>setTimeout(r,2000));
+    const res=await fetch(`${BACKEND_URL}/vip/status`,{credentials:'include'});
+    const data=await res.json();
+    if(data.isVIP){
+      toast('🎉 VIP activated! Welcome to the club!');
+      currentUser.isVIP=true;
+      initVIPPage();
+      applyVIPTheme();
+      return;
+    }
+  }
+  toast('Payment not found yet. It may take a minute — try again shortly.','err');
+}
+
+function applyVIPTheme(){
+  // Gold accent VIP theme
+  document.documentElement.style.setProperty('--brand','#f0b429');
+  document.documentElement.style.setProperty('--brand-light','#f9d423');
+  document.documentElement.style.setProperty('--accent','#f0b429');
+  // Add VIP badge to nav username
+  const nameEl=document.getElementById('navUsername');
+  if(nameEl&&!nameEl.querySelector('.vip-crown')){
+    const crown=document.createElement('span');
+    crown.className='vip-crown';
+    crown.textContent=' 👑';
+    crown.style.fontSize='.85em';
+    nameEl.appendChild(crown);
+  }
+}
+
 let botChannels=[];
 let selectedBotChannels=new Set();
 
