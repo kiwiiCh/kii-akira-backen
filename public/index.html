@@ -748,6 +748,10 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
         <span>Create AI</span>
         <span class="nav-badge">New</span>
       </button>
+      <button class="nav-item" id="nav-mybots" onclick="switchPage('mybots',this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></svg>
+        <span>My Bots</span>
+      </button>
       <button class="nav-item" id="nav-executor" onclick="switchPage('executor',this)">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="4,17 10,11 4,5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
         <span>Executor</span>
@@ -929,12 +933,12 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
         <div id="panel-createAI">
           <div class="section-header" style="margin-bottom:20px;">
             <div class="section-title">Create Your AI Bot</div>
-            <span class="badge badge-brand">Invite to any server</span>
+            <span class="badge badge-brand">No API key needed</span>
           </div>
 
           <!-- Step 1: Get bot token guide -->
           <div class="card" style="margin-bottom:16px;">
-            <div class="card-header"><div class="card-title">1 — Get Your Bot Token</div></div>
+            <div class="card-header"><div class="card-title">1 — Get Your Discord Bot Token</div></div>
             <div class="card-body" style="font-size:.8125rem;color:var(--text-3);line-height:1.7;">
               <div style="display:flex;flex-direction:column;gap:6px;">
                 <div>① Go to <a href="https://discord.com/developers/applications" target="_blank" style="color:var(--brand-light);">discord.com/developers/applications</a></div>
@@ -942,7 +946,6 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
                 <div>③ Tap <strong style="color:var(--text-1);">Bot</strong> in the left menu</div>
                 <div>④ Tap <strong style="color:var(--text-1);">Reset Token</strong> → copy it</div>
                 <div>⑤ Turn on <strong style="color:var(--text-1);">Message Content Intent</strong></div>
-                <div>⑥ Paste the token below 👇</div>
               </div>
             </div>
           </div>
@@ -961,23 +964,13 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
               </div>
               <div class="field" style="margin:0;">
                 <label>AI Model</label>
-                <select id="botAIProvider" class="input" style="appearance:none;" onchange="updateProviderHint()">
-                  <option value="groq|llama3-8b-8192">Akira AI — Fast &amp; Free (Groq)</option>
-                  <option value="groq|llama3-70b-8192">Llama 3 70B — Powerful (Groq)</option>
-                  <option value="groq|mixtral-8x7b-32768">Mistral Large — Ultra Fast (Groq)</option>
-                  <option value="cerebras|llama3.1-8b">Cerebras Ultra — Fastest (Cerebras)</option>
-                  <option value="openai|gpt-4-turbo">GPT-4 Turbo — Most Capable (OpenAI)</option>
-                  <option value="openai|gpt-4o-mini">GPT-4o Mini — Smart &amp; Cheap (OpenAI)</option>
-                </select>
-              </div>
-              <div class="field" style="margin:0;" id="providerKeyField">
-                <label>AI API Key <span style="color:var(--text-4);font-weight:400;">(your own key)</span></label>
-                <input type="password" id="botAPIKey" class="input" placeholder="sk-... or gsk_...">
-                <div style="font-size:.75rem;color:var(--text-4);margin-top:4px;" id="providerKeyHint">Free keys: <a href="https://console.groq.com" target="_blank" style="color:var(--brand-light);">console.groq.com</a></div>
+                <div id="botModelGrid" style="display:flex;flex-direction:column;gap:8px;">
+                  <div style="color:var(--text-4);font-size:.8125rem;">Loading models...</div>
+                </div>
               </div>
               <div class="field" style="margin:0;">
-                <label>Personality / System Prompt</label>
-                <textarea id="botSystemPrompt" class="input" style="height:80px;resize:none;" placeholder="You are a helpful assistant named [Bot Name]. Be friendly and concise."></textarea>
+                <label>Personality / System Prompt <span style="color:var(--text-4);font-weight:400;">(optional)</span></label>
+                <textarea id="botSystemPrompt" class="input" style="height:72px;resize:none;" placeholder="You are a helpful assistant. Be friendly and concise."></textarea>
               </div>
               <div class="field" style="margin:0;">
                 <label style="display:flex;align-items:center;justify-content:space-between;">
@@ -995,10 +988,8 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
             Deploy Bot
           </button>
 
-          <!-- Result: invite link -->
           <div id="botInviteResult" style="display:none;margin-top:16px;"></div>
 
-          <!-- Deployed Bots List -->
           <div style="margin-top:28px;">
             <div class="section-header"><div class="section-title">Your Deployed Bots</div></div>
             <div id="botsList"></div>
@@ -1180,6 +1171,66 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
           <div style="background:var(--bg-3);border-radius:var(--r-md);padding:14px;font-size:.875rem;color:var(--text-3);line-height:1.6;">
             To get VIP, contact the admin or wait to be whitelisted.<br>
             <span style="color:var(--text-4);font-size:.75rem;">VIP is granted manually by the platform owner.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── MY BOTS PAGE ─── -->
+    <div class="page" id="mybotsPage" style="display:none;">
+      <div class="section-header" style="margin-bottom:16px;">
+        <div class="section-title">My Bots</div>
+        <button class="btn btn-primary btn-sm" onclick="switchPage('createAI',document.getElementById('nav-createAI'))">+ New Bot</button>
+      </div>
+      <div id="myBotsList" style="display:flex;flex-direction:column;gap:12px;">
+        <div style="text-align:center;padding:40px;color:var(--text-4);font-size:.875rem;">No bots yet. <button onclick="switchPage('createAI',document.getElementById('nav-createAI'))" style="color:var(--brand-light);background:none;border:none;cursor:pointer;font-family:inherit;font-size:inherit;">Create one →</button></div>
+      </div>
+
+      <!-- Edit Bot Modal -->
+      <div id="editBotModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;padding:20px;overflow-y:auto;">
+        <div style="background:var(--bg-2);border-radius:var(--r-lg);padding:20px;max-width:480px;margin:0 auto;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <div style="font-weight:700;font-size:1rem;">Edit Bot</div>
+            <button onclick="closeEditBot()" style="background:none;border:none;color:var(--text-3);font-size:1.25rem;cursor:pointer;">✕</button>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div class="field" style="margin:0;"><label>Bot Name</label><input type="text" id="editBotName" class="input"></div>
+            <div class="field" style="margin:0;">
+              <label>AI Model</label>
+              <select id="editBotModel" class="input" style="appearance:none;" onchange="updateEditKeyHint()">
+                <option value="groq|llama3-8b-8192">Akira AI — Fast & Free (Groq)</option>
+                <option value="groq|llama3-70b-8192">Llama 3 70B — Powerful (Groq)</option>
+                <option value="groq|mixtral-8x7b-32768">Mistral Large — Ultra Fast (Groq)</option>
+                <option value="cerebras|llama3.1-8b">Cerebras Ultra — Fastest</option>
+                <option value="openai|gpt-4-turbo">GPT-4 Turbo (OpenAI)</option>
+                <option value="openai|gpt-4o-mini">GPT-4o Mini (OpenAI)</option>
+              </select>
+            </div>
+            <div class="field" style="margin:0;"><label>API Key <span id="editKeyHint" style="color:var(--text-4);font-weight:400;font-size:.75rem;"></span></label><input type="password" id="editBotKey" class="input" placeholder="Leave blank to keep current key"></div>
+            <div class="field" style="margin:0;"><label>Personality / System Prompt</label><textarea id="editBotPersonality" class="input" style="height:80px;resize:none;"></textarea></div>
+            <div class="field" style="margin:0;">
+              <label style="display:flex;align-items:center;justify-content:space-between;">
+                <span>Temperature</span>
+                <span id="editTempVal" style="color:var(--brand-light);font-size:.8125rem;font-family:monospace;">0.7</span>
+              </label>
+              <input type="range" min="0" max="2" step="0.1" value="0.7" id="editBotTemp" style="width:100%;accent-color:var(--brand);" oninput="document.getElementById('editTempVal').textContent=this.value">
+            </div>
+            <div class="field" style="margin:0;">
+              <label>Active Servers</label>
+              <div id="editBotServers" style="background:var(--bg-3);border-radius:var(--r-md);padding:12px;font-size:.8125rem;color:var(--text-3);">Loading servers...</div>
+            </div>
+            <div style="background:var(--bg-3);border-radius:var(--r-md);padding:12px;">
+              <div style="font-weight:600;font-size:.8125rem;margin-bottom:8px;">Memory Usage</div>
+              <div id="editBotMemBar" style="background:var(--bg-4);border-radius:4px;height:8px;overflow:hidden;margin-bottom:6px;">
+                <div id="editBotMemFill" style="height:100%;background:var(--green);border-radius:4px;width:0%;transition:width .3s;"></div>
+              </div>
+              <div id="editBotMemLabel" style="font-size:.75rem;color:var(--text-4);">Calculating...</div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:4px;">
+              <button onclick="saveEditBot()" class="btn btn-primary flex-1">Save Changes</button>
+              <button onclick="closeEditBot()" class="btn flex-1" style="background:var(--bg-3);">Cancel</button>
+            </div>
+            <button onclick="confirmDeleteBot()" class="btn btn-danger btn-sm" style="width:100%;">🗑 Delete Bot</button>
           </div>
         </div>
       </div>
@@ -2399,6 +2450,7 @@ const pageMap={
   createAI:{el:'createAIPage',type:'flex',title:'Create AI',sub:'Build and deploy Discord bots'},
   executor:{el:'executorPage',type:'flex',title:'Akira Executor',sub:'Roblox script executor'},
   vip:{el:'vipPage',type:'page',title:'VIP Store',sub:'Unlock the full platform'},
+  mybots:{el:'mybotsPage',type:'page',title:'My Bots',sub:'Manage your deployed AI bots'},
   admin:{el:'adminPage',type:'flex',title:'Admin Panel',sub:'Platform management'},
 };
 
@@ -2412,10 +2464,11 @@ function switchPage(page,navBtn){
   if(el){el.style.display=cfg.type==='flex'?'flex':'block';el.classList.add('active');}
   document.getElementById('topbarTitle').textContent=cfg.title;
   document.getElementById('topbarSub').textContent=cfg.sub;
-  if(page==='createAI')setStudio('createAI');
+  if(page==='createAI'){setStudio('createAI');loadPlatformModels();}
   if(page==='admin'){setAdmin('activity');initAdminForOwner();addLog(currentUser.username,'website','Accessed Admin Panel');}
   if(page==='executor')addLog(currentUser.username,'executor','Opened Akira Executor');
   if(page==='vip')initVIPPage();
+  if(page==='mybots')renderMyBots();
 }
 
 // ═══════════════════════════════════════
@@ -2580,76 +2633,87 @@ function renderHomeBotsRef(){
   c.innerHTML=deployedBots.map(b=>makeBotCard(b)).join('');
 }
 
-function updateProviderHint(){
-  const val=document.getElementById('botAIProvider')?.value||'';
-  const provider=val.split('|')[0];
-  const hint=document.getElementById('providerKeyHint');
-  if(!hint)return;
-  const links={
-    groq:'Free key: <a href="https://console.groq.com" target="_blank" style="color:var(--brand-light);">console.groq.com</a>',
-    cerebras:'Free key: <a href="https://cloud.cerebras.ai" target="_blank" style="color:var(--brand-light);">cloud.cerebras.ai</a>',
-    openai:'Get key: <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--brand-light);">platform.openai.com</a>',
-  };
-  hint.innerHTML=links[provider]||'';
+function updateProviderHint(){}// legacy no-op
+
+let selectedModelId = null;
+
+async function loadPlatformModels(){
+  const grid = document.getElementById('botModelGrid');
+  if(!grid) return;
+  try{
+    const res = await fetch(`${BACKEND_URL}/user-bots/models`, {credentials:'include'});
+    const data = await res.json();
+    const models = data.models || [];
+    grid.innerHTML = models.map(m => {
+      const locked = m.vipOnly && !m.available;
+      const noKey  = !m.keyConfigured;
+      const providerBadge = {groq:'Groq',cerebras:'Cerebras',openai:'OpenAI'}[m.provider]||m.provider;
+      return `
+      <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r-md);border:1px solid ${locked||noKey?'var(--border)':'var(--border)'};background:var(--bg-3);cursor:${locked||noKey?'not-allowed':'pointer'};opacity:${locked||noKey?'.5':'1'};">
+        <input type="radio" name="platformModel" value="${m.id}" ${locked||noKey?'disabled':''} onchange="selectedModelId='${m.id}'" style="accent-color:var(--accent);">
+        <div style="flex:1;">
+          <div style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:.875rem;">
+            ${m.label}
+            ${m.vipOnly?'<span class="badge badge-vip" style="font-size:.6rem;">👑 VIP</span>':'<span class="badge" style="font-size:.6rem;background:rgba(87,220,130,.1);color:var(--green);border-color:rgba(87,220,130,.2);">FREE</span>'}
+            ${noKey?'<span style="font-size:.65rem;color:var(--yellow);">⚠ Not configured</span>':''}
+          </div>
+          <div style="font-size:.72rem;color:var(--text-4);margin-top:2px;">${providerBadge}</div>
+        </div>
+      </label>`;
+    }).join('');
+  }catch(e){
+    grid.innerHTML = '<div style="color:var(--text-4);font-size:.8125rem;">Could not load models — are you logged in?</div>';
+  }
 }
 
 async function createBot(){
-  const name=document.getElementById('botName').value.trim();
-  const token=document.getElementById('botToken').value.trim();
-  const providerVal=document.getElementById('botAIProvider').value;
-  const [provider,model]=providerVal.split('|');
-  const apiKey=document.getElementById('botAPIKey').value.trim();
-  const systemPrompt=document.getElementById('botSystemPrompt').value.trim();
-  const temperature=parseFloat(document.getElementById('tempVal').textContent)||0.7;
+  const name        = document.getElementById('botName').value.trim();
+  const token       = document.getElementById('botToken').value.trim();
+  const modelId     = selectedModelId || document.querySelector('input[name="platformModel"]:checked')?.value;
+  const systemPrompt= document.getElementById('botSystemPrompt').value.trim();
+  const temperature = parseFloat(document.getElementById('tempVal').textContent)||0.7;
 
-  if(!name){toast('Enter a bot name','err');return;}
-  if(!token){toast('Enter your Discord bot token','err');return;}
-  if(!apiKey){toast('Enter your AI API key','err');return;}
+  if(!name)   {toast('Enter a bot name','err');return;}
+  if(!token)  {toast('Paste your Discord bot token','err');return;}
+  if(!modelId){toast('Select an AI model','err');return;}
 
-  const btn=document.querySelector('[onclick="createBot()"]');
-  btn.disabled=true;btn.textContent='Deploying...';
+  const btn = document.querySelector('[onclick="createBot()"]');
+  btn.disabled=true; btn.textContent='Deploying...';
 
   try{
-    const res=await fetch(`${BACKEND_URL}/user-bots/create`,{
-      method:'POST',credentials:'include',
+    const res = await fetch(`${BACKEND_URL}/user-bots/create`,{
+      method:'POST', credentials:'include',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        name,token,provider,model,apiKey,
-        systemPrompt:systemPrompt||`You are ${name}, a helpful AI assistant. Be friendly and concise.`,
-        temperature,
-        ownerId:currentUser.username,
-      }),
+      body: JSON.stringify({ name, token, modelId, systemPrompt, temperature, ownerId: currentUser.username }),
     });
-    const data=await res.json();
-    if(data.error){toast(data.error,'err');return;}
+    const data = await res.json();
+    if(data.error){ toast(data.error,'err'); return; }
 
-    const resultEl=document.getElementById('botInviteResult');
-    resultEl.style.display='block';
-    resultEl.innerHTML=`
+    const resultEl = document.getElementById('botInviteResult');
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = `
       <div class="card" style="border-color:var(--green);padding:16px;">
-        <div style="font-weight:600;color:var(--green);margin-bottom:8px;">✓ ${name} deployed!</div>
-        <div style="font-size:.8125rem;color:var(--text-3);margin-bottom:12px;">Invite your bot to a server:</div>
+        <div style="font-weight:600;color:var(--green);margin-bottom:8px;">✓ ${name} is live!</div>
+        <div style="font-size:.8125rem;color:var(--text-3);margin-bottom:12px;">Invite your bot to any Discord server:</div>
         <a href="${data.inviteUrl}" target="_blank" class="btn btn-primary btn-sm" style="display:inline-flex;gap:8px;text-decoration:none;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-          Invite ${name} to a Server
+          🔗 Invite ${name} to a Server
         </a>
-        <div style="font-size:.75rem;color:var(--text-4);margin-top:8px;">Bot ID: ${data.botId}</div>
-      </div>
-    `;
+        <div style="font-size:.75rem;color:var(--text-4);margin-top:8px;">Then @mention your bot in any channel to chat!</div>
+      </div>`;
 
-    deployedBots.push({id:data.botId,name,provider,model,online:true,inviteUrl:data.inviteUrl});
-    renderBotList();
-    updateStats();
+    deployedBots.push({id:data.botId, name, modelId, provider:data.provider, model:data.model, online:true, inviteUrl:data.inviteUrl});
+    renderBotList(); updateStats();
     document.getElementById('botName').value='';
     document.getElementById('botToken').value='';
-    document.getElementById('botAPIKey').value='';
     document.getElementById('botSystemPrompt').value='';
-    toast(`${name} is live!`);
-    addLog(currentUser.username,'ai',`Deployed user bot: ${name} (${model})`);
+    selectedModelId=null;
+    document.querySelectorAll('input[name="platformModel"]').forEach(r=>r.checked=false);
+    toast(`${name} deployed!`);
+    addLog(currentUser.username,'ai',`Deployed bot: ${name} (${modelId})`);
   }catch(e){
     toast('Deploy failed — check your token','err');
   }finally{
-    btn.disabled=false;btn.textContent='Deploy Bot';
+    btn.disabled=false; btn.textContent='Deploy Bot';
   }
 }
 
@@ -3566,8 +3630,204 @@ window.addEventListener('load',()=>{
 });
 
 // ═══════════════════════════════════════
-//  VIP MANAGER (owner only)
+//  MY BOTS PAGE
 // ═══════════════════════════════════════
+let editingBotId = null;
+
+function renderMyBots(){
+  const container = document.getElementById('myBotsList');
+  if(!container) return;
+
+  // Fetch live bots from backend + merge with local deployedBots
+  fetch(`${BACKEND_URL}/user-bots?ownerId=${currentUser.username}`, {credentials:'include'})
+    .then(r=>r.json())
+    .then(data => {
+      const liveBots = data.bots || [];
+      // Merge live status into deployedBots
+      liveBots.forEach(lb => {
+        const local = deployedBots.find(b => b.id === lb.botId);
+        if(local) { local.online = lb.online; local.tag = lb.tag; }
+      });
+      renderMyBotCards();
+    })
+    .catch(() => renderMyBotCards());
+}
+
+function renderMyBotCards(){
+  const container = document.getElementById('myBotsList');
+  const myBots = deployedBots.filter(b => b.id !== 'bot_default');
+  if(!myBots.length){
+    container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-4);font-size:.875rem;">No bots yet. <button onclick="switchPage('createAI',document.getElementById('nav-createAI'))" style="color:var(--brand-light);background:none;border:none;cursor:pointer;font-family:inherit;font-size:inherit;">Create one →</button></div>`;
+    return;
+  }
+  container.innerHTML = myBots.map(bot => {
+    const mem = botMemory[bot.id];
+    const memUsed = mem ? (JSON.stringify(mem).length / 1024).toFixed(1) : 0;
+    const memMax = bot.provider === 'openai' ? 32 : 16;
+    const memPct = Math.min(100, Math.round((memUsed / memMax) * 100));
+    const memColor = memPct > 80 ? 'var(--red)' : memPct > 50 ? 'var(--yellow)' : 'var(--green)';
+    const providerLabel = {groq:'Groq', cerebras:'Cerebras', openai:'OpenAI'}[bot.provider] || bot.provider;
+    const modelLabel = bot.model || '';
+    return `
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div style="padding:14px 16px;display:flex;align-items:center;gap:12px;">
+        <div style="width:44px;height:44px;border-radius:50%;background:var(--bg-3);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">🤖</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:.9375rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${bot.name}</div>
+          <div style="font-size:.75rem;color:var(--text-4);">${providerLabel} · ${modelLabel}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="width:8px;height:8px;border-radius:50%;background:${bot.online?'var(--green)':'var(--red)'}"></div>
+          <span style="font-size:.75rem;color:var(--text-3);">${bot.online?'Online':'Offline'}</span>
+        </div>
+      </div>
+      <!-- Memory bar -->
+      <div style="padding:0 16px 10px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+          <span style="font-size:.7rem;color:var(--text-4);">Memory</span>
+          <span style="font-size:.7rem;color:${memColor};">${memUsed}KB / ${memMax}KB</span>
+        </div>
+        <div style="background:var(--bg-3);border-radius:4px;height:4px;overflow:hidden;">
+          <div style="height:100%;background:${memColor};border-radius:4px;width:${memPct}%;transition:width .3s;"></div>
+        </div>
+      </div>
+      ${bot.inviteUrl ? `<div style="padding:0 16px 10px;"><a href="${bot.inviteUrl}" target="_blank" style="font-size:.75rem;color:var(--brand-light);text-decoration:none;">🔗 Invite link</a></div>` : ''}
+      <div style="border-top:1px solid var(--border);padding:10px 16px;display:flex;gap:8px;">
+        <button onclick="openEditBot('${bot.id}')" class="btn btn-sm flex-1" style="background:var(--bg-3);">⚙️ Edit</button>
+        <button onclick="toggleBotOnline('${bot.id}')" class="btn btn-sm flex-1" style="background:var(--bg-3);">${bot.online?'⏸ Pause':'▶ Resume'}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openEditBot(botId){
+  const bot = deployedBots.find(b => b.id === botId);
+  if(!bot) return;
+  editingBotId = botId;
+
+  document.getElementById('editBotName').value = bot.name || '';
+  document.getElementById('editBotPersonality').value = bot.systemPrompt || '';
+  document.getElementById('editBotTemp').value = bot.temperature || 0.7;
+  document.getElementById('editTempVal').textContent = bot.temperature || 0.7;
+  document.getElementById('editBotKey').value = '';
+
+  // Set model dropdown
+  const modelSel = document.getElementById('editBotModel');
+  const modelVal = `${bot.provider}|${bot.model}`;
+  for(let opt of modelSel.options){ if(opt.value === modelVal){ opt.selected = true; break; } }
+  updateEditKeyHint();
+
+  // Memory info
+  const mem = botMemory[botId];
+  const memUsed = mem ? (JSON.stringify(mem).length / 1024).toFixed(1) : 0;
+  const memMax = bot.provider === 'openai' ? 32 : 16;
+  const memPct = Math.min(100, Math.round((memUsed / memMax) * 100));
+  document.getElementById('editBotMemFill').style.width = memPct + '%';
+  document.getElementById('editBotMemFill').style.background = memPct > 80 ? 'var(--red)' : memPct > 50 ? 'var(--yellow)' : 'var(--green)';
+  document.getElementById('editBotMemLabel').textContent = `${memUsed}KB used of ${memMax}KB · ${memPct}% full`;
+
+  // Load servers from backend
+  fetch(`${BACKEND_URL}/bot/channels`, {credentials:'include'})
+    .then(r=>r.json())
+    .then(data => {
+      const channels = data.channels || [];
+      const activeChannels = bot.activeChannels || [];
+      document.getElementById('editBotServers').innerHTML = channels.length
+        ? channels.map(c => `
+            <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer;">
+              <input type="checkbox" ${activeChannels.includes(c.id)?'checked':''} data-channel="${c.id}" style="accent-color:var(--accent);">
+              <span># ${c.name}</span>
+            </label>`).join('')
+        : '<span style="color:var(--text-4);">No channels found — is Kiara bot online?</span>';
+    })
+    .catch(() => { document.getElementById('editBotServers').textContent = 'Could not load servers'; });
+
+  document.getElementById('editBotModal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeEditBot(){
+  document.getElementById('editBotModal').style.display = 'none';
+  document.body.style.overflow = '';
+  editingBotId = null;
+}
+
+function updateEditKeyHint(){
+  const val = document.getElementById('editBotModel')?.value || '';
+  const provider = val.split('|')[0];
+  const hints = { groq:'console.groq.com', cerebras:'cloud.cerebras.ai', openai:'platform.openai.com' };
+  const el = document.getElementById('editKeyHint');
+  if(el) el.textContent = hints[provider] ? `(${hints[provider]})` : '';
+}
+
+async function saveEditBot(){
+  const bot = deployedBots.find(b => b.id === editingBotId);
+  if(!bot) return;
+
+  const name = document.getElementById('editBotName').value.trim();
+  const modelVal = document.getElementById('editBotModel').value;
+  const [provider, model] = modelVal.split('|');
+  const apiKey = document.getElementById('editBotKey').value.trim();
+  const systemPrompt = document.getElementById('editBotPersonality').value.trim();
+  const temperature = parseFloat(document.getElementById('editBotTemp').value);
+
+  // Get selected channels
+  const channelBoxes = document.querySelectorAll('#editBotServers input[type=checkbox]');
+  const activeChannels = [...channelBoxes].filter(c=>c.checked).map(c=>c.dataset.channel);
+
+  if(!name){ toast('Enter a name','err'); return; }
+
+  // Update local
+  bot.name = name;
+  bot.provider = provider;
+  bot.model = model;
+  bot.systemPrompt = systemPrompt;
+  bot.temperature = temperature;
+  bot.activeChannels = activeChannels;
+  if(apiKey) bot.apiKey = apiKey;
+
+  // Tell backend to update (re-deploy with new settings)
+  if(apiKey){
+    try{
+      await fetch(`${BACKEND_URL}/user-bots/create`, {
+        method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          name, provider, model, apiKey, systemPrompt, temperature,
+          token: bot.token || '',
+          ownerId: currentUser.username,
+        }),
+      });
+    }catch(e){ console.warn('Bot update failed', e); }
+  }
+
+  closeEditBot();
+  renderMyBotCards();
+  toast(`${name} updated!`);
+}
+
+function confirmDeleteBot(){
+  if(!editingBotId) return;
+  const bot = deployedBots.find(b=>b.id===editingBotId);
+  if(!confirm(`Delete ${bot?.name}? This cannot be undone.`)) return;
+
+  fetch(`${BACKEND_URL}/user-bots/${editingBotId}`, {method:'DELETE',credentials:'include'}).catch(()=>{});
+  const idx = deployedBots.findIndex(b=>b.id===editingBotId);
+  if(idx > -1) deployedBots.splice(idx, 1);
+  delete botMemory[editingBotId];
+  closeEditBot();
+  renderMyBotCards();
+  toast('Bot deleted');
+}
+
+function toggleBotOnline(botId){
+  const bot = deployedBots.find(b=>b.id===botId);
+  if(!bot) return;
+  bot.online = !bot.online;
+  renderMyBotCards();
+  toast(bot.online ? `${bot.name} resumed` : `${bot.name} paused`);
+}
+
 function grantVIP(){
   const username=document.getElementById('vipGrantUsername')?.value.trim();
   const days=parseInt(document.getElementById('vipGrantDuration')?.value)||365;
