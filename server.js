@@ -269,7 +269,7 @@ const userBotInstances = new Map();
 
 // Create + start a user's bot
 app.post('/user-bots/create', async (req, res) => {
-  const { name, token, provider, apiKey, systemPrompt, temperature, ownerId } = req.body;
+  const { name, token, provider, model, apiKey, systemPrompt, temperature, ownerId } = req.body;
   if (!name || !token || !apiKey) return res.status(400).json({ error: 'name, token and apiKey required' });
 
   // First validate the token by logging in
@@ -308,7 +308,7 @@ app.post('/user-bots/create', async (req, res) => {
         const userMsg = message.content.replace(`<@${botClient.user.id}>`, '').trim();
         if (!userMsg) return message.reply(`Hey! I'm ${name}. How can I help? 👋`);
 
-        const aiRes = await callAI(provider, apiKey, systemPrompt, userMsg, temperature);
+        const aiRes = await callAI(provider, apiKey, systemPrompt, userMsg, temperature, model);
         await message.reply(aiRes.slice(0, 1900));
       } catch (e) {
         await message.reply('Sorry, I\'m having trouble right now!');
@@ -352,10 +352,10 @@ app.delete('/user-bots/:botId', (req, res) => {
 });
 
 // AI call helper
-async function callAI(provider, apiKey, systemPrompt, userMsg, temperature) {
+async function callAI(provider, apiKey, systemPrompt, userMsg, temperature, model) {
   if (provider === 'groq') {
     const r = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-      model: 'llama3-8b-8192',
+      model: model || 'llama3-8b-8192',
       messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMsg }],
       max_tokens: 300, temperature,
     }, { headers: { Authorization: `Bearer ${apiKey}` } });
@@ -363,7 +363,7 @@ async function callAI(provider, apiKey, systemPrompt, userMsg, temperature) {
   }
   if (provider === 'cerebras') {
     const r = await axios.post('https://api.cerebras.ai/v1/chat/completions', {
-      model: 'llama3.1-8b',
+      model: model || 'llama3.1-8b',
       messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMsg }],
       max_tokens: 300, temperature,
     }, { headers: { Authorization: `Bearer ${apiKey}` } });
@@ -371,7 +371,7 @@ async function callAI(provider, apiKey, systemPrompt, userMsg, temperature) {
   }
   if (provider === 'openai') {
     const r = await axios.post('https://api.openai.com/v1/chat/completions', {
-      model: 'gpt-4o-mini',
+      model: model || 'gpt-4o-mini',
       messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMsg }],
       max_tokens: 300, temperature,
     }, { headers: { Authorization: `Bearer ${apiKey}` } });
