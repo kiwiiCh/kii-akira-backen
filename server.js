@@ -28,14 +28,16 @@ app.use(cors({
   origin: true, // allow all origins
   credentials: true,
 }));
+app.set('trust proxy', 1); // trust Railway's proxy
 app.use(express.json());
 app.use(session({
   secret: SESSION_SECRET || 'change-this-secret',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production', // true in prod (HTTPS)
+    secure: true,
     httpOnly: true,
+    sameSite: 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   },
 }));
