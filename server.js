@@ -442,6 +442,101 @@ app.post('/bot/say', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────
+//  VIP SYSTEM — PayMongo GCash payments
+//  ₱299/year unlocks: Akira AI, higher limits, priority bots, exclusive theme
+// ─────────────────────────────────────────────────────────────
+
+// In-memory VIP store: discordId → { expiresAt, plan, paidAt }
+// In production you'd use a database — this persists until server restart
+const vipUsers = new Map();
+
+const PAYMONGO_SECRET = process.env.PAYMONGO_SECRET_KEY;
+const VIP_PRICE_CENTS = 29900; // ₱299 in centavos
+const VIP_DURATION_MS = 365 * 24 * 60 * 60 * 1000; // 1 year
+
+// Create GCash payment link
+app.post('/vip/checkout', async (req, res) => {
+  if (!req.session?.user?.loggedIn) return res.status(401).json({ error: 'Not logged in' });
+  if (!PAYMONGO_SECRET) return res.status(500).json({ error: 'Payment not configured yet' });
+
+  const user = req.session.user;
+  try {
+    const auth = Buffer.from(PAYMONGO_SECRET + ':').toString('base64');
+    const response = await axios.post(
+      'https://api.paymongo.com/v1/links',
+      {
+        data: {
+          attributes: {
+            amount: VIP_PRICE_CENTS,
+            currency: 'PHP',
+            description: `Kii Akira VIP — 1 Year (${user.username})`,
+            remarks: `vip_${user.discordId}`,
+          },
+        },
+      },
+      { headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json' } }
+    );
+
+    const link = response.data.data;
+    res.json({
+      checkoutUrl: link.attributes.checkout_url,
+      linkId: link.id,
+      referenceNumber: link.attributes.reference_number,
+    });
+  } catch (err) {
+    console.error('PayMongo error:', err.response?.data || err.message);
+    res.status(500).json({ error: 'Failed to create payment link' });
+  }
+});
+
+// PayMongo webhook — called when payment is successful
+app.post('/vip/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+  try {
+    const event = JSON.parse(req.body.toString());
+    if (event.data?.attributes?.type === 'link.payment.paid') {
+      const remarks = event.data?.attributes?.data?.attributes?.remarks || '';
+      // remarks format: vip_DISCORD_ID
+      const discordId = remarks.replace('vip_', '');
+      if (discordId) {
+        vipUsers.set(discordId, {
+          expiresAt: Date.now() + VIP_DURATION_MS,
+          paidAt: Date.now(),
+          plan: 'yearly',
+        });
+        console.log(`✅ VIP activated for Discord ID: ${discordId}`);
+      }
+    }
+    res.json({ received: true });
+  } catch (e) {
+    res.json({ received: true });
+  }
+});
+
+// Check VIP status
+app.get('/vip/status', (req, res) => {
+  if (!req.session?.user?.loggedIn) return res.json({ isVIP: false });
+  const discordId = req.session.user.discordId;
+  const vip = vipUsers.get(discordId);
+  if (!vip || Date.now() > vip.expiresAt) {
+    return res.json({ isVIP: false });
+  }
+  const daysLeft = Math.ceil((vip.expiresAt - Date.now()) / (1000 * 60 * 60 * 24));
+  res.json({ isVIP: true, expiresAt: vip.expiresAt, daysLeft, plan: vip.plan });
+});
+
+// Admin: manually grant VIP (for testing or manual GCash transfers)
+app.post('/vip/grant', (req, res) => {
+  const { discordId, adminKey } = req.body;
+  if (adminKey !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Forbidden' });
+  vipUsers.set(discordId, {
+    expiresAt: Date.now() + VIP_DURATION_MS,
+    paidAt: Date.now(),
+    plan: 'manual',
+  });
+  res.json({ success: true, message: `VIP granted to ${discordId}` });
+});
+
+// ─────────────────────────────────────────────────────────────
 //  Start server
 // ─────────────────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
