@@ -267,12 +267,61 @@ const { Client: DJSClient, GatewayIntentBits, Events } = require('discord.js');
 // Store active user bot instances: botId → { client, config }
 const userBotInstances = new Map();
 
+// Platform model registry — no user API keys needed
+const PLATFORM_MODELS = {
+  'akira':    { label: 'Akira AI',         provider: 'groq',     model: 'llama3-8b-8192',     vipOnly: true  },
+  'llama70b': { label: 'Llama 3 70B',      provider: 'groq',     model: 'llama3-70b-8192',    vipOnly: false },
+  'mistral':  { label: 'Mistral Large',    provider: 'groq',     model: 'mixtral-8x7b-32768', vipOnly: false },
+  'cerebras': { label: 'Cerebras Ultra',   provider: 'cerebras', model: 'llama3.1-8b',        vipOnly: false },
+  'gpt4':     { label: 'GPT-4 Turbo',      provider: 'openai',   model: 'gpt-4-turbo',        vipOnly: true  },
+  'gpt4mini': { label: 'GPT-4o Mini',      provider: 'openai',   model: 'gpt-4o-mini',        vipOnly: false },
+};
+
+function getPlatformKey(provider) {
+  if (provider === 'groq')     return process.env.GROQ_API_KEY;
+  if (provider === 'cerebras') return process.env.CEREBRAS_API_KEY || process.env.GROQ_API_KEY;
+  if (provider === 'openai')   return process.env.OPENAI_API_KEY;
+  return null;
+}
+
+function isUserVIP(session) {
+  const discordId = session?.user?.discordId;
+  const username  = session?.user?.username;
+  if (username === 'kiiakira') return true;
+  const vip = vipUsers.get(discordId);
+  return vip && Date.now() < vip.expiresAt;
+}
+
+// Get available models for current user
+app.get('/user-bots/models', (req, res) => {
+  const vip = isUserVIP(req.session);
+  const models = Object.entries(PLATFORM_MODELS).map(([id, def]) => ({
+    id, label: def.label, provider: def.provider,
+    vipOnly: def.vipOnly,
+    available: !def.vipOnly || vip,
+    keyConfigured: !!getPlatformKey(def.provider),
+  }));
+  res.json({ models, isVIP: vip });
+});
+
 // Create + start a user's bot
 app.post('/user-bots/create', async (req, res) => {
-  const { name, token, provider, model, apiKey, systemPrompt, temperature, ownerId } = req.body;
-  if (!name || !token || !apiKey) return res.status(400).json({ error: 'name, token and apiKey required' });
+  const { name, token, modelId, systemPrompt, temperature, ownerId } = req.body;
+  if (!name || !token || !modelId) return res.status(400).json({ error: 'name, token and modelId required' });
 
-  // First validate the token by logging in
+  const modelDef = PLATFORM_MODELS[modelId];
+  if (!modelDef) return res.status(400).json({ error: 'Invalid model selected' });
+
+  const vip = isUserVIP(req.session);
+  if (modelDef.vipOnly && !vip) {
+    return res.status(403).json({ error: '👑 This model requires VIP! Upgrade in the VIP section.' });
+  }
+
+  const platformKey = getPlatformKey(modelDef.provider);
+  if (!platformKey) {
+    return res.status(500).json({ error: `${modelDef.provider.toUpperCase()} key not configured on this platform yet. Contact the admin.` });
+  }
+
   const testClient = new DJSClient({ intents: [GatewayIntentBits.Guilds] });
   try {
     await testClient.login(token);
@@ -280,46 +329,51 @@ app.post('/user-bots/create', async (req, res) => {
     const botTag = testClient.user.tag;
     testClient.destroy();
 
-    // Stop existing instance if any
     if (userBotInstances.has(botId)) {
       userBotInstances.get(botId).client.destroy();
     }
 
-    // Start full bot instance
     const botClient = new DJSClient({
-      intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-      ],
+      intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
     });
 
     botClient.once(Events.ClientReady, c => {
-      console.log(`🤖 User bot online: ${c.user.tag} (owner: ${ownerId})`);
+      console.log(`🤖 ${c.user.tag} online (owner: ${ownerId}, model: ${modelId})`);
       c.user.setPresence({ status: 'online', activities: [{ name: name, type: 0 }] });
     });
 
     botClient.on(Events.MessageCreate, async message => {
       if (message.author.bot) return;
-      const mentioned = message.mentions.has(botClient.user);
-      if (!mentioned) return;
+      if (!message.mentions.has(botClient.user)) return;
+      const cfg = userBotInstances.get(botId)?.config;
+      if (!cfg) return;
+
       try {
         await message.channel.sendTyping();
         const userMsg = message.content.replace(`<@${botClient.user.id}>`, '').trim();
         if (!userMsg) return message.reply(`Hey! I'm ${name}. How can I help? 👋`);
-
-        const aiRes = await callAI(provider, apiKey, systemPrompt, userMsg, temperature, model);
-        await message.reply(aiRes.slice(0, 1900));
+        const md = PLATFORM_MODELS[cfg.modelId];
+        const key = getPlatformKey(md.provider);
+        const reply = await callAI(md.provider, key, cfg.systemPrompt, userMsg, cfg.temperature, md.model);
+        await message.reply(reply.slice(0, 1900));
       } catch (e) {
-        await message.reply('Sorry, I\'m having trouble right now!');
+        console.error('Bot AI error:', e.message);
+        await message.reply('Sorry, having trouble right now!');
       }
     });
 
     await botClient.login(token);
-    userBotInstances.set(botId, { client: botClient, config: { name, provider, apiKey, systemPrompt, temperature, ownerId } });
+    userBotInstances.set(botId, {
+      client: botClient,
+      config: {
+        name, modelId, ownerId, isVIP: vip, token,
+        systemPrompt: systemPrompt || `You are ${name}, a helpful AI assistant. Be friendly and concise.`,
+        temperature: temperature || 0.7,
+      },
+    });
 
     const inviteUrl = `https://discord.com/api/oauth2/authorize?client_id=${botId}&permissions=277025459200&scope=bot`;
-    res.json({ success: true, botId, botTag, inviteUrl });
+    res.json({ success: true, botId, botTag, inviteUrl, model: modelDef.model, provider: modelDef.provider });
 
   } catch (err) {
     console.error('User bot error:', err.message);
@@ -333,7 +387,7 @@ app.get('/user-bots', (req, res) => {
   const bots = [];
   for (const [botId, { client, config }] of userBotInstances) {
     if (!ownerId || config.ownerId === ownerId) {
-      bots.push({ botId, name: config.name, tag: client.user?.tag, online: client.isReady(), provider: config.provider });
+      bots.push({ botId, name: config.name, tag: client.user?.tag, online: client.isReady(), modelId: config.modelId });
     }
   }
   res.json({ bots });
@@ -351,7 +405,22 @@ app.delete('/user-bots/:botId', (req, res) => {
   }
 });
 
-// AI call helper
+// Update bot config live
+app.patch('/user-bots/:botId', (req, res) => {
+  const instance = userBotInstances.get(req.params.botId);
+  if (!instance) return res.status(404).json({ error: 'Bot not found' });
+  const { modelId, systemPrompt, temperature } = req.body;
+  if (modelId) {
+    const md = PLATFORM_MODELS[modelId];
+    if (!md) return res.status(400).json({ error: 'Invalid model' });
+    if (md.vipOnly && !instance.config.isVIP) return res.status(403).json({ error: 'VIP required' });
+    instance.config.modelId = modelId;
+  }
+  if (systemPrompt !== undefined) instance.config.systemPrompt = systemPrompt;
+  if (temperature  !== undefined) instance.config.temperature  = temperature;
+  res.json({ success: true });
+});
+
 async function callAI(provider, apiKey, systemPrompt, userMsg, temperature, model) {
   if (provider === 'groq') {
     const r = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
