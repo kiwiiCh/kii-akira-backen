@@ -122,14 +122,21 @@ function buildMemoryContext(userId) {
     : '';
 }
 
-// Build full message array with history for the AI call
-function buildMessages(systemPrompt, userId, userMsg) {
+// Build full message array with history + server/channel context
+function buildMessages(systemPrompt, userId, userMsg, contextInfo = {}) {
   const mem = getMemory(userId);
   const memContext = buildMemoryContext(userId);
-  const fullSystem = systemPrompt + memContext;
 
-  // Include last N history turns + new message
-  const historyToSend = mem.history.slice(-20); // last 20 turns for context
+  // Tell the AI exactly where it is
+  let locationContext = '';
+  if (contextInfo.guildName) {
+    locationContext = `\n\n[CONTEXT]\nYou are currently in the Discord server: "${contextInfo.guildName}", channel: #${contextInfo.channelName || 'unknown'}.\n[/CONTEXT]`;
+  } else if (contextInfo.isDM) {
+    locationContext = `\n\n[CONTEXT]\nYou are in a private DM with this user.\n[/CONTEXT]`;
+  }
+
+  const fullSystem = systemPrompt + memContext + locationContext;
+  const historyToSend = mem.history.slice(-20);
   return [
     { role: 'system', content: fullSystem },
     ...historyToSend,
@@ -194,8 +201,12 @@ kiaraBot.on(DJSEvents.MessageCreate, async message => {
     const groqKey = process.env.GROQ_API_KEY;
     if (!groqKey) return message.reply('⚠️ AI not configured yet — admin needs to set GROQ_API_KEY.');
 
-    const userId   = message.author.id;
-    const messages = buildMessages(global.kiaraConfig.personality, userId, userMsg);
+    const userId      = message.author.id;
+    const isDM        = !message.guild;
+    const contextInfo = isDM
+      ? { isDM: true }
+      : { guildName: message.guild.name, channelName: message.channel.name };
+    const messages    = buildMessages(global.kiaraConfig.personality, userId, userMsg, contextInfo);
 
     let reply = null;
 
@@ -453,10 +464,14 @@ app.post('/user-bots/create', async (req, res) => {
         await message.channel.sendTyping();
         const userMsg = message.content.replace(`<@${botClient.user.id}>`, '').trim();
         if (!userMsg) return message.reply(`Hey! I'm ${name}. How can I help? 👋`);
-        const md       = PLATFORM_MODELS[cfg.modelId];
-        const userId   = message.author.id;
-        const messages = buildMessages(cfg.systemPrompt, userId, userMsg);
-        const reply    = await callAI(md.provider, getPlatformKey(md.provider), messages, cfg.temperature, md.model);
+        const md          = PLATFORM_MODELS[cfg.modelId];
+        const userId      = message.author.id;
+        const isDM        = !message.guild;
+        const contextInfo = isDM
+          ? { isDM: true }
+          : { guildName: message.guild.name, channelName: message.channel.name };
+        const messages    = buildMessages(cfg.systemPrompt, userId, userMsg, contextInfo);
+        const reply       = await callAI(md.provider, getPlatformKey(md.provider), messages, cfg.temperature, md.model);
         // Save to memory
         addToHistory(userId, 'user', userMsg);
         addToHistory(userId, 'assistant', reply);
