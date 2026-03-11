@@ -1255,7 +1255,11 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
           </button>
           <button class="nav-item" id="admin-whitelist" onclick="setAdmin('whitelist')">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-            <span>Whitelist</span>
+            <span>VIP Whitelist</span>
+          </button>
+          <button class="nav-item" id="admin-adminlist" onclick="setAdmin('adminlist')">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <span>Admin Whitelist</span>
           </button>
           <button class="nav-item" id="admin-viplist" onclick="setAdmin('viplist')" style="display:none;">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="color:var(--gold);"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
@@ -1334,11 +1338,12 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
               <div class="card-header"><div class="card-title">Grant VIP</div></div>
               <div class="card-body" style="display:flex;flex-direction:column;gap:10px;">
                 <input type="text" id="vipGrantUsername" placeholder="Discord username..." class="input">
+                <input type="text" id="vipGrantDiscordId" placeholder="Discord ID (numbers)..." class="input">
                 <select id="vipGrantDuration" class="input" style="appearance:none;">
-                  <option value="365">1 Year</option>
-                  <option value="30">1 Month</option>
-                  <option value="7">1 Week (trial)</option>
-                  <option value="9999">Lifetime</option>
+                  <option value="year">1 Year</option>
+                  <option value="month">1 Month</option>
+                  <option value="week">1 Week (trial)</option>
+                  <option value="lifetime">Lifetime</option>
                 </select>
                 <button onclick="grantVIP()" class="btn btn-full" style="background:linear-gradient(135deg,var(--gold),#e8a000);color:#000;font-weight:700;">
                   👑 Grant VIP
@@ -1348,14 +1353,44 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
             <div class="card" style="margin-bottom:16px;">
               <div class="card-header"><div class="card-title">Revoke VIP</div></div>
               <div class="card-body" style="display:flex;gap:8px;">
-                <input type="text" id="vipRevokeUsername" placeholder="Discord username..." class="input flex-1">
+                <input type="text" id="vipRevokeId" placeholder="Discord ID..." class="input flex-1">
                 <button onclick="revokeVIP()" class="btn btn-danger">Revoke</button>
               </div>
             </div>
             <div class="card" style="overflow:hidden;">
-              <div class="card-header"><div class="card-title">Active VIP Users</div></div>
+              <div class="card-header">
+                <div class="card-title">Active VIP Users</div>
+                <button onclick="loadVIPList()" class="btn btn-ghost btn-sm">🔄 Refresh</button>
+              </div>
               <div id="vipListBody" style="padding:8px;display:flex;flex-direction:column;gap:6px;">
-                <div style="text-align:center;padding:20px;color:var(--text-4);font-size:.875rem;">No VIP users yet</div>
+                <div style="text-align:center;padding:20px;color:var(--text-4);font-size:.875rem;">Click Refresh to load</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Admin Whitelist (kiiakira only) -->
+          <div id="adminAdminlistPanel" style="display:none;">
+            <div class="section-header" style="margin-bottom:16px;">
+              <div class="section-title" style="color:var(--accent);">🛡️ Admin Whitelist</div>
+              <span class="badge" style="background:rgba(88,101,242,.1);color:var(--accent);border-color:rgba(88,101,242,.3);">Owner Only</span>
+            </div>
+            <div style="background:rgba(88,101,242,.08);border:1px solid rgba(88,101,242,.2);border-radius:var(--r-md);padding:12px;margin-bottom:16px;font-size:.8125rem;color:var(--text-3);">
+              Admins can manage VIP users and access the admin panel. Only <strong style="color:var(--text-1);">kiiakira</strong> can add/remove admins.
+            </div>
+            <div class="card" style="margin-bottom:16px;border-color:rgba(88,101,242,.3);">
+              <div class="card-header"><div class="card-title">Add Admin</div></div>
+              <div class="card-body" style="display:flex;gap:8px;">
+                <input type="text" id="addAdminUsername" placeholder="Discord username..." class="input flex-1">
+                <button onclick="addAdmin()" class="btn btn-primary">Add</button>
+              </div>
+            </div>
+            <div class="card" style="overflow:hidden;">
+              <div class="card-header">
+                <div class="card-title">Current Admins</div>
+                <button onclick="loadAdminList()" class="btn btn-ghost btn-sm">🔄 Refresh</button>
+              </div>
+              <div id="adminListBody" style="padding:8px;display:flex;flex-direction:column;gap:6px;">
+                <div style="text-align:center;padding:20px;color:var(--text-4);font-size:.875rem;">Click Refresh to load</div>
               </div>
             </div>
           </div>
@@ -2171,17 +2206,17 @@ window.addEventListener('DOMContentLoaded',async()=>{
         avatar:u.avatar,discordLinked:true,
       };
       if(!found)managedUsers.push(currentUser);
-      currentUser.email=u.email;
-      currentUser.discordLinked=true;
-      currentUser.discordId=u.discordId;
+      // Always trust backend for role and VIP
+      currentUser.role       = u.role  || currentUser.role;
+      currentUser.isVIP      = u.isVIP || currentUser.isVIP;
+      currentUser.email      = u.email;
+      currentUser.discordId  = u.discordId;
+      currentUser.avatar     = u.avatar;
+      currentUser.discordLinked = true;
+      if(currentUser.isVIP) applyVIPTheme();
       document.getElementById('loginView').classList.remove('active');
       document.getElementById('mainView').classList.add('active');
       initApp();
-      // Check VIP status from backend
-      fetch(`${BACKEND_URL}/vip/status`,{credentials:'include'})
-        .then(r=>r.json()).then(vip=>{
-          if(vip.isVIP){currentUser.isVIP=true;applyVIPTheme();}
-        }).catch(()=>{});
       toast(`Welcome back, ${currentUser.username}!`);
       return;
     }
@@ -3032,7 +3067,7 @@ let banList = [
 ];
 
 function setAdmin(panel){
-  ['activity','ailogs','bans','whitelist','users','aicontrol','bot','viplist','shutdown'].forEach(id=>{
+  ['activity','ailogs','bans','whitelist','adminlist','users','aicontrol','bot','viplist','shutdown'].forEach(id=>{
     const key='admin'+id.charAt(0).toUpperCase()+id.slice(1)+'Panel';
     const el=document.getElementById(key);
     if(el)el.style.display=id===panel?'block':'none';
@@ -3043,15 +3078,85 @@ function setAdmin(panel){
   if(panel==='aicontrol')initCSpeakPanel();
   if(panel==='shutdown')initShutdownPanel();
   if(panel==='bot')initBotPanel();
-  if(panel==='viplist')renderVIPList();
+  if(panel==='viplist'){renderVIPList();loadVIPList();}
+  if(panel==='adminlist'){loadAdminList();}
 }
 
 function initAdminForOwner(){
-  // Show VIP Manager button only for kiiakira
   if(currentUser?.username==='kiiakira'||currentUser?.role==='developer'){
     const btn=document.getElementById('admin-viplist');
     if(btn)btn.style.display='flex';
+    const btn2=document.getElementById('admin-adminlist');
+    if(btn2)btn2.style.display='flex';
   }
+}
+
+// ── Admin Whitelist ──
+async function loadAdminList(){
+  const body=document.getElementById('adminListBody');
+  if(!body)return;
+  body.innerHTML='<div style="text-align:center;padding:16px;color:var(--text-4);">Loading...</div>';
+  try{
+    const res=await fetch(`${BACKEND_URL}/admin/whitelist`,{credentials:'include'});
+    const data=await res.json();
+    if(!data.admins||!data.admins.length){
+      body.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-4);font-size:.875rem;">No admins yet</div>';
+      return;
+    }
+    body.innerHTML=data.admins.map(a=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 8px;border-radius:var(--r-md);background:var(--bg-3);">
+        <div style="width:36px;height:36px;border-radius:50%;background:rgba(88,101,242,.2);display:flex;align-items:center;justify-content:center;font-size:1.1rem;">🛡️</div>
+        <div style="flex:1;"><div style="font-weight:600;font-size:.875rem;">${a.username}</div><div style="font-size:.7rem;color:var(--text-4);">Added ${new Date(a.addedAt).toLocaleDateString()}</div></div>
+        <button onclick="removeAdmin('${a.username}')" class="btn btn-danger btn-sm" style="padding:4px 10px;font-size:.75rem;">Remove</button>
+      </div>`).join('');
+  }catch(e){body.innerHTML='<div style="color:var(--red);padding:12px;font-size:.8rem;">Failed to load</div>';}
+}
+
+async function addAdmin(){
+  const username=document.getElementById('addAdminUsername')?.value.trim();
+  if(!username){toast('Enter a Discord username','err');return;}
+  try{
+    const res=await fetch(`${BACKEND_URL}/admin/whitelist`,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({username})});
+    const data=await res.json();
+    if(data.error){toast(data.error,'err');return;}
+    document.getElementById('addAdminUsername').value='';
+    toast(`${username} is now an admin!`);
+    loadAdminList();
+  }catch(e){toast('Failed to add admin','err');}
+}
+
+async function removeAdmin(username){
+  if(!confirm(`Remove ${username} from admin list?`))return;
+  try{
+    const res=await fetch(`${BACKEND_URL}/admin/whitelist/${username}`,{method:'DELETE',credentials:'include'});
+    const data=await res.json();
+    if(data.error){toast(data.error,'err');return;}
+    toast(`${username} removed from admin list`);
+    loadAdminList();
+  }catch(e){toast('Failed to remove admin','err');}
+}
+
+// ── VIP List (live from backend) ──
+async function loadVIPList(){
+  const body=document.getElementById('vipListBody');
+  if(!body)return;
+  body.innerHTML='<div style="text-align:center;padding:16px;color:var(--text-4);">Loading...</div>';
+  try{
+    const res=await fetch(`${BACKEND_URL}/vip/list`,{credentials:'include'});
+    const data=await res.json();
+    if(!data.vipUsers||!data.vipUsers.length){
+      body.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-4);font-size:.875rem;">No VIP users yet</div>';
+      return;
+    }
+    body.innerHTML=data.vipUsers.map(v=>{
+      const expDate=new Date(v.expiresAt);
+      const daysLeft=Math.ceil((v.expiresAt-Date.now())/86400000);
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 8px;border-radius:var(--r-md);background:var(--bg-3);">
+        <div style="width:36px;height:36px;border-radius:50%;background:rgba(240,180,41,.15);display:flex;align-items:center;justify-content:center;font-size:1.1rem;">👑</div>
+        <div style="flex:1;"><div style="font-weight:600;font-size:.875rem;">${v.username||v.discordId}</div><div style="font-size:.7rem;color:var(--text-4);">${v.plan} · ${daysLeft>9000?'Lifetime':daysLeft+' days left'}</div></div>
+        <button onclick="revokeVIPById('${v.discordId}')" class="btn btn-danger btn-sm" style="padding:4px 10px;font-size:.75rem;">Revoke</button>
+      </div>`;}).join('');
+  }catch(e){body.innerHTML='<div style="color:var(--red);padding:12px;font-size:.8rem;">Failed to load</div>';}
 }
 
 function renderActivityLog(){
@@ -3828,39 +3933,39 @@ function toggleBotOnline(botId){
   toast(bot.online ? `${bot.name} resumed` : `${bot.name} paused`);
 }
 
-function grantVIP(){
+async function grantVIP(){
   const username=document.getElementById('vipGrantUsername')?.value.trim();
-  const days=parseInt(document.getElementById('vipGrantDuration')?.value)||365;
-  if(!username){toast('Enter a username','err');return;}
-
-  const user=managedUsers.find(u=>u.username===username);
-  if(!user){
-    // Add them if not found
-    managedUsers.push({id:username,username,role:'user',isVIP:true,bots:0,banned:false,vipDays:days,vipGrantedAt:Date.now()});
-  } else {
-    user.isVIP=true;
-    user.vipDays=days;
-    user.vipGrantedAt=Date.now();
-  }
-  document.getElementById('vipGrantUsername').value='';
-  renderVIPList();
-  toast(`👑 VIP granted to ${username} for ${days===9999?'lifetime':days+' days'}!`);
-  addLog('kiiakira','website',`Granted VIP to ${username}`);
+  const discordId=document.getElementById('vipGrantDiscordId')?.value.trim();
+  const duration=document.getElementById('vipGrantDuration')?.value||'year';
+  if(!discordId&&!username){toast('Enter Discord ID or username','err');return;}
+  try{
+    const res=await fetch(`${BACKEND_URL}/vip/grant`,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({discordId:discordId||username,username,duration})});
+    const data=await res.json();
+    if(data.error){toast(data.error,'err');return;}
+    document.getElementById('vipGrantUsername').value='';
+    document.getElementById('vipGrantDiscordId').value='';
+    toast(`👑 VIP granted to ${username||discordId}!`);
+    addLog('kiiakira','website',`Granted VIP to ${username||discordId} (${duration})`);
+    loadVIPList();
+  }catch(e){toast('Failed to grant VIP','err');}
 }
 
-function revokeVIP(){
-  const username=document.getElementById('vipRevokeUsername')?.value.trim();
-  if(!username){toast('Enter a username','err');return;}
-  const user=managedUsers.find(u=>u.username===username);
-  if(user){
-    user.isVIP=false;
-    delete user.vipDays;
-    delete user.vipGrantedAt;
-  }
-  document.getElementById('vipRevokeUsername').value='';
-  renderVIPList();
-  toast(`VIP revoked from ${username}`);
-  addLog('kiiakira','website',`Revoked VIP from ${username}`);
+async function revokeVIPById(discordId){
+  if(!confirm(`Revoke VIP for ${discordId}?`))return;
+  try{
+    const res=await fetch(`${BACKEND_URL}/vip/grant/${discordId}`,{method:'DELETE',credentials:'include'});
+    const data=await res.json();
+    if(data.error){toast(data.error,'err');return;}
+    toast('VIP revoked');
+    loadVIPList();
+  }catch(e){toast('Failed to revoke VIP','err');}
+}
+
+async function revokeVIP(){
+  const id=document.getElementById('vipRevokeId')?.value.trim();
+  if(!id){toast('Enter Discord ID','err');return;}
+  await revokeVIPById(id);
+  document.getElementById('vipRevokeId').value='';
 }
 
 function renderVIPList(){
