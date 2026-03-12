@@ -595,14 +595,48 @@ app.post('/user-bots/create', async (req, res) => {
 // GET /user-bots — only returns bots owned by the requesting user (or all for admin)
 app.get('/user-bots', (req, res) => {
   const { username, discordId } = req.session?.user || {};
-  const role = getUserRole(username, discordId);
+  const role    = getUserRole(username, discordId);
   const isAdmin = (role === 'developer' || role === 'admin');
-  const bots = [...userBotInstances.entries()]
-    .filter(([, { config }]) => isAdmin || config.ownerId === username || config.ownerDiscordId === discordId)
-    .map(([botId, { client, config }]) => ({
-      botId, name: config.name, tag: client.user?.tag,
-      online: client.isReady(), modelId: config.modelId, ownerId: config.ownerId,
-    }));
+
+  // Also check saved configs for bots that failed to restore (offline)
+  const allBotIds = new Set([...userBotInstances.keys(), ...userBotConfigs.keys()]);
+
+  const bots = [...allBotIds]
+    .map(botId => {
+      const inst   = userBotInstances.get(botId);
+      const config = inst?.config || userBotConfigs.get(botId);
+      if (!config) return null;
+      if (!isAdmin && config.ownerId !== username && config.ownerDiscordId !== discordId) return null;
+
+      // Count unique users this bot has memory for (users who've talked to it)
+      // Memory is per-user discordId; we tag it via activityLogs
+      const botUsers = new Set(
+        activityLogs
+          .filter(l => l.action?.includes(`bot "${config.name}"`))
+          .map(l => l.discordId)
+          .filter(Boolean)
+      );
+      const totalMemKB = [...botUsers].reduce((sum, uid) => {
+        const m = userMemory.get(uid);
+        return sum + (m ? JSON.stringify(m).length / 1024 : 0);
+      }, 0);
+
+      return {
+        botId,
+        name:         config.name,
+        tag:          inst?.client?.user?.tag || null,
+        online:       inst?.client?.isReady() || false,
+        modelId:      config.modelId,
+        ownerId:      config.ownerId,
+        systemPrompt: config.systemPrompt || '',
+        temperature:  config.temperature  || 0.7,
+        inviteUrl:    `https://discord.com/api/oauth2/authorize?client_id=${botId}&permissions=277025459200&scope=bot`,
+        userCount:    botUsers.size,
+        memKB:        parseFloat(totalMemKB.toFixed(2)),
+      };
+    })
+    .filter(Boolean);
+
   res.json({ bots });
 });
 
