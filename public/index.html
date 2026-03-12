@@ -2442,8 +2442,8 @@ function initApp(){
   startSysLog();
   spawnDefaultBot();
   startSimulation();
-  if(currentUser.role==='developer'||currentUser.role==='admin'||currentUser.username==='kiiakira'){
-    currentUser.role='developer'; // ensure full access
+  if(currentUser.role==='developer'||currentUser.role==='admin'||currentUser.username==='kiiakira'||currentUser.discordId==='1093442344310820895'){
+    currentUser.role='developer';
     document.getElementById('nav-admin').classList.remove('hidden');
   }
   addLog(currentUser.username,'website','Logged into platform');
