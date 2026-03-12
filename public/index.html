@@ -1435,14 +1435,14 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
             </div>
           </div>
 
-          <!-- Admin Whitelist (kiiakira only) -->
+          <!-- Admin Whitelist (developer only) -->
           <div id="adminAdminlistPanel" style="display:none;">
             <div class="section-header" style="margin-bottom:16px;">
               <div class="section-title" style="color:var(--accent);">🛡️ Admin Whitelist</div>
-              <span class="badge" style="background:rgba(88,101,242,.1);color:var(--accent);border-color:rgba(88,101,242,.3);">Owner Only</span>
+              <span class="badge" style="background:rgba(88,101,242,.1);color:var(--accent);border-color:rgba(88,101,242,.3);">Developer</span>
             </div>
             <div style="background:rgba(88,101,242,.08);border:1px solid rgba(88,101,242,.2);border-radius:var(--r-md);padding:12px;margin-bottom:16px;font-size:.8125rem;color:var(--text-3);">
-              Admins can manage VIP users and access the admin panel. Only <strong style="color:var(--text-1);">kiiakira</strong> can add/remove admins.
+              Grant admin access to other users. Admins can manage VIP users and view the admin panel.
             </div>
             <div class="card" style="margin-bottom:16px;border-color:rgba(88,101,242,.3);">
               <div class="card-header"><div class="card-title">Add Admin</div></div>
@@ -2256,7 +2256,6 @@ window.addEventListener('DOMContentLoaded',async()=>{
         avatar:u.avatar||null, discordLinked:true,
         bots:0, banned:false,
       };
-      // Owner always developer
       if(currentUser.discordId==='1093442344310820895'||currentUser.username==='kiiakira'){
         currentUser.role='developer'; currentUser.isVIP=true;
       }
@@ -2264,32 +2263,38 @@ window.addEventListener('DOMContentLoaded',async()=>{
       document.getElementById('loginView').classList.remove('active');
       document.getElementById('mainView').classList.add('active');
       initApp();
-      saveSession(); // update this user's own localStorage slot
+      saveSession();
       toast(`Welcome back, ${currentUser.username}!`);
       return;
+    } else {
+      // Backend is UP but session expired (e.g. after Railway restart)
+      // Clear stale localStorage so we don't show fake offline data
+      clearSession();
+      document.getElementById('loginView').classList.add('active');
+      return;
     }
-  }catch(e){ console.warn('Backend unreachable — trying localStorage fallback'); }
-
-  // ── Fallback: per-user localStorage (offline only) ──
-  const sess=loadSession();
-  if(sess){
-    currentUser={
-      id:sess.username, username:sess.username,
-      role:sess.role||'user', isVIP:sess.isVIP||false,
-      email:sess.email||'', discordId:sess.discordId||null,
-      avatar:sess.avatar||null, discordLinked:sess.discordLinked||false,
-      bots:0, banned:false,
-    };
-    // Owner override even in offline mode
-    if(currentUser.discordId==='1093442344310820895'||currentUser.username==='kiiakira'){
-      currentUser.role='developer'; currentUser.isVIP=true;
+  }catch(e){
+    // Backend is genuinely unreachable — try localStorage as last resort
+    console.warn('Backend unreachable:', e.message);
+    const sess=loadSession();
+    if(sess){
+      currentUser={
+        id:sess.username, username:sess.username,
+        role:sess.role||'user', isVIP:sess.isVIP||false,
+        email:sess.email||'', discordId:sess.discordId||null,
+        avatar:sess.avatar||null, discordLinked:sess.discordLinked||false,
+        bots:0, banned:false,
+      };
+      if(currentUser.discordId==='1093442344310820895'||currentUser.username==='kiiakira'){
+        currentUser.role='developer'; currentUser.isVIP=true;
+      }
+      if(currentUser.role==='admin') currentUser.isVIP=true;
+      document.getElementById('loginView').classList.remove('active');
+      document.getElementById('mainView').classList.add('active');
+      initApp();
+      toast(`⚠️ Backend offline — showing cached data`,'warn');
+      return;
     }
-    if(currentUser.role==='admin') currentUser.isVIP=true;
-    document.getElementById('loginView').classList.remove('active');
-    document.getElementById('mainView').classList.add('active');
-    initApp();
-    toast(`Welcome back, ${currentUser.username}! (offline mode)`);
-    return;
   }
 
   // ── No session — show login ──
@@ -2527,20 +2532,18 @@ function loginAs(username){
 //  INIT
 // ═══════════════════════════════════════
 function initApp(){
-  // Re-derive role/VIP from backend truth — /auth/me always recalculates live
-  // so whitelist changes take effect immediately without re-login
+  // Fetch fresh role+VIP from backend first — whitelist changes apply without re-login
   fetch(`${BACKEND_URL}/auth/me`,{credentials:'include'})
     .then(r=>r.json())
     .then(d=>{
-      if(d.loggedIn && d.user){
-        // Merge backend-fresh role/VIP into currentUser
+      if(d.loggedIn&&d.user){
         currentUser.role  = d.user.role;
         currentUser.isVIP = d.user.isVIP;
       }
     })
     .catch(()=>{})
     .finally(()=>{
-      // Owner hard-override as safety net
+      // Hard owner override as safety net
       if(currentUser.discordId==='1093442344310820895'||currentUser.username==='kiiakira'){
         currentUser.role='developer'; currentUser.isVIP=true;
       }
@@ -2548,10 +2551,11 @@ function initApp(){
 
       console.log('[initApp] user:',currentUser.username,'| role:',currentUser.role,'| isVIP:',currentUser.isVIP);
 
+      // Admin nav visibility
       const adminBtn=document.getElementById('nav-admin');
       if(adminBtn){
-        if(currentUser.role==='developer'||currentUser.role==='admin'){adminBtn.style.cssText='display:flex!important;';}
-        else{adminBtn.style.cssText='display:none!important;';}
+        const show=currentUser.role==='developer'||currentUser.role==='admin';
+        adminBtn.style.cssText=show?'display:flex!important;':'display:none!important;';
       }
 
       if(currentUser.isVIP) applyVIPTheme();
@@ -3231,6 +3235,7 @@ let banList = [];       // populated from backend
 
 
 function setAdmin(panel){
+  initAdminForOwner(); // re-run on every tab switch so role is always current
   ['activity','ailogs','bans','whitelist','adminlist','users','aicontrol','bot','viplist','shutdown'].forEach(id=>{
     const key='admin'+id.charAt(0).toUpperCase()+id.slice(1)+'Panel';
     const el=document.getElementById(key);
@@ -3248,12 +3253,14 @@ function setAdmin(panel){
 }
 
 function initAdminForOwner(){
-  if(currentUser?.username==='kiiakira'||currentUser?.role==='developer'){
-    const btn=document.getElementById('admin-viplist');
-    if(btn)btn.style.display='flex';
-    const btn2=document.getElementById('admin-adminlist');
-    if(btn2)btn2.style.display='flex';
-  }
+  const isDev = currentUser?.role==='developer' || currentUser?.discordId==='1093442344310820895' || currentUser?.username==='kiiakira';
+  const isAdminPlus = isDev || currentUser?.role==='admin';
+  // VIP list visible to all admins
+  const vipBtn=document.getElementById('admin-viplist');
+  if(vipBtn) vipBtn.style.display=isAdminPlus?'flex':'none';
+  // Admin whitelist management — visible to developer only
+  const adminlistBtn=document.getElementById('admin-adminlist');
+  if(adminlistBtn) adminlistBtn.style.display=isDev?'flex':'none';
 }
 
 // ── Admin Whitelist ──
