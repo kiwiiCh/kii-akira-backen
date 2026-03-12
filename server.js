@@ -35,6 +35,31 @@ function checkVIP(discordId, username) {
 }
 
 // ─────────────────────────────────────────────────────────────
+//  REAL DATA STORES
+// ─────────────────────────────────────────────────────────────
+
+const registeredUsers = new Map();
+const activityLogs    = [];
+const bannedUsers     = new Map();
+const MAX_LOGS        = 500;
+
+function logActivity(username, discordId, type, action, status = 'OK') {
+  activityLogs.unshift({ time: new Date().toTimeString().slice(0,8), timestamp: Date.now(), user: username || 'unknown', discordId: discordId || null, type, action, status });
+  if (activityLogs.length > MAX_LOGS) activityLogs.pop();
+}
+
+function registerUser(discordId, username, email, avatar, role, isVIP) {
+  const existing = registeredUsers.get(discordId);
+  registeredUsers.set(discordId, {
+    discordId, username, email: email || null, avatar: avatar || null,
+    role, isVIP, banned: bannedUsers.has(discordId),
+    joinedAt:  existing?.joinedAt  || new Date().toISOString().slice(0, 10),
+    lastSeen:  new Date().toISOString(),
+    botCount:  existing?.botCount  || 0,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
 //  MEMORY ENGINE
 //  Per-user memory: persists across servers, DMs, and bot restarts
 //  Structure: userId → { facts: string[], history: { role, content }[], updatedAt }
@@ -242,7 +267,7 @@ kiaraBot.on(DJSEvents.MessageCreate, async message => {
     addToHistory(userId, 'user', userMsg);
     addToHistory(userId, 'assistant', reply);
     extractFacts(userId, userMsg);
-
+    logActivity(message.author.username, userId, 'ai', `Used Kiara AI in ${message.guild ? message.guild.name : 'DMs'}`);
     await message.reply(reply.slice(0, 1900));
   } catch (e) {
     console.error('Kiara bot error:', e.message);
@@ -286,11 +311,18 @@ app.get('/auth/callback', async (req, res) => {
     const { access_token, token_type } = tokenRes.data;
     const userRes = await axios.get('https://discord.com/api/users/@me', { headers: { Authorization: `${token_type} ${access_token}` } });
     const d = userRes.data;
+    const role  = getUserRole(d.username, d.id);
+    const isVIP = checkVIP(d.id, d.username);
+    // Check if banned
+    if (bannedUsers.has(d.id)) return res.redirect('/?error=banned');
     req.session.user = {
       discordId: d.id, username: d.username, email: d.email,
       avatar: d.avatar ? `https://cdn.discordapp.com/avatars/${d.id}/${d.avatar}.png` : null,
-      role: getUserRole(d.username, d.id), isVIP: checkVIP(d.id, d.username), loggedIn: true,
+      role, isVIP, loggedIn: true,
     };
+    // Register in real user store
+    registerUser(d.id, d.username, d.email, req.session.user.avatar, role, isVIP);
+    logActivity(d.username, d.id, 'website', 'Logged in via Discord');
     res.redirect(`${FRONTEND_URL || '/'}?discord_login=success`);
   } catch (err) {
     console.error('OAuth error:', err.response?.data || err.message);
@@ -350,7 +382,49 @@ function requireAdmin(req, res, next) {
 app.get('/admin/whitelist', requireDev, (req, res) => {
   res.json({ admins: [...adminWhitelist.entries()].map(([username, data]) => ({ username, ...data })) });
 });
+
+// ── Real Users ──
+app.get('/admin/users', requireAdmin, (req, res) => {
+  const users = [...registeredUsers.values()].map(u => ({
+    ...u,
+    banned:   bannedUsers.has(u.discordId),
+    botCount: [...userBotInstances.entries()].filter(([,v]) => v.config?.ownerId === u.username).length,
+    role:     getUserRole(u.username, u.discordId),
+    isVIP:    checkVIP(u.discordId, u.username),
+  }));
+  res.json({ users });
+});
+
+// ── Real Activity Logs ──
+app.get('/admin/logs', requireAdmin, (req, res) => {
+  const { type, limit = 200 } = req.query;
+  let logs = (type && type !== 'all') ? activityLogs.filter(l => l.type === type) : activityLogs;
+  res.json({ logs: logs.slice(0, parseInt(limit)) });
+});
+
+// ── Real Bans ──
+app.get('/admin/bans', requireAdmin, (req, res) => {
+  res.json({ bans: [...bannedUsers.values()] });
+});
+app.post('/admin/ban', requireAdmin, (req, res) => {
+  const { discordId, username, reason } = req.body;
+  if (!discordId) return res.status(400).json({ error: 'discordId required' });
+  if (discordId === OWNER_DISCORDID) return res.status(403).json({ error: 'Cannot ban the developer' });
+  bannedUsers.set(discordId, { discordId, username, reason: reason || 'No reason', bannedAt: new Date().toISOString(), bannedBy: req.session.user.username });
+  if (registeredUsers.has(discordId)) registeredUsers.get(discordId).banned = true;
+  logActivity(req.session.user.username, req.session.user.discordId, 'admin', `Banned ${username}: ${reason || 'No reason'}`);
+  res.json({ success: true });
+});
+app.delete('/admin/ban/:discordId', requireAdmin, (req, res) => {
+  const entry = bannedUsers.get(req.params.discordId);
+  bannedUsers.delete(req.params.discordId);
+  if (registeredUsers.has(req.params.discordId)) registeredUsers.get(req.params.discordId).banned = false;
+  logActivity(req.session.user.username, req.session.user.discordId, 'admin', `Unbanned ${entry?.username || req.params.discordId}`);
+  res.json({ success: true });
+});
+
 app.post('/admin/whitelist', requireDev, (req, res) => {
+
   const { username } = req.body;
   if (!username) return res.status(400).json({ error: 'username required' });
   if (username === OWNER_USERNAME) return res.status(400).json({ error: 'Owner is already developer' });
@@ -491,6 +565,7 @@ app.post('/user-bots/create', async (req, res) => {
         addToHistory(userId, 'user', userMsg);
         addToHistory(userId, 'assistant', reply);
         extractFacts(userId, userMsg);
+        logActivity(message.author.username, userId, 'ai', `Used ${cfg.modelId || 'AI'} via bot "${name}"`);
         await message.reply(reply.slice(0, 1900));
       } catch (e) { await message.reply('Having trouble right now. Try again shortly!'); }
     });
