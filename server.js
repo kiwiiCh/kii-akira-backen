@@ -18,18 +18,17 @@ const { DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_REDIRECT_URI,
 // ─────────────────────────────────────────────────────────────
 //  ROLE & WHITELIST SYSTEM
 // ─────────────────────────────────────────────────────────────
-const OWNER_USERNAME = 'kiiakira';
-const adminWhitelist = new Map(); // username → { addedAt, addedBy }
-const vipUsers       = new Map(); // discordId → { expiresAt, plan, grantedBy, username }
+const OWNER_USERNAME  = 'kiiakira';
+const OWNER_DISCORDID = '1093442344310820895';
 
-function getUserRole(username) {
-  if (username === OWNER_USERNAME)  return 'developer';
+function getUserRole(username, discordId) {
+  if (username === OWNER_USERNAME || discordId === OWNER_DISCORDID) return 'developer';
   if (adminWhitelist.has(username)) return 'admin';
   return 'user';
 }
 
 function checkVIP(discordId, username) {
-  const role = getUserRole(username);
+  const role = getUserRole(username, discordId);
   if (role === 'developer' || role === 'admin') return true;
   const vip = vipUsers.get(discordId);
   return !!(vip && Date.now() < vip.expiresAt);
@@ -179,7 +178,13 @@ global.kiaraConfig = global.kiaraConfig || {
   personality: 'You are Kiara KiI, a friendly and helpful AI assistant for the Kii Akira platform. Keep responses short and conversational.',
 };
 
-const kiaraBot = new DJSClientKiara({ intents: [GWI.Guilds, GWI.GuildMessages, GWI.MessageContent] });
+const kiaraBot = new DJSClientKiara({
+  intents: [
+    GWI.Guilds, GWI.GuildMessages, GWI.MessageContent,
+    GWI.DirectMessages, GWI.DirectMessageTyping,
+  ],
+  partials: ['CHANNEL', 'MESSAGE'], // required for DMs
+});
 
 kiaraBot.once(DJSEvents.ClientReady, c => {
   console.log(`🤖 Kiara KiI online as ${c.user.tag}`);
@@ -188,10 +193,12 @@ kiaraBot.once(DJSEvents.ClientReady, c => {
 
 kiaraBot.on(DJSEvents.MessageCreate, async message => {
   if (message.author.bot) return;
+  const isDM      = !message.guild;
   const mentioned = message.mentions.has(kiaraBot.user);
   const inActive  = global.kiaraConfig.activeChannels.has(message.channel.id);
-  if (!mentioned && !inActive) return;
-  if (!mentioned && message.content.trim().length < 2) return;
+  // DMs: always respond | Servers: only if @mentioned or in active channel
+  if (!isDM && !mentioned && !inActive) return;
+  if (!isDM && !mentioned && message.content.trim().length < 2) return;
 
   try {
     await message.channel.sendTyping();
@@ -282,7 +289,7 @@ app.get('/auth/callback', async (req, res) => {
     req.session.user = {
       discordId: d.id, username: d.username, email: d.email,
       avatar: d.avatar ? `https://cdn.discordapp.com/avatars/${d.id}/${d.avatar}.png` : null,
-      role: getUserRole(d.username), isVIP: checkVIP(d.id, d.username), loggedIn: true,
+      role: getUserRole(d.username, d.id), isVIP: checkVIP(d.id, d.username), loggedIn: true,
     };
     res.redirect(`${FRONTEND_URL || '/'}?discord_login=success`);
   } catch (err) {
@@ -294,7 +301,7 @@ app.get('/auth/callback', async (req, res) => {
 app.get('/auth/me', (req, res) => {
   if (!req.session?.user?.loggedIn) return res.json({ loggedIn: false });
   const u = req.session.user;
-  u.role  = getUserRole(u.username);  // re-check live
+  u.role  = getUserRole(u.username, u.discordId);  // re-check live
   u.isVIP = checkVIP(u.discordId, u.username);
   res.json({ loggedIn: true, user: u });
 });
@@ -331,11 +338,11 @@ app.post('/auth/verify-code', (req, res) => {
 //  ADMIN WHITELIST — only developer can manage
 // ─────────────────────────────────────────────────────────────
 function requireDev(req, res, next) {
-  if (req.session?.user?.username !== OWNER_USERNAME) return res.status(403).json({ error: 'Owner only' });
+  if (req.session?.user?.username !== OWNER_USERNAME && req.session?.user?.discordId !== OWNER_DISCORDID) return res.status(403).json({ error: 'Owner only' });
   next();
 }
 function requireAdmin(req, res, next) {
-  const role = getUserRole(req.session?.user?.username);
+  const role = getUserRole(req.session?.user?.username, req.session?.user?.discordId);
   if (role !== 'developer' && role !== 'admin') return res.status(403).json({ error: 'Admin required' });
   next();
 }
@@ -367,7 +374,7 @@ app.get('/vip/status', (req, res) => {
   const { discordId, username } = req.session.user;
   const isVIP = checkVIP(discordId, username);
   if (!isVIP) return res.json({ isVIP: false });
-  const role = getUserRole(username);
+  const role = getUserRole(username, discordId);
   if (role === 'developer' || role === 'admin')
     return res.json({ isVIP: true, plan: 'complimentary', daysLeft: 99999, role });
   const vip = vipUsers.get(discordId);
@@ -454,10 +461,20 @@ app.post('/user-bots/create', async (req, res) => {
     testClient.destroy();
     if (userBotInstances.has(botId)) userBotInstances.get(botId).client.destroy();
 
-    const botClient = new DJSClient({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
+    const botClient = new DJSClient({
+      intents: [
+        GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent, GatewayIntentBits.DirectMessages,
+        GatewayIntentBits.DirectMessageTyping,
+      ],
+      partials: ['CHANNEL', 'MESSAGE'],
+    });
     botClient.once(Events.ClientReady, c => { c.user.setPresence({ status: 'online', activities: [{ name, type: 0 }] }); });
     botClient.on(Events.MessageCreate, async message => {
-      if (message.author.bot || !message.mentions.has(botClient.user)) return;
+      if (message.author.bot) return;
+      const isDM      = !message.guild;
+      const mentioned = message.mentions.has(botClient.user);
+      if (!isDM && !mentioned) return; // servers: only @mention; DMs: always respond
       const cfg = userBotInstances.get(botId)?.config;
       if (!cfg) return;
       try {
@@ -466,13 +483,11 @@ app.post('/user-bots/create', async (req, res) => {
         if (!userMsg) return message.reply(`Hey! I'm ${name}. How can I help? 👋`);
         const md          = PLATFORM_MODELS[cfg.modelId];
         const userId      = message.author.id;
-        const isDM        = !message.guild;
         const contextInfo = isDM
           ? { isDM: true }
           : { guildName: message.guild.name, channelName: message.channel.name };
         const messages    = buildMessages(cfg.systemPrompt, userId, userMsg, contextInfo);
         const reply       = await callAI(md.provider, getPlatformKey(md.provider), messages, cfg.temperature, md.model);
-        // Save to memory
         addToHistory(userId, 'user', userMsg);
         addToHistory(userId, 'assistant', reply);
         extractFacts(userId, userMsg);
