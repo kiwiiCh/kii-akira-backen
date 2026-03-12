@@ -2205,13 +2205,17 @@ window.addEventListener('DOMContentLoaded',async()=>{
         avatar:u.avatar,discordLinked:true,
       };
       if(!found)managedUsers.push(currentUser);
-      // Always trust backend for role and VIP
-      currentUser.role       = u.role  || currentUser.role;
-      currentUser.isVIP      = u.isVIP || currentUser.isVIP;
-      currentUser.email      = u.email;
-      currentUser.discordId  = u.discordId;
-      currentUser.avatar     = u.avatar;
+      // ALWAYS use backend values — never trust stale localStorage
+      currentUser.role      = u.role;
+      currentUser.isVIP     = u.isVIP;
+      currentUser.email     = u.email;
+      currentUser.discordId = u.discordId;
+      currentUser.avatar    = u.avatar;
       currentUser.discordLinked = true;
+      // Force admin panel for owner by Discord ID (belt + suspenders)
+      if(currentUser.discordId==='1093442344310820895'||currentUser.username==='kiiakira'){
+        currentUser.role='developer';
+      }
       if(currentUser.isVIP) applyVIPTheme();
       document.getElementById('loginView').classList.remove('active');
       document.getElementById('mainView').classList.add('active');
