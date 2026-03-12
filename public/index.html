@@ -236,7 +236,48 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
   font-size:.8rem;font-weight:700;color:#fff;flex-shrink:0;
   background:linear-gradient(135deg,#5865f2,#8338ec);
 }
-.user-info{flex:1;min-width:0;}
+/* ── Sidebar Profile Card ── */
+.sidebar-profile{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 12px 10px;
+  cursor:pointer;border-bottom:1px solid var(--border);
+  transition:background .15s;position:relative;
+  user-select:none;
+}
+.sidebar-profile:hover{background:var(--bg-3);}
+.sidebar-profile-avatar{
+  width:34px;height:34px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,#5865f2,#8338ec);
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;border:2px solid var(--border);
+}
+.profile-dropdown{
+  position:absolute;left:8px;top:72px;
+  width:210px;z-index:300;
+  background:var(--bg-2);border:1px solid var(--border);
+  border-radius:var(--r-lg);box-shadow:0 8px 32px rgba(0,0,0,.5);
+  overflow:hidden;
+}
+@media(max-width:768px){
+  .profile-dropdown{left:4px;top:64px;width:200px;}
+}
+.profile-dropdown-header{
+  display:flex;align-items:center;gap:10px;
+  padding:14px 14px 10px;
+}
+.profile-dropdown-divider{height:1px;background:var(--border);margin:2px 0;}
+.profile-dropdown-item{
+  display:flex;align-items:center;gap:10px;
+  width:100%;padding:10px 14px;
+  background:none;border:none;cursor:pointer;
+  color:var(--text-2);font-size:.8125rem;font-weight:500;
+  text-align:left;transition:background .12s;
+}
+.profile-dropdown-item:hover{background:var(--bg-3);}
+.profile-dropdown-danger{color:#f07070!important;}
+.profile-dropdown-danger:hover{background:rgba(237,66,69,.1)!important;}
+
+
 .user-name{font-size:.8125rem;font-weight:600;color:var(--text-1);truncate;}
 .user-role{font-size:.6875rem;color:var(--text-3);}
 
@@ -654,6 +695,8 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
 @media(max-width:768px){
   :root{--sidebar-w:56px;}
   .sidebar-logo-name,.nav-item span,.nav-badge,.sidebar-status .user-info,.nav-label{display:none;}
+  #sidebarUserInfo, #sidebarProfile svg:last-child{display:none!important;}
+  .sidebar-profile{justify-content:center;padding:10px 0;}
   .nav-item{justify-content:center;padding:10px;}
   .studio-sidebar{width:48px;}
   .studio-sidebar span{display:none;}
@@ -732,11 +775,45 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
 
   <!-- ── SIDEBAR ── -->
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <div class="sidebar-logo-mark">
-        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-4H7l5-8v4h4l-5 8z"/></svg>
+    <!-- Profile card top-left -->
+    <div class="sidebar-profile" id="sidebarProfile" onclick="toggleProfileMenu()" title="Account">
+      <div class="sidebar-profile-avatar" id="sidebarAvatarWrap">
+        <img id="sidebarAvatarImg" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:50%;">
+        <span id="sidebarAvatar" style="font-size:.8rem;font-weight:700;color:#fff;">?</span>
       </div>
-      <div class="sidebar-logo-name">Kii<span>Akira</span></div>
+      <div class="user-info" id="sidebarUserInfo">
+        <div class="user-name" id="sidebarUsername">—</div>
+        <div class="user-role" id="sidebarRole">Not connected</div>
+      </div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;color:var(--text-4);"><polyline points="6,9 12,15 18,9"/></svg>
+    </div>
+
+    <!-- Profile dropdown -->
+    <div class="profile-dropdown" id="profileDropdown" style="display:none;">
+      <div class="profile-dropdown-header">
+        <div class="sidebar-profile-avatar" style="width:40px;height:40px;flex-shrink:0;">
+          <img id="dropdownAvatarImg" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:50%;">
+          <span id="dropdownAvatarText" style="font-size:.9rem;font-weight:700;color:#fff;">?</span>
+        </div>
+        <div>
+          <div style="font-weight:700;font-size:.875rem;" id="dropdownUsername">—</div>
+          <div style="font-size:.7rem;color:var(--text-4);" id="dropdownRole">—</div>
+        </div>
+      </div>
+      <div class="profile-dropdown-divider"></div>
+      <button class="profile-dropdown-item" onclick="openUserMenu();closeProfileMenu();">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </button>
+      <button class="profile-dropdown-item" onclick="switchAccount()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Switch Account
+      </button>
+      <div class="profile-dropdown-divider"></div>
+      <button class="profile-dropdown-item profile-dropdown-danger" onclick="logout()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Log Out
+      </button>
     </div>
 
     <div class="nav-section">
@@ -771,18 +848,6 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         <span>Admin Panel</span>
         <span class="nav-badge" style="background:rgba(237,66,69,.1);color:#f07070;border-color:rgba(237,66,69,.2);">Dev</span>
-      </button>
-    </div>
-
-    <!-- User footer -->
-    <div class="sidebar-status">
-      <div class="user-avatar" id="sidebarAvatar">?</div>
-      <div class="user-info">
-        <div class="user-name" id="sidebarUsername">—</div>
-        <div class="user-role" id="sidebarRole">Not connected</div>
-      </div>
-      <button onclick="openUserMenu()" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:4px;border-radius:var(--r-sm);display:flex;" title="Settings">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
     </div>
   </aside>
@@ -2333,19 +2398,34 @@ function authorizeDiscord(){
   finalizeAuth(name);
 }
 
-function finalizeAuth(username){
+async function finalizeAuth(username){
   const found=managedUsers.find(u=>u.id===username||u.username===username);
-  // check email uniqueness
   const emailConflict=managedUsers.find(u=>u.email===authEmailValue&&(u.username!==username));
-  if(emailConflict){
-    toast(`That email is already linked to @${emailConflict.username}`,'err');return;
-  }
+  if(emailConflict){toast(`That email is already linked to @${emailConflict.username}`,'err');return;}
   if(found&&found.banned){toast('This account is banned.','err');return;}
-  currentUser=found||{id:username,username,role:'user',isVIP:false,bots:0,banned:false};
+
+  currentUser=found||{id:username,username,role:'user',isVIP:false,bots:0,banned:false,discordId:null};
   if(!found)managedUsers.push(currentUser);
   currentUser.email=authEmailValue;
   currentUser.discordLinked=true;
-  // success step
+
+  // Try to get real role from backend session
+  try{
+    const res=await fetch(`${BACKEND_URL}/auth/me`,{credentials:'include'});
+    const data=await res.json();
+    if(data.loggedIn && data.user){
+      currentUser.role     = data.user.role;
+      currentUser.isVIP    = data.user.isVIP;
+      currentUser.discordId= data.user.discordId;
+      currentUser.avatar   = data.user.avatar;
+    }
+  }catch(e){}
+
+  // Owner override
+  if(currentUser.discordId==='1093442344310820895'||currentUser.username==='kiiakira'){
+    currentUser.role='developer';
+  }
+
   document.getElementById('successUsername').textContent=username;
   goStep(4);
   saveSession();
@@ -2358,13 +2438,38 @@ function finalizeAuth(username){
   },2000);
 }
 
-function checkReturnUser(){
-  // Quick login for returning users — check localStorage
+async function checkReturnUser(){
   const sess=loadSession();
   if(!sess){toast('No saved session found. Complete setup.','warn');return;}
+
+  // Always re-verify with backend
+  try{
+    const res=await fetch(`${BACKEND_URL}/auth/me`,{credentials:'include'});
+    const data=await res.json();
+    if(data.loggedIn && data.user){
+      currentUser={
+        id:data.user.username, username:data.user.username,
+        role:data.user.role, isVIP:data.user.isVIP,
+        discordId:data.user.discordId, avatar:data.user.avatar,
+        email:data.user.email, discordLinked:true, bots:0, banned:false,
+      };
+      if(currentUser.discordId==='1093442344310820895'||currentUser.username==='kiiakira'){
+        currentUser.role='developer';
+      }
+      document.getElementById('discordBackdrop').classList.remove('open');
+      document.getElementById('loginView').classList.remove('active');
+      document.getElementById('mainView').classList.add('active');
+      initApp();
+      toast(`Welcome back, ${currentUser.username}!`);
+      return;
+    }
+  }catch(e){}
+
+  // Fallback to local session
   const found=managedUsers.find(u=>u.username===sess.username);
   if(!found||found.banned){clearSession();toast('Session expired or account banned.','err');return;}
   currentUser=found;currentUser.discordLinked=true;
+  if(currentUser.username==='kiiakira')currentUser.role='developer';
   document.getElementById('discordBackdrop').classList.remove('open');
   document.getElementById('loginView').classList.remove('active');
   document.getElementById('mainView').classList.add('active');
@@ -2381,51 +2486,103 @@ function loginAs(username){
 //  INIT
 // ═══════════════════════════════════════
 function initApp(){
+  // Owner override — always force developer regardless of what backend said
+  if(currentUser.discordId==='1093442344310820895' || currentUser.username==='kiiakira'){
+    currentUser.role='developer';
+  }
+  console.log('[initApp] user:', currentUser.username, '| role:', currentUser.role, '| discordId:', currentUser.discordId);
+
+  // Show admin nav
+  const adminBtn = document.getElementById('nav-admin');
+  if(adminBtn){
+    if(currentUser.role==='developer' || currentUser.role==='admin'){
+      adminBtn.style.cssText='display:flex!important;';
+      console.log('[initApp] Admin panel SHOWN');
+    } else {
+      adminBtn.style.cssText='display:none!important;';
+      console.log('[initApp] Admin panel hidden — role is:', currentUser.role);
+    }
+  }
+
   updateUserUI();
   renderCreateModels();
   renderFullModels();
   renderHomeBotsRef();
-  renderHubScripts();
-  renderVip();
-  renderActivityLog();
-  renderWhitelist();
-  renderUserMgmt();
-  startSysLog();
-  spawnDefaultBot();
-  startSimulation();
-  if(currentUser.role==='developer'||currentUser.role==='admin'||currentUser.username==='kiiakira'||currentUser.discordId==='1093442344310820895'){
-    currentUser.role='developer';
-    document.getElementById('nav-admin').style.display='flex';
-  }
-  addLog(currentUser.username,'website','Logged into platform');
-  saveSession(); // persist immediately after login
+  try{ renderHubScripts(); }catch(e){}
+  try{ renderVip(); }catch(e){}
+  try{ renderWhitelist(); }catch(e){}
+  try{ startSysLog(); }catch(e){}
+  try{ startSimulation(); }catch(e){}
+  saveSession();
 }
 
 function spawnDefaultBot(){
-  const m=models[1];
-  const bot={id:'bot_default',name:'Akira-Helper',modelId:m.id,personality:'helpful',online:true,serverMemEnabled:true,dmMemEnabled:true};
-  deployedBots.push(bot);
-  seedBotMemory(bot.id,bot.modelId);
-  renderBotList();
-  updateBotMemSelect();
-  renderHomeBotsRef();
-  updateStats();
+  // No longer seeds fake bots — bots are loaded from backend
 }
 
 function updateUserUI(){
   const u=currentUser;
   const init=u.username.slice(0,2).toUpperCase();
-  document.getElementById('sidebarAvatar').textContent=init;
+
+  // Sidebar profile avatar — use real Discord pfp if available
+  const avatarImg = document.getElementById('sidebarAvatarImg');
+  const avatarTxt = document.getElementById('sidebarAvatar');
+  const dropImg   = document.getElementById('dropdownAvatarImg');
+  const dropTxt   = document.getElementById('dropdownAvatarText');
+
+  if(u.avatar){
+    avatarImg.src=u.avatar; avatarImg.style.display='block'; avatarTxt.style.display='none';
+    dropImg.src=u.avatar;   dropImg.style.display='block';   dropTxt.style.display='none';
+  } else {
+    avatarImg.style.display='none'; avatarTxt.style.display='block'; avatarTxt.textContent=init;
+    dropImg.style.display='none';   dropTxt.style.display='block';   dropTxt.textContent=init;
+  }
+
   document.getElementById('sidebarUsername').textContent=u.username;
-  document.getElementById('menuAvatar').textContent=init;
-  document.getElementById('menuUsername').textContent=u.username;
+  document.getElementById('dropdownUsername').textContent=u.username;
+
   const roles={developer:'🔧 Developer',admin:'🛡️ Admin',beta_tester:'🧪 Beta Tester',user:'User'};
   const cls={developer:'badge-dev',admin:'badge-admin',beta_tester:'badge-beta',user:'badge-user'};
   const roleLabel=(u.discordLinked?'<svg width="10" height="10" viewBox="0 0 22 16" fill="#5865f2" style="margin-right:3px;vertical-align:middle;"><path d="M18.59 1.33A18.17 18.17 0 0 0 14.1 0a.07.07 0 0 0-.07.03 12.68 12.68 0 0 0-.56 1.15 16.77 16.77 0 0 0-5.03 0A11.65 11.65 0 0 0 7.88.03a.07.07 0 0 0-.07-.03 18.13 18.13 0 0 0-4.49 1.33.06.06 0 0 0-.03.02C.48 5.57-.29 9.7.09 13.77a.07.07 0 0 0 .03.05 18.26 18.26 0 0 0 5.5 2.78.07.07 0 0 0 .08-.03c.42-.58.8-1.19 1.12-1.83a.07.07 0 0 0-.04-.09 12.03 12.03 0 0 1-1.72-.82.07.07 0 0 1-.01-.11c.12-.09.23-.18.34-.27a.07.07 0 0 1 .07-.01 13.01 13.01 0 0 0 11.06 0 .07.07 0 0 1 .07.01c.11.09.23.18.34.27a.07.07 0 0 1-.01.11 11.3 11.3 0 0 1-1.72.82.07.07 0 0 0-.04.09 20.5 20.5 0 0 0 1.12 1.83.07.07 0 0 0 .08.03 18.21 18.21 0 0 0 5.51-2.78.07.07 0 0 0 .03-.05c.46-4.74-.77-8.86-3.26-12.41a.05.05 0 0 0-.03-.03Z"/></svg>':'')+(roles[u.role]||'User');
   document.getElementById('sidebarRole').innerHTML=roleLabel;
+  document.getElementById('dropdownRole').textContent=roles[u.role]||'User';
+
+  // Update user menu modal too
+  document.getElementById('menuAvatar').textContent=init;
+  document.getElementById('menuUsername').textContent=u.username;
   document.getElementById('menuRoleBadge').textContent=roles[u.role]||'User';
   document.getElementById('menuRoleBadge').className='badge '+(cls[u.role]||'badge-user');
 }
+
+function toggleProfileMenu(){
+  const dd=document.getElementById('profileDropdown');
+  dd.style.display=dd.style.display==='none'?'block':'none';
+}
+function closeProfileMenu(){
+  document.getElementById('profileDropdown').style.display='none';
+}
+function switchAccount(){
+  closeProfileMenu();
+  // Log out backend session then reload to login screen
+  fetch(`${BACKEND_URL}/auth/logout`,{method:'POST',credentials:'include'})
+    .finally(()=>{
+      clearSession();
+      currentUser=null;
+      document.getElementById('mainView').classList.remove('active');
+      document.getElementById('loginView').classList.add('active');
+      document.getElementById('nav-admin').style.cssText='display:none!important;';
+      toast('Switched — please log in again');
+    });
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', e=>{
+  const dd=document.getElementById('profileDropdown');
+  const profile=document.getElementById('sidebarProfile');
+  if(dd && !dd.contains(e.target) && !profile.contains(e.target)){
+    dd.style.display='none';
+  }
+});
 
 // ═══════════════════════════════════════
 //  PAGE SWITCHING
@@ -3016,23 +3173,9 @@ function renderVip(){
 // ═══════════════════════════════════════
 
 // ── AI usage log data ──
-const aiUsageLogs = [
-  {time:'14:32:01', user:'starplayer99', model:'gpt4',    modelName:'GPT-4 Turbo',   server:'Anime Hub',  channel:'#general',  tokens:2300,  status:'OK'},
-  {time:'14:28:55', user:'shadow_mod',   model:'akira',   modelName:'Akira AI',      server:'Dev Server', channel:'#bot-cmds', tokens:15400, status:'OK'},
-  {time:'14:20:10', user:'anime_fan21',  model:'claude',  modelName:'Claude 3 Opus', server:'Anime Hub',  channel:'#roleplay', tokens:8800,  status:'OK'},
-  {time:'14:15:33', user:'anime_fan21',  model:'akira',   modelName:'Akira AI',      server:'Weeb Zone',  channel:'#general',  tokens:21000, status:'OK'},
-  {time:'14:12:44', user:'rxblox_dev',   model:'llama',   modelName:'Llama 3 70B',   server:'Roblox Dev', channel:'#scripting',tokens:1200,  status:'OK'},
-  {time:'14:05:17', user:'starplayer99', model:'gpt4',    modelName:'GPT-4 Turbo',   server:'Anime Hub',  channel:'#help',     tokens:3100,  status:'OK'},
-  {time:'13:58:02', user:'shadow_mod',   model:'akira',   modelName:'Akira AI',      server:'Dev Server', channel:'#testing',  tokens:9400,  status:'OK'},
-  {time:'13:45:29', user:'anime_fan21',  model:'mistral', modelName:'Mistral Large', server:'Weeb Zone',  channel:'#spam',     tokens:650,   status:'RATE_LIMIT'},
-  {time:'13:30:00', user:'kiiakira',     model:'akira',   modelName:'Akira AI',      server:'Dev Server', channel:'#admin',    tokens:500,   status:'OK'},
-];
+const aiUsageLogs = []; // populated from backend
+let banList = [];       // populated from backend
 
-// ── Ban list data ──
-let banList = [
-  {username:'bad_actor99', reason:'Spam',       bannedAt:'2025-11-01 09:14', bannedBy:'kiiakira'},
-  {username:'troll_x',     reason:'Harassment', bannedAt:'2025-11-12 17:32', bannedBy:'shadow_mod'},
-];
 
 function setAdmin(panel){
   ['activity','ailogs','bans','whitelist','adminlist','users','aicontrol','bot','viplist','shutdown'].forEach(id=>{
