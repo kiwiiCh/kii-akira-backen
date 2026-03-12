@@ -963,10 +963,11 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
                 <select id="keyModelSelect" class="input" style="appearance:none;">
                   <option value="">Choose a model...</option>
                   <option value="akira">Akira AI (VIP)</option>
-                  <option value="gpt4">GPT-4 Turbo</option>
-                  <option value="claude">Claude 3 Opus</option>
-                  <option value="llama">Llama 3 70B</option>
-                  <option value="mistral">Mistral Large</option>
+                  <option value="gpt4">GPT-4 Turbo (VIP)</option>
+                  <option value="gpt4mini">GPT-4o Mini</option>
+                  <option value="llama70b">Llama 3 70B</option>
+                  <option value="mistral">Mistral 8x7B</option>
+                  <option value="cerebras">Cerebras Ultra</option>
                 </select>
               </div>
               <button class="btn btn-primary btn-full" onclick="generateAPIKey()">
@@ -1202,7 +1203,7 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
           <div style="font-weight:600;margin-bottom:12px;color:var(--gold);">✓ Your VIP Perks</div>
           <div style="display:flex;flex-direction:column;gap:10px;font-size:.875rem;color:var(--text-2);">
             <div>⚡ Akira AI — flagship model access</div>
-            <div>🧠 Higher AI memory limits (1000 entries)</div>
+            <div>🧠 Higher AI memory — last 1,000 messages in context (free: 30)</div>
             <div>🤖 Priority bot creation</div>
             <div>🎨 Exclusive VIP gold theme</div>
             <div>👑 VIP badge on your profile</div>
@@ -1265,12 +1266,12 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
             <div class="field" style="margin:0;">
               <label>AI Model</label>
               <select id="editBotModel" class="input" style="appearance:none;">
-                <option value="groq|llama-3.1-8b-instant">Akira AI — Fast & Free (Groq)</option>
-                <option value="groq|llama-3.3-70b-versatile">Llama 3 70B — Powerful (Groq)</option>
-                <option value="groq|mixtral-8x7b-32768">Mistral Large (Groq)</option>
-                <option value="cerebras|llama3.1-8b">Cerebras Ultra — Fastest</option>
+                <option value="groq|llama-3.1-8b-instant">Akira AI — llama-3.1-8b (Groq) 👑 VIP</option>
+                <option value="groq|llama-3.3-70b-versatile">Llama 3 70B — llama-3.3-70b (Groq)</option>
+                <option value="groq|mixtral-8x7b-32768">Mistral 8x7B — mixtral-8x7b (Groq)</option>
+                <option value="cerebras|llama3.1-8b">Cerebras Ultra — llama3.1-8b (Cerebras)</option>
                 <option value="openai|gpt-4o-mini">GPT-4o Mini (OpenAI)</option>
-                <option value="openai|gpt-4-turbo">GPT-4 Turbo — VIP only (OpenAI)</option>
+                <option value="openai|gpt-4-turbo">GPT-4 Turbo (OpenAI) 👑 VIP</option>
               </select>
             </div>
             <div class="field" style="margin:0;"><label>Personality / System Prompt</label><textarea id="editBotPersonality" class="input" style="height:80px;resize:none;"></textarea></div>
@@ -1475,9 +1476,10 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
                   <option value="all">All Models</option>
                   <option value="akira">Akira AI</option>
                   <option value="gpt4">GPT-4 Turbo</option>
-                  <option value="claude">Claude 3 Opus</option>
-                  <option value="llama">Llama 3 70B</option>
-                  <option value="mistral">Mistral Large</option>
+                  <option value="gpt4mini">GPT-4o Mini</option>
+                  <option value="llama70b">Llama 3 70B</option>
+                  <option value="mistral">Mistral 8x7B</option>
+                  <option value="cerebras">Cerebras Ultra</option>
                 </select>
                 <button onclick="renderAILogs()" class="btn btn-ghost btn-sm">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23,4 23,10 17,10"/><polyline points="1,20 1,14 7,14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
@@ -2061,28 +2063,43 @@ let currentUser = null;
 let selectedModel = null;
 let selectedPersonality = 'helpful';
 
-// ─── Models ───
+// ─── Models — IDs must match backend PLATFORM_MODELS exactly ───
 const models = [
-  { id:'akira',   name:'Akira AI',      tier:'VIP',  vip:true,  color:'#f0b429', icon:'sparkles',
-    desc:'Our flagship model. Massive memory, advanced reasoning, multimodal.',
-    specs:{tokens:'500,000+',memory:'500MB',speed:'Ultra',multimodal:true},
-    serverMemLimit:1000, dmMemLimit:1000, maxContexts:50, memoryLabel:'500MB · 1,000 entries/context' },
-  { id:'gpt4',    name:'GPT-4 Turbo',   tier:'FREE', vip:false, color:'#5865f2', icon:'brain',
-    desc:'Most capable general model for complex reasoning and creative tasks.',
-    specs:{tokens:'128,000',memory:'8KB',speed:'Fast',multimodal:true},
-    serverMemLimit:200, dmMemLimit:200, maxContexts:20, memoryLabel:'8KB · 200 entries/context' },
-  { id:'claude',  name:'Claude 3 Opus', tier:'FREE', vip:false, color:'#8338ec', icon:'message-square',
-    desc:'Excellent for long-context conversations and nuanced reasoning.',
-    specs:{tokens:'200,000',memory:'12KB',speed:'Fast',multimodal:true},
-    serverMemLimit:300, dmMemLimit:300, maxContexts:25, memoryLabel:'12KB · 300 entries/context' },
-  { id:'llama',   name:'Llama 3 70B',   tier:'FREE', vip:false, color:'#3a86ff', icon:'code-2',
-    desc:'Open source powerhouse with great multilingual performance.',
-    specs:{tokens:'8,000',memory:'4KB',speed:'Very Fast',multimodal:false},
-    serverMemLimit:100, dmMemLimit:100, maxContexts:15, memoryLabel:'4KB · 100 entries/context' },
-  { id:'mistral', name:'Mistral Large', tier:'FREE', vip:false, color:'#f97316', icon:'zap',
-    desc:'Efficient and cost-effective for high-volume use.',
-    specs:{tokens:'32,000',memory:'2KB',speed:'Ultra Fast',multimodal:false},
-    serverMemLimit:80, dmMemLimit:80, maxContexts:10, memoryLabel:'2KB · 80 entries/context' },
+  { id:'akira',    name:'Akira AI',       tier:'VIP',  vip:true,  color:'#f0b429', icon:'sparkles',
+    provider:'groq',     realModel:'llama-3.1-8b-instant',
+    desc:'Platform flagship running on Groq. Blazing fast with VIP-only extended memory.',
+    specs:{tokens:'128,000',memory:'Deep context',speed:'Ultra Fast',multimodal:false},
+    serverMemLimit:1000, dmMemLimit:1000, maxContexts:50, memoryLabel:'Last 1,000 messages remembered (auto-rolling)' },
+
+  { id:'llama70b', name:'Llama 3 70B',    tier:'FREE', vip:false, color:'#3a86ff', icon:'code-2',
+    provider:'groq',     realModel:'llama-3.3-70b-versatile',
+    desc:'Meta\'s most powerful open-source model. Great reasoning, coding, and multilingual support.',
+    specs:{tokens:'128,000',memory:'Rolling context',speed:'Fast',multimodal:false},
+    serverMemLimit:30, dmMemLimit:30, maxContexts:10, memoryLabel:'Last 30 messages remembered (auto-rolling)' },
+
+  { id:'mistral',  name:'Mistral 8x7B',   tier:'FREE', vip:false, color:'#f97316', icon:'zap',
+    provider:'groq',     realModel:'mixtral-8x7b-32768',
+    desc:'Mixtral mixture-of-experts. Efficient, smart, great at instruction following.',
+    specs:{tokens:'32,768',memory:'Rolling context',speed:'Fast',multimodal:false},
+    serverMemLimit:30, dmMemLimit:30, maxContexts:10, memoryLabel:'Last 30 messages remembered (auto-rolling)' },
+
+  { id:'cerebras', name:'Cerebras Ultra', tier:'FREE', vip:false, color:'#06b6d4', icon:'cpu',
+    provider:'cerebras', realModel:'llama3.1-8b',
+    desc:'Running on Cerebras silicon — the fastest AI inference chips in the world.',
+    specs:{tokens:'8,192',memory:'Rolling context',speed:'Ultra Fast',multimodal:false},
+    serverMemLimit:30, dmMemLimit:30, maxContexts:10, memoryLabel:'Last 30 messages remembered (auto-rolling)' },
+
+  { id:'gpt4mini', name:'GPT-4o Mini',    tier:'FREE', vip:false, color:'#5865f2', icon:'brain',
+    provider:'openai',   realModel:'gpt-4o-mini',
+    desc:'OpenAI\'s small, capable model. Fast, smart, understands images.',
+    specs:{tokens:'128,000',memory:'Rolling context',speed:'Fast',multimodal:true},
+    serverMemLimit:30, dmMemLimit:30, maxContexts:10, memoryLabel:'Last 30 messages remembered (auto-rolling)' },
+
+  { id:'gpt4',     name:'GPT-4 Turbo',    tier:'VIP',  vip:true,  color:'#10b981', icon:'sparkles',
+    provider:'openai',   realModel:'gpt-4-turbo',
+    desc:'OpenAI\'s most capable model. Handles complex tasks, long documents, and images.',
+    specs:{tokens:'128,000',memory:'Deep context',speed:'Moderate',multimodal:true},
+    serverMemLimit:1000, dmMemLimit:1000, maxContexts:50, memoryLabel:'Last 1,000 messages remembered (auto-rolling)' },
 ];
 
 // ─── Admin data ───
@@ -2680,7 +2697,7 @@ function renderCreateModels(){
   c.innerHTML=models.map(m=>{
     const locked=m.vip&&!(currentUser&&(currentUser.isVIP||currentUser.role==='developer'));
     const sel=selectedModel===m.id;
-    return`<div class="model-card flex items-center gap-12 ${sel?'selected':''}" style="cursor:${locked?'not-allowed':'pointer'};" onclick="${locked?`toast('Akira AI is VIP only!','err')`:`selectModel('${m.id}')`}">
+    return`<div class="model-card flex items-center gap-12 ${sel?'selected':''}" style="cursor:${locked?'not-allowed':'pointer'};" onclick="${locked?`toast('${m.name} requires VIP!','err')`:`selectModel('${m.id}')`}">
       <div class="model-icon flex-shrink-0" style="background:${m.color}18;">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${m.color}" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10,8 16,12 10,16"/></svg>
       </div>
@@ -2718,6 +2735,7 @@ function renderFullModels(){
               ${m.vip?`<span class="badge badge-vip" style="font-size:.6rem;">👑 VIP ONLY</span>`:`<span class="badge badge-user" style="font-size:.6rem;">${m.tier}</span>`}
               ${locked?`<span class="badge" style="font-size:.6rem;background:rgba(237,66,69,.1);color:var(--red);border-color:rgba(237,66,69,.2);">🔒 Locked</span>`:''}
             </div>
+            <div style="font-size:.72rem;color:var(--text-4);margin-bottom:6px;font-family:monospace;">${m.realModel} · ${m.provider}</div>
             <p class="text-sm text-3" style="margin-bottom:12px;">${m.desc}</p>
             <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;font-size:.75rem;">
               <div style="background:var(--bg-300);border-radius:6px;padding:8px;"><div class="text-4 text-xxs uppercase tracking-wide" style="margin-bottom:3px;">Context</div><div style="font-weight:700;color:${m.color};">${m.specs.tokens}</div></div>
@@ -2729,7 +2747,7 @@ function renderFullModels(){
         </div>
         <div style="background:rgba(88,101,242,.07);border:1px solid rgba(88,101,242,.15);border-radius:var(--r-sm);padding:10px;display:flex;align-items:center;gap:8px;">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--brand-light)" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-          <span style="font-size:.75rem;color:var(--text-3);">Memory: ${m.serverMemLimit} entries/server · ${m.dmMemLimit} entries/DM · Auto-eviction · ${m.maxContexts} max contexts</span>
+          <span style="font-size:.75rem;color:var(--text-3);">🧠 ${m.memoryLabel} · old messages auto-deleted as new ones come in</span>
         </div>
       </div>
     </div>`;
@@ -3091,7 +3109,7 @@ function generateAPIKey(){
   const model=document.getElementById('keyModelSelect').value;
   if(!model){toast('Select a model first','err');return;}
   const m=models.find(x=>x.id===model);
-  if(m.vip&&!(currentUser.isVIP||currentUser.role==='developer')){toast('Akira AI requires VIP!','err');return;}
+  if(m.vip&&!(currentUser.isVIP||currentUser.role==='developer')){toast(`${m.name} requires VIP!`,'err');return;}
   toast('Generating key...');
   setTimeout(()=>{
     const key='sk-kii-'+Math.random().toString(36).slice(2,18);
@@ -3166,12 +3184,12 @@ const prices=[
   {flag:'🇰🇷',country:'South Korea',currency:'KRW',symbol:'₩',amount:11800},
 ];
 const benefits=[
-  'Akira AI Model — 500,000+ tokens, 500MB memory',
-  '1,000 memory entries per server channel (auto-eviction)',
-  '1,000 memory entries per DM thread (auto-eviction)',
-  'Unlimited bot deployments',
-  'Priority API access and faster inference',
-  'Full Akira Executor premium features',
+  'Akira AI (llama-3.1-8b-instant via Groq) — exclusive to VIP',
+  'GPT-4 Turbo (gpt-4-turbo via OpenAI) — exclusive to VIP',
+  '1,000 conversation memory entries (free users get 30)',
+  '200 stored facts about you (free users get 50)',
+  'Memory persists across servers, DMs, and all your bots',
+  'Priority access — your bots use VIP-tier context limits',
   'VIP badge and exclusive Discord role',
   'Beta tester access for upcoming features',
 ];
@@ -3412,7 +3430,7 @@ function updateCSpeakBots(){
   // simulate bots for user
   const fakeBots=[
     {id:'bot1',name:'Akira-Helper',model:'GPT-4 Turbo',channels:['#general','#help','#bot-cmds']},
-    {id:'bot2',name:'Weeb-Bot',model:'Claude 3 Opus',channels:['#roleplay','#anime','#general']},
+    {id:'bot2',name:'Weeb-Bot',model:'Llama 3 70B',channels:['#roleplay','#anime','#general']},
     {id:'bot3',name:'Dev-Assistant',model:'Akira AI',channels:['#scripting','#testing','#admin']},
   ];
   const u=managedUsers.find(x=>x.id===userId);
@@ -3873,67 +3891,97 @@ let editingBotId = null;
 function renderMyBots(){
   const container = document.getElementById('myBotsList');
   if(!container) return;
+  container.innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-4);font-size:.875rem;">Loading bots...</div>`;
 
-  // Fetch live bots from backend + merge with local deployedBots
-  fetch(`${BACKEND_URL}/user-bots?ownerId=${currentUser.username}`, {credentials:'include'})
+  fetch(`${BACKEND_URL}/user-bots`, {credentials:'include'})
     .then(r=>r.json())
     .then(data => {
       const liveBots = data.bots || [];
-      // Merge live status into deployedBots
+
+      // Sync backend bots → deployedBots so edit/delete still work
       liveBots.forEach(lb => {
-        const local = deployedBots.find(b => b.id === lb.botId);
-        if(local) { local.online = lb.online; local.tag = lb.tag; }
+        const existing = deployedBots.find(b => b.id === lb.botId || b.botId === lb.botId);
+        if(existing){
+          existing.online       = lb.online;
+          existing.tag          = lb.tag;
+          existing.systemPrompt = lb.systemPrompt;
+          existing.temperature  = lb.temperature;
+          existing.inviteUrl    = lb.inviteUrl;
+        } else {
+          // Restore bot into local list after page refresh
+          deployedBots.push({
+            id:           lb.botId,
+            botId:        lb.botId,
+            name:         lb.name,
+            modelId:      lb.modelId,
+            online:       lb.online,
+            tag:          lb.tag,
+            systemPrompt: lb.systemPrompt,
+            temperature:  lb.temperature,
+            inviteUrl:    lb.inviteUrl,
+          });
+        }
       });
-      renderMyBotCards();
+
+      if(!liveBots.length){
+        container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-4);font-size:.875rem;">No bots yet. <button onclick="switchPage('createAI',document.getElementById('nav-createAI'))" style="color:var(--brand-light);background:none;border:none;cursor:pointer;font-family:inherit;font-size:inherit;">Create one →</button></div>`;
+        return;
+      }
+
+      // Render each bot card with real data from backend
+      container.innerHTML = liveBots.map(bot => {
+        const providerMap = { akira:'Groq', llama70b:'Groq', mistral:'Groq', cerebras:'Cerebras', gpt4mini:'OpenAI', gpt4:'OpenAI' };
+        const modelNameMap = { akira:'llama-3.1-8b-instant', llama70b:'llama-3.3-70b-versatile', mistral:'mixtral-8x7b-32768', cerebras:'llama3.1-8b', gpt4mini:'gpt-4o-mini', gpt4:'gpt-4-turbo' };
+        const provider  = providerMap[bot.modelId]  || bot.modelId || '';
+        const modelName = modelNameMap[bot.modelId] || bot.modelId || '';
+
+        // Real memory from backend: memKB is total KB used by all users who talked to this bot
+        const memKB     = bot.memKB || 0;
+        const memMax    = currentUser.isVIP ? 500 : 16; // VIP = 500KB equiv, free = 16KB
+        const memPct    = Math.min(100, Math.round((memKB / memMax) * 100));
+        const mColor    = memPct > 80 ? 'var(--red)' : memPct > 50 ? 'var(--yellow)' : 'var(--green)';
+        const userCount = bot.userCount || 0;
+
+        return `
+        <div class="card" style="padding:0;overflow:hidden;" id="botcard_backend_${bot.botId}">
+          <div style="padding:14px 16px;display:flex;align-items:center;gap:12px;">
+            <div style="width:44px;height:44px;border-radius:50%;background:var(--bg-300);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">🤖</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:700;font-size:.9375rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${bot.name}</div>
+              <div style="font-size:.75rem;color:var(--text-4);">${provider} · ${modelName}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <div style="width:8px;height:8px;border-radius:50%;background:${bot.online?'var(--green)':'var(--red)'}"></div>
+              <span style="font-size:.75rem;color:var(--text-3);">${bot.online?'Online':'Offline'}</span>
+            </div>
+          </div>
+
+          <div style="padding:0 16px 10px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:.7rem;color:var(--text-4);">👥 ${userCount} user${userCount!==1?'s':''} in memory</span>
+            <span style="font-size:.7rem;color:${mColor};">${memKB}KB used</span>
+          </div>
+          <div style="padding:0 16px 10px;">
+            <div style="background:var(--bg-300);border-radius:4px;height:4px;overflow:hidden;">
+              <div style="height:100%;background:${mColor};border-radius:4px;width:${memPct}%;transition:width .3s;"></div>
+            </div>
+          </div>
+
+          ${bot.inviteUrl ? `<div style="padding:0 16px 10px;"><a href="${bot.inviteUrl}" target="_blank" style="font-size:.75rem;color:var(--brand-light);text-decoration:none;">🔗 Invite link</a></div>` : ''}
+
+          <div style="border-top:1px solid var(--border);padding:10px 16px;display:flex;gap:8px;">
+            <button onclick="openEditBot('${bot.botId}')" class="btn btn-sm flex-1" style="background:var(--bg-300);">⚙️ Edit</button>
+            <button onclick="toggleBotOnline('${bot.botId}')" class="btn btn-sm flex-1" style="background:var(--bg-300);">${bot.online?'⏸ Pause':'▶ Resume'}</button>
+          </div>
+        </div>`;
+      }).join('');
     })
-    .catch(() => renderMyBotCards());
+    .catch(e => {
+      container.innerHTML = `<div style="text-align:center;padding:32px;color:var(--red);font-size:.875rem;">Could not load bots — are you logged in?</div>`;
+    });
 }
 
 function renderMyBotCards(){
-  const container = document.getElementById('myBotsList');
-  const myBots = deployedBots.filter(b => b.id !== 'bot_default');
-  if(!myBots.length){
-    container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-4);font-size:.875rem;">No bots yet. <button onclick="switchPage('createAI',document.getElementById('nav-createAI'))" style="color:var(--brand-light);background:none;border:none;cursor:pointer;font-family:inherit;font-size:inherit;">Create one →</button></div>`;
-    return;
-  }
-  container.innerHTML = myBots.map(bot => {
-    const id       = bot.id || bot.botId;
-    const mem      = botMemory[id];
-    const memUsed  = mem ? (JSON.stringify(mem).length / 1024).toFixed(1) : 0;
-    const memMax   = bot.provider === 'openai' ? 32 : 16;
-    const memPct   = Math.min(100, Math.round((memUsed / memMax) * 100));
-    const memColor = memPct > 80 ? 'var(--red)' : memPct > 50 ? 'var(--yellow)' : 'var(--green)';
-    const providerLabel = {groq:'Groq', cerebras:'Cerebras', openai:'OpenAI'}[bot.provider] || bot.provider || '';
-    const modelLabel = bot.model || bot.modelId || '';
-    return `
-    <div class="card" style="padding:0;overflow:hidden;">
-      <div style="padding:14px 16px;display:flex;align-items:center;gap:12px;">
-        <div style="width:44px;height:44px;border-radius:50%;background:var(--bg-3);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">🤖</div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-weight:700;font-size:.9375rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${bot.name}</div>
-          <div style="font-size:.75rem;color:var(--text-4);">${providerLabel} · ${modelLabel}</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <div style="width:8px;height:8px;border-radius:50%;background:${bot.online?'var(--green)':'var(--red)'}"></div>
-          <span style="font-size:.75rem;color:var(--text-3);">${bot.online?'Online':'Offline'}</span>
-        </div>
-      </div>
-      <div style="padding:0 16px 10px;">
-        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-          <span style="font-size:.7rem;color:var(--text-4);">Memory</span>
-          <span style="font-size:.7rem;color:${memColor};">${memUsed}KB / ${memMax}KB</span>
-        </div>
-        <div style="background:var(--bg-3);border-radius:4px;height:4px;overflow:hidden;">
-          <div style="height:100%;background:${memColor};border-radius:4px;width:${memPct}%;transition:width .3s;"></div>
-        </div>
-      </div>
-      ${bot.inviteUrl ? `<div style="padding:0 16px 10px;"><a href="${bot.inviteUrl}" target="_blank" style="font-size:.75rem;color:var(--brand-light);text-decoration:none;">🔗 Invite link</a></div>` : ''}
-      <div style="border-top:1px solid var(--border);padding:10px 16px;display:flex;gap:8px;">
-        <button onclick="openEditBot('${id}')" class="btn btn-sm flex-1" style="background:var(--bg-3);">⚙️ Edit</button>
-        <button onclick="toggleBotOnline('${id}')" class="btn btn-sm flex-1" style="background:var(--bg-3);">${bot.online?'⏸ Pause':'▶ Resume'}</button>
-      </div>
-    </div>`;
-  }).join('');
+  renderMyBots(); // unified — always pull from backend
 }
 
 function openEditBot(botId){
@@ -3959,35 +4007,32 @@ function openEditBot(botId){
   const targetVal = modelIdToVal[bot.modelId] || `${bot.provider}|${bot.model}`;
   for(let opt of modelSel.options){ opt.selected = opt.value === targetVal; }
 
-  // Memory info from backend
+  // Memory info — fetch real stats from backend
   fetch(`${BACKEND_URL}/memory/me/stats`, {credentials:'include'})
     .then(r=>r.json()).then(stats => {
-      const used   = parseFloat(stats.sizeKB)||0;
-      const maxKB  = stats.maxHistory >= 1000 ? 500 : 16;
-      const pct    = Math.min(100, Math.round((used/maxKB)*100));
-      const color  = pct>80?'var(--red)':pct>50?'var(--yellow)':'var(--green)';
-      document.getElementById('editBotMemFill').style.width       = pct+'%';
-      document.getElementById('editBotMemFill').style.background  = color;
-      document.getElementById('editBotMemLabel').textContent      = `${used}KB used · ${stats.history||0} msgs / ${stats.maxHistory||30} max`;
-    }).catch(()=>{
+      const used   = parseFloat(stats.sizeKB) || 0;
+      const maxH   = stats.maxHistory || 30;
+      const maxKB  = maxH >= 1000 ? 500 : 16;
+      const pct    = Math.min(100, Math.round((used / maxKB) * 100));
+      const color  = pct > 80 ? 'var(--red)' : pct > 50 ? 'var(--yellow)' : 'var(--green)';
+      document.getElementById('editBotMemFill').style.width      = pct + '%';
+      document.getElementById('editBotMemFill').style.background = color;
+      document.getElementById('editBotMemLabel').textContent     = `${stats.history || 0} messages in context · ${stats.facts || 0} facts stored · oldest auto-deleted as new ones arrive`;
+    }).catch(() => {
       document.getElementById('editBotMemLabel').textContent = 'Memory stats unavailable';
     });
 
-  // Load servers from Kiara bot
-  fetch(`${BACKEND_URL}/bot/channels`, {credentials:'include'})
-    .then(r=>r.json())
-    .then(data => {
-      const channels      = data.channels || [];
-      const activeChannels = bot.activeChannels || [];
-      document.getElementById('editBotServers').innerHTML = channels.length
-        ? channels.map(c => `
-            <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer;">
-              <input type="checkbox" ${activeChannels.includes(c.id)?'checked':''} data-channel="${c.id}" style="accent-color:var(--accent);">
-              <span># ${c.name}</span>
-            </label>`).join('')
-        : '<span style="color:var(--text-4);font-size:.8125rem;">No channels found — Kiara bot needs to be in your server</span>';
-    })
-    .catch(() => { document.getElementById('editBotServers').textContent = 'Could not load channels'; });
+  // Active Servers — user bots respond to @mentions in ANY server they're invited to
+  // No channel config needed (unlike Kiara which is admin-controlled)
+  const inviteUrl = bot.inviteUrl || `https://discord.com/api/oauth2/authorize?client_id=${bot.id || bot.botId}&permissions=277025459200&scope=bot`;
+  document.getElementById('editBotServers').innerHTML = `
+    <div style="color:var(--text-3);font-size:.8rem;line-height:1.6;">
+      <div style="margin-bottom:8px;">✅ <strong style="color:var(--text-1);">Your bot responds anywhere it's invited</strong></div>
+      <div style="color:var(--text-4);margin-bottom:10px;">In servers: responds when @mentioned<br>In DMs: responds to every message</div>
+      <a href="${inviteUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:var(--brand);color:#fff;padding:6px 12px;border-radius:6px;font-size:.8rem;text-decoration:none;font-weight:600;">
+        🔗 Invite to a server
+      </a>
+    </div>`;
 
   document.getElementById('editBotModal').style.display = 'block';
   document.body.style.overflow = 'hidden';
