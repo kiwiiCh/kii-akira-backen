@@ -519,8 +519,9 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
 .price-flag{font-size:1.5rem;flex-shrink:0;}
 
 /* ── ADMIN ── */
-.admin-layout{flex:1;display:flex;height:calc(100vh - 56px);overflow:hidden;}
-.admin-sidebar{
+.admin-layout{flex:1;display:flex;min-height:calc(100vh - 56px);overflow:hidden;width:100%;}
+.admin-sidebar{width:200px;min-width:200px;background:var(--bg-2);border-right:1px solid var(--border);overflow-y:auto;padding:8px;flex-shrink:0;}
+.admin-content{flex:1;padding:24px;overflow-y:auto;min-height:100%;}
   width:210px;flex-shrink:0;border-right:1px solid var(--border);
   padding:12px 8px;overflow-y:auto;background:var(--bg-100);
 }
@@ -1236,7 +1237,7 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
     </div>
 
     <!-- ─── ADMIN PAGE ─── -->
-    <div class="page-flex hidden" id="adminPage">
+    <div class="page-flex" id="adminPage" style="display:none;">
       <div class="admin-layout">
         <div class="admin-sidebar">
           <div class="nav-label" style="display:block;padding:8px 10px 10px;">Admin</div>
@@ -2493,17 +2494,35 @@ const pageMap={
 };
 
 function switchPage(page,navBtn){
-  document.querySelectorAll('.page,.page-flex').forEach(p=>{p.classList.remove('active');p.style.display='none';});
+  document.querySelectorAll('.page,.page-flex').forEach(p=>{
+    p.classList.remove('active');
+    p.classList.remove('hidden');
+    p.style.display='none';
+  });
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   if(navBtn)navBtn.classList.add('active');
   const cfg=pageMap[page];
   if(!cfg)return;
   const el=document.getElementById(cfg.el);
-  if(el){el.style.display=cfg.type==='flex'?'flex':'block';el.classList.add('active');}
+  if(el){
+    el.classList.remove('hidden');
+    el.style.display=cfg.type==='flex'?'flex':'block';
+    el.classList.add('active');
+  }
   document.getElementById('topbarTitle').textContent=cfg.title;
   document.getElementById('topbarSub').textContent=cfg.sub;
   if(page==='createAI'){setStudio('createAI');loadPlatformModels();}
-  if(page==='admin'){setAdmin('activity');initAdminForOwner();addLog(currentUser.username,'website','Accessed Admin Panel');}
+  if(page==='admin'){
+    // Force all admin sub-panels hidden first, then show activity
+    ['activity','ailogs','bans','whitelist','adminlist','users','aicontrol','bot','viplist','shutdown'].forEach(id=>{
+      const key='admin'+id.charAt(0).toUpperCase()+id.slice(1)+'Panel';
+      const pel=document.getElementById(key);
+      if(pel)pel.style.display=id==='activity'?'block':'none';
+    });
+    initAdminForOwner();
+    renderActivityLog();
+    addLog(currentUser.username,'website','Accessed Admin Panel');
+  }
   if(page==='executor')addLog(currentUser.username,'executor','Opened Akira Executor');
   if(page==='vip')initVIPPage();
   if(page==='mybots')renderMyBots();
