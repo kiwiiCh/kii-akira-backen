@@ -1399,7 +1399,7 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
           <div id="adminViplistPanel" style="display:none;">
             <div class="section-header" style="margin-bottom:16px;">
               <div class="section-title" style="color:var(--gold);">👑 VIP Manager</div>
-              <span class="badge badge-vip">Owner Only</span>
+              <span class="badge badge-vip">Admin + Owner</span>
             </div>
             <div class="card" style="margin-bottom:16px;border-color:rgba(240,180,41,.3);">
               <div class="card-header"><div class="card-title">Grant VIP</div></div>
@@ -2527,40 +2527,45 @@ function loginAs(username){
 //  INIT
 // ═══════════════════════════════════════
 function initApp(){
-  // Owner override — always force developer regardless of what backend said
-  if(currentUser.discordId==='1093442344310820895' || currentUser.username==='kiiakira'){
-    currentUser.role='developer';
-    currentUser.isVIP=true;
-  }
-  // Admin also always gets VIP perks
-  if(currentUser.role==='admin') currentUser.isVIP=true;
+  // Re-derive role/VIP from backend truth — /auth/me always recalculates live
+  // so whitelist changes take effect immediately without re-login
+  fetch(`${BACKEND_URL}/auth/me`,{credentials:'include'})
+    .then(r=>r.json())
+    .then(d=>{
+      if(d.loggedIn && d.user){
+        // Merge backend-fresh role/VIP into currentUser
+        currentUser.role  = d.user.role;
+        currentUser.isVIP = d.user.isVIP;
+      }
+    })
+    .catch(()=>{})
+    .finally(()=>{
+      // Owner hard-override as safety net
+      if(currentUser.discordId==='1093442344310820895'||currentUser.username==='kiiakira'){
+        currentUser.role='developer'; currentUser.isVIP=true;
+      }
+      if(currentUser.role==='admin') currentUser.isVIP=true;
 
-  console.log('[initApp] user:', currentUser.username, '| role:', currentUser.role, '| isVIP:', currentUser.isVIP, '| discordId:', currentUser.discordId);
+      console.log('[initApp] user:',currentUser.username,'| role:',currentUser.role,'| isVIP:',currentUser.isVIP);
 
-  // Show admin nav
-  const adminBtn = document.getElementById('nav-admin');
-  if(adminBtn){
-    if(currentUser.role==='developer' || currentUser.role==='admin'){
-      adminBtn.style.cssText='display:flex!important;';
-      console.log('[initApp] Admin panel SHOWN');
-    } else {
-      adminBtn.style.cssText='display:none!important;';
-    }
-  }
+      const adminBtn=document.getElementById('nav-admin');
+      if(adminBtn){
+        if(currentUser.role==='developer'||currentUser.role==='admin'){adminBtn.style.cssText='display:flex!important;';}
+        else{adminBtn.style.cssText='display:none!important;';}
+      }
 
-  // Apply VIP theme immediately if entitled
-  if(currentUser.isVIP) applyVIPTheme();
-
-  updateUserUI();
-  renderCreateModels();
-  renderFullModels();
-  renderHomeBotsRef();
-  try{ renderHubScripts(); }catch(e){}
-  try{ renderVip(); }catch(e){}
-  try{ renderWhitelist(); }catch(e){}
-  try{ startSysLog(); }catch(e){}
-  try{ startSimulation(); }catch(e){}
-  saveSession();
+      if(currentUser.isVIP) applyVIPTheme();
+      updateUserUI();
+      renderCreateModels();
+      renderFullModels();
+      renderHomeBotsRef();
+      try{renderHubScripts();}catch(e){}
+      try{renderVip();}catch(e){}
+      try{renderWhitelist();}catch(e){}
+      try{startSysLog();}catch(e){}
+      try{startSimulation();}catch(e){}
+      saveSession();
+    });
 }
 
 function spawnDefaultBot(){
@@ -3482,34 +3487,57 @@ function clearCSpeak(){
   document.getElementById('cSpeakText').value='';
   document.getElementById('cSpeakPreview').textContent='/cspeak ...';
 }
-function renderWhitelist(){
+async function renderWhitelist(){
   const tbody=document.getElementById('whitelistBody');if(!tbody)return;
-  const cls={admin:'badge-admin',beta_tester:'badge-beta',vip:'badge-vip',none:'badge-user'};
-  tbody.innerHTML=whitelist.map((w,i)=>`<tr>
-    <td style="font-weight:600;">${w.username}</td>
-    <td><span class="badge badge-${w.status==='whitelist'?'ok':'err'}" style="font-size:.6rem;">${w.status}</span></td>
-    <td><span class="badge ${cls[w.role]||'badge-user'}" style="font-size:.6rem;">${w.role}</span></td>
-    <td><button onclick="removeFromList(${i})" class="btn btn-danger btn-xs">Remove</button></td>
-  </tr>`).join('');
+  tbody.innerHTML='<tr><td colspan="3" style="color:var(--text-4);padding:12px;">Loading...</td></tr>';
+  try{
+    const res=await fetch(`${BACKEND_URL}/admin/whitelist`,{credentials:'include'});
+    if(res.status===403){tbody.innerHTML='<tr><td colspan="3" style="color:var(--text-4);padding:12px;">Owner access required</td></tr>';return;}
+    const data=await res.json();
+    const admins=data.admins||[];
+    if(!admins.length){tbody.innerHTML='<tr><td colspan="3" style="color:var(--text-4);padding:12px;">No admins yet</td></tr>';return;}
+    tbody.innerHTML=admins.map(a=>`<tr>
+      <td style="font-weight:600;">${a.username}</td>
+      <td><span class="badge badge-admin" style="font-size:.6rem;">admin</span></td>
+      <td><button onclick="removeFromWhitelistBackend('${a.username}')" class="btn btn-danger btn-xs">Remove</button></td>
+    </tr>`).join('');
+  }catch(e){tbody.innerHTML='<tr><td colspan="3" style="color:var(--red);padding:12px;">Error loading whitelist</td></tr>';}
 }
-function addToWhitelist(){
-  const name=document.getElementById('wlUsername').value.trim();
-  const role=document.getElementById('wlRole').value;
-  if(!name){toast('Enter a username','err');return;}
-  whitelist.unshift({username:name,status:'whitelist',role});
-  document.getElementById('wlUsername').value='';
-  renderWhitelist();toast(`${name} whitelisted as ${role}`);
-  addLog(currentUser.username,'website',`Whitelisted ${name}`);
-}
-function addToBlacklist(){
+async function addToWhitelist(){
   const name=document.getElementById('wlUsername').value.trim();
   if(!name){toast('Enter a username','err');return;}
-  whitelist.unshift({username:name,status:'blacklist',role:'none'});
-  document.getElementById('wlUsername').value='';
-  renderWhitelist();toast(`${name} blacklisted`);
-  addLog(currentUser.username,'website',`Blacklisted ${name}`);
+  try{
+    const res=await fetch(`${BACKEND_URL}/admin/whitelist`,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:name})});
+    const data=await res.json();
+    if(data.error){toast(data.error,'err');return;}
+    document.getElementById('wlUsername').value='';
+    toast(`✅ ${name} added as admin`);
+    renderWhitelist();
+  }catch(e){toast('Failed','err');}
 }
-function removeFromList(i){whitelist.splice(i,1);renderWhitelist();toast('Removed');}
+async function addToBlacklist(){
+  const name=document.getElementById('wlUsername').value.trim();
+  const discordId=document.getElementById('wlUsername').value.trim();
+  if(!name){toast('Enter a username or Discord ID','err');return;}
+  try{
+    const res=await fetch(`${BACKEND_URL}/admin/ban`,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({discordId:name,username:name,reason:'Blacklisted by admin'})});
+    const data=await res.json();
+    if(data.error){toast(data.error,'err');return;}
+    document.getElementById('wlUsername').value='';
+    toast(`🚫 ${name} banned`);
+  }catch(e){toast('Failed','err');}
+}
+async function removeFromWhitelistBackend(username){
+  if(!confirm(`Remove ${username} from admin whitelist?`))return;
+  try{
+    const res=await fetch(`${BACKEND_URL}/admin/whitelist/${encodeURIComponent(username)}`,{method:'DELETE',credentials:'include'});
+    const data=await res.json();
+    if(data.error){toast(data.error,'err');return;}
+    toast(`Removed ${username}`);
+    renderWhitelist();
+  }catch(e){toast('Failed','err');}
+}
+function removeFromList(i){removeFromWhitelistBackend(whitelist[i]?.username);}
 async function renderUserMgmt(){
   const c=document.getElementById('userMgmtList');if(!c)return;
   c.innerHTML='<div style="text-align:center;padding:24px;color:var(--text-4);">Loading users...</div>';
@@ -3889,100 +3917,93 @@ window.addEventListener('load',()=>{
 let editingBotId = null;
 
 function renderMyBots(){
-  const container = document.getElementById('myBotsList');
-  if(!container) return;
-  container.innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-4);font-size:.875rem;">Loading bots...</div>`;
+  const container=document.getElementById('myBotsList');
+  if(!container)return;
+  container.innerHTML=`<div style="text-align:center;padding:32px;color:var(--text-4);font-size:.875rem;">Loading bots...</div>`;
 
-  fetch(`${BACKEND_URL}/user-bots`, {credentials:'include'})
+  fetch(`${BACKEND_URL}/user-bots`,{credentials:'include'})
     .then(r=>r.json())
-    .then(data => {
-      const liveBots = data.bots || [];
-
-      // Sync backend bots → deployedBots so edit/delete still work
-      liveBots.forEach(lb => {
-        const existing = deployedBots.find(b => b.id === lb.botId || b.botId === lb.botId);
-        if(existing){
-          existing.online       = lb.online;
-          existing.tag          = lb.tag;
-          existing.systemPrompt = lb.systemPrompt;
-          existing.temperature  = lb.temperature;
-          existing.inviteUrl    = lb.inviteUrl;
-        } else {
-          // Restore bot into local list after page refresh
-          deployedBots.push({
-            id:           lb.botId,
-            botId:        lb.botId,
-            name:         lb.name,
-            modelId:      lb.modelId,
-            online:       lb.online,
-            tag:          lb.tag,
-            systemPrompt: lb.systemPrompt,
-            temperature:  lb.temperature,
-            inviteUrl:    lb.inviteUrl,
-          });
-        }
+    .then(data=>{
+      const liveBots=data.bots||[];
+      // sync into deployedBots for edit/delete
+      liveBots.forEach(lb=>{
+        const ex=deployedBots.find(b=>b.id===lb.botId||b.botId===lb.botId);
+        if(ex){Object.assign(ex,{online:lb.online,paused:lb.paused,tag:lb.tag,systemPrompt:lb.systemPrompt,temperature:lb.temperature,inviteUrl:lb.inviteUrl,guilds:lb.guilds});}
+        else deployedBots.push({id:lb.botId,botId:lb.botId,name:lb.name,modelId:lb.modelId,online:lb.online,paused:lb.paused,tag:lb.tag,systemPrompt:lb.systemPrompt,temperature:lb.temperature,inviteUrl:lb.inviteUrl,guilds:lb.guilds||[]});
       });
-
       if(!liveBots.length){
-        container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-4);font-size:.875rem;">No bots yet. <button onclick="switchPage('createAI',document.getElementById('nav-createAI'))" style="color:var(--brand-light);background:none;border:none;cursor:pointer;font-family:inherit;font-size:inherit;">Create one →</button></div>`;
+        container.innerHTML=`<div style="text-align:center;padding:40px;color:var(--text-4);font-size:.875rem;">No bots yet. <button onclick="switchPage('createAI',document.getElementById('nav-createAI'))" style="color:var(--brand-light);background:none;border:none;cursor:pointer;font-family:inherit;font-size:inherit;">Create one →</button></div>`;
         return;
       }
-
-      // Render each bot card with real data from backend
-      container.innerHTML = liveBots.map(bot => {
-        const providerMap = { akira:'Groq', llama70b:'Groq', mistral:'Groq', cerebras:'Cerebras', gpt4mini:'OpenAI', gpt4:'OpenAI' };
-        const modelNameMap = { akira:'llama-3.1-8b-instant', llama70b:'llama-3.3-70b-versatile', mistral:'mixtral-8x7b-32768', cerebras:'llama3.1-8b', gpt4mini:'gpt-4o-mini', gpt4:'gpt-4-turbo' };
-        const provider  = providerMap[bot.modelId]  || bot.modelId || '';
-        const modelName = modelNameMap[bot.modelId] || bot.modelId || '';
-
-        // Real memory from backend: memKB is total KB used by all users who talked to this bot
-        const memKB     = bot.memKB || 0;
-        const memMax    = currentUser.isVIP ? 500 : 16; // VIP = 500KB equiv, free = 16KB
-        const memPct    = Math.min(100, Math.round((memKB / memMax) * 100));
-        const mColor    = memPct > 80 ? 'var(--red)' : memPct > 50 ? 'var(--yellow)' : 'var(--green)';
-        const userCount = bot.userCount || 0;
-
+      const pMap={akira:'Groq',llama70b:'Groq',mistral:'Groq',cerebras:'Cerebras',gpt4mini:'OpenAI',gpt4:'OpenAI'};
+      const mMap={akira:'llama-3.1-8b-instant',llama70b:'llama-3.3-70b-versatile',mistral:'mixtral-8x7b-32768',cerebras:'llama3.1-8b',gpt4mini:'gpt-4o-mini',gpt4:'gpt-4-turbo'};
+      container.innerHTML=liveBots.map(bot=>{
+        const provider=pMap[bot.modelId]||bot.modelId||'';
+        const modelName=mMap[bot.modelId]||bot.modelId||'';
+        const memKB=bot.memKB||0;
+        const memMax=currentUser.isVIP?500:16;
+        const memPct=Math.min(100,Math.round((memKB/memMax)*100));
+        const mColor=memPct>80?'var(--red)':memPct>50?'var(--yellow)':'var(--green)';
+        const isOnline=bot.online&&!bot.paused;
+        const statusLabel=!bot.online?'Offline':bot.paused?'Paused':'Online';
+        const statusColor=!bot.online?'var(--red)':bot.paused?'var(--yellow)':'var(--green)';
+        const guilds=bot.guilds||[];
+        const guildsHtml=guilds.length
+          ? guilds.map(g=>`<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--bg-300);border-radius:6px;font-size:.75rem;">
+              ${g.icon?`<img src="${g.icon}" style="width:18px;height:18px;border-radius:50%;" onerror="this.style.display='none'">`:'<div style="width:18px;height:18px;border-radius:50%;background:var(--bg-400);display:flex;align-items:center;justify-content:center;font-size:.6rem;">${g.name.slice(0,1)}</div>'}
+              <span style="color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;">${g.name}</span>
+              <span style="color:var(--text-4);margin-left:auto;">${g.memberCount}👥</span>
+            </div>`).join('')
+          : `<div style="font-size:.75rem;color:var(--text-4);">Not in any servers yet · <a href="${bot.inviteUrl}" target="_blank" style="color:var(--brand-light);text-decoration:none;">Invite bot →</a></div>`;
         return `
-        <div class="card" style="padding:0;overflow:hidden;" id="botcard_backend_${bot.botId}">
+        <div class="card" style="padding:0;overflow:hidden;" id="botcard_${bot.botId}">
           <div style="padding:14px 16px;display:flex;align-items:center;gap:12px;">
             <div style="width:44px;height:44px;border-radius:50%;background:var(--bg-300);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">🤖</div>
             <div style="flex:1;min-width:0;">
               <div style="font-weight:700;font-size:.9375rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${bot.name}</div>
-              <div style="font-size:.75rem;color:var(--text-4);">${provider} · ${modelName}</div>
+              <div style="font-size:.72rem;color:var(--text-4);font-family:monospace;">${provider} · ${modelName}</div>
+              ${bot.tag?`<div style="font-size:.72rem;color:var(--text-4);">${bot.tag}</div>`:''}
             </div>
-            <div style="display:flex;align-items:center;gap:6px;">
-              <div style="width:8px;height:8px;border-radius:50%;background:${bot.online?'var(--green)':'var(--red)'}"></div>
-              <span style="font-size:.75rem;color:var(--text-3);">${bot.online?'Online':'Offline'}</span>
+            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+              <div style="width:8px;height:8px;border-radius:50%;background:${statusColor}"></div>
+              <span style="font-size:.75rem;color:${statusColor};">${statusLabel}</span>
             </div>
           </div>
 
-          <div style="padding:0 16px 10px;display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:.7rem;color:var(--text-4);">👥 ${userCount} user${userCount!==1?'s':''} in memory</span>
-            <span style="font-size:.7rem;color:${mColor};">${memKB}KB used</span>
-          </div>
-          <div style="padding:0 16px 10px;">
-            <div style="background:var(--bg-300);border-radius:4px;height:4px;overflow:hidden;">
+          <!-- Memory bar -->
+          <div style="padding:0 16px 8px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+              <span style="font-size:.7rem;color:var(--text-4);">🧠 ${bot.userCount||0} user${(bot.userCount||0)!==1?'s':''} in memory · ${memKB}KB</span>
+              <span style="font-size:.7rem;color:${mColor};">${memPct}%</span>
+            </div>
+            <div style="background:var(--bg-300);border-radius:4px;height:3px;overflow:hidden;">
               <div style="height:100%;background:${mColor};border-radius:4px;width:${memPct}%;transition:width .3s;"></div>
             </div>
           </div>
 
-          ${bot.inviteUrl ? `<div style="padding:0 16px 10px;"><a href="${bot.inviteUrl}" target="_blank" style="font-size:.75rem;color:var(--brand-light);text-decoration:none;">🔗 Invite link</a></div>` : ''}
+          <!-- Servers -->
+          <div style="padding:0 16px 12px;">
+            <div style="font-size:.7rem;color:var(--text-4);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;">Active Servers</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">${guildsHtml}</div>
+          </div>
 
+          <!-- Invite link -->
+          ${bot.inviteUrl?`<div style="padding:0 16px 10px;"><a href="${bot.inviteUrl}" target="_blank" style="font-size:.75rem;color:var(--brand-light);text-decoration:none;">🔗 Add to server</a></div>`:''}
+
+          <!-- Action buttons -->
           <div style="border-top:1px solid var(--border);padding:10px 16px;display:flex;gap:8px;">
-            <button onclick="openEditBot('${bot.botId}')" class="btn btn-sm flex-1" style="background:var(--bg-300);">⚙️ Edit</button>
-            <button onclick="toggleBotOnline('${bot.botId}')" class="btn btn-sm flex-1" style="background:var(--bg-300);">${bot.online?'⏸ Pause':'▶ Resume'}</button>
+            <button onclick="openEditBot('${bot.botId}')" class="btn btn-sm" style="background:var(--bg-300);flex:1;">⚙️ Edit</button>
+            <button onclick="toggleBotOnline('${bot.botId}')" class="btn btn-sm" style="background:var(--bg-300);flex:1;">${bot.paused||!bot.online?'▶ Enable':'⏸ Disable'}</button>
+            <button onclick="confirmDeleteBot('${bot.botId}')" class="btn btn-sm btn-danger" style="flex:0;padding:6px 12px;">🗑</button>
           </div>
         </div>`;
       }).join('');
     })
-    .catch(e => {
-      container.innerHTML = `<div style="text-align:center;padding:32px;color:var(--red);font-size:.875rem;">Could not load bots — are you logged in?</div>`;
+    .catch(()=>{
+      container.innerHTML=`<div style="text-align:center;padding:32px;color:var(--red);font-size:.875rem;">Could not load bots</div>`;
     });
 }
-
-function renderMyBotCards(){
-  renderMyBots(); // unified — always pull from backend
-}
+function renderMyBotCards(){renderMyBots();}
 
 function openEditBot(botId){
   const bot = deployedBots.find(b => b.id === botId || b.botId === botId);
@@ -4053,25 +4074,20 @@ function updateEditKeyHint(){
 }
 
 async function saveEditBot(){
-  const bot = deployedBots.find(b => b.id === editingBotId);
-  if(!bot) return;
+  const bot = deployedBots.find(b => b.id === editingBotId || b.botId === editingBotId);
+  if(!bot){ toast('Bot not found','err'); return; }
 
   const name         = document.getElementById('editBotName').value.trim();
   const modelVal     = document.getElementById('editBotModel').value;
   const [provider, model] = modelVal.split('|');
   const systemPrompt = document.getElementById('editBotPersonality').value.trim();
   const temperature  = parseFloat(document.getElementById('editBotTemp').value);
-  const channelBoxes = document.querySelectorAll('#editBotServers input[type=checkbox]');
-  const activeChannels = [...channelBoxes].filter(c=>c.checked).map(c=>c.dataset.channel);
 
   if(!name){ toast('Enter a name','err'); return; }
 
-  // Map display model value back to modelId
   const modelIdMap = {
     'groq|llama-3.1-8b-instant':'akira',
-    'groq|llama3-8b-8192':'akira',
     'groq|llama-3.3-70b-versatile':'llama70b',
-    'groq|llama3-70b-8192':'llama70b',
     'groq|mixtral-8x7b-32768':'mistral',
     'cerebras|llama3.1-8b':'cerebras',
     'openai|gpt-4o-mini':'gpt4mini',
@@ -4079,52 +4095,57 @@ async function saveEditBot(){
   };
   const modelId = modelIdMap[modelVal] || bot.modelId;
 
-  // Update local
-  bot.name = name;
-  bot.modelId = modelId;
-  bot.provider = provider;
-  bot.model = model;
-  bot.systemPrompt = systemPrompt;
-  bot.temperature = temperature;
-  bot.activeChannels = activeChannels;
+  // Update local immediately
+  bot.name = name; bot.modelId = modelId; bot.provider = provider;
+  bot.model = model; bot.systemPrompt = systemPrompt; bot.temperature = temperature;
 
-  // Always tell backend — PATCH updates live running bot
   try{
-    await fetch(`${BACKEND_URL}/user-bots/${editingBotId}`, {
-      method: 'PATCH',
-      credentials: 'include',
+    const res = await fetch(`${BACKEND_URL}/user-bots/${editingBotId}`, {
+      method: 'PATCH', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ modelId, systemPrompt, temperature }),
+      body: JSON.stringify({ name, modelId, systemPrompt, temperature }),
     });
-    toast(`${name} updated!`);
+    const data = await res.json();
+    if(data.error){ toast(data.error,'err'); return; }
+    toast(`✅ ${name} updated!`);
   } catch(e) {
-    toast(`${name} saved locally (backend unreachable)`,'warn');
+    toast('Backend unreachable — try again','err'); return;
   }
 
   closeEditBot();
-  renderMyBotCards();
+  renderMyBots();
 }
 
-function confirmDeleteBot(){
-  if(!editingBotId) return;
-  const bot = deployedBots.find(b=>b.id===editingBotId);
-  if(!confirm(`Delete ${bot?.name}? This cannot be undone.`)) return;
-
-  fetch(`${BACKEND_URL}/user-bots/${editingBotId}`, {method:'DELETE',credentials:'include'}).catch(()=>{});
-  const idx = deployedBots.findIndex(b=>b.id===editingBotId);
-  if(idx > -1) deployedBots.splice(idx, 1);
-  delete botMemory[editingBotId];
-  closeEditBot();
-  renderMyBotCards();
-  toast('Bot deleted');
+async function confirmDeleteBot(botId){
+  const id = botId || editingBotId;
+  if(!id) return;
+  const bot = deployedBots.find(b=>b.id===id||b.botId===id);
+  if(!confirm(`Delete ${bot?.name||'this bot'}? This cannot be undone.`)) return;
+  try{
+    const res = await fetch(`${BACKEND_URL}/user-bots/${id}`,{method:'DELETE',credentials:'include'});
+    const data = await res.json();
+    if(data.error){ toast(data.error,'err'); return; }
+    const idx = deployedBots.findIndex(b=>b.id===id||b.botId===id);
+    if(idx>-1) deployedBots.splice(idx,1);
+    if(botId) renderMyBots(); else { closeEditBot(); renderMyBots(); }
+    toast('🗑 Bot deleted');
+  }catch(e){ toast('Failed to delete bot','err'); }
 }
 
-function toggleBotOnline(botId){
-  const bot = deployedBots.find(b=>b.id===botId);
-  if(!bot) return;
-  bot.online = !bot.online;
-  renderMyBotCards();
-  toast(bot.online ? `${bot.name} resumed` : `${bot.name} paused`);
+async function toggleBotOnline(botId){
+  const bot=deployedBots.find(b=>b.id===botId||b.botId===botId);
+  if(!bot)return;
+  const isPaused=bot.paused||false;
+  const endpoint=isPaused?'resume':'pause';
+  try{
+    const res=await fetch(`${BACKEND_URL}/user-bots/${botId}/${endpoint}`,{method:'POST',credentials:'include'});
+    const data=await res.json();
+    if(data.error){toast(data.error,'err');return;}
+    bot.paused=!isPaused;
+    if(!isPaused){bot.online=true;}
+    toast(isPaused?`▶ ${bot.name} resumed`:`⏸ ${bot.name} paused`);
+    renderMyBots();
+  }catch(e){toast('Could not update bot','err');}
 }
 
 async function grantVIP(){
