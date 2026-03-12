@@ -1438,13 +1438,12 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
               <div class="card-body" style="display:flex;flex-direction:column;gap:10px;">
                 <div class="flex gap-2">
                   <input type="text" id="banUsername" placeholder="Discord username..." class="input flex-1">
-                  <select id="banReason" class="input" style="width:160px;appearance:none;">
-                    <option>Spam</option>
-                    <option>Abuse</option>
-                    <option>Cheating / Exploit</option>
-                    <option>Harassment</option>
-                    <option>NSFW Content</option>
-                    <option>Other</option>
+                  <input type="text" id="banDiscordId" placeholder="Discord ID..." class="input flex-1">
+                </div>
+                <div class="flex gap-2">
+                  <select id="banReason" class="input flex-1" style="appearance:none;">
+                    <option>Spam</option><option>Abuse</option><option>Cheating / Exploit</option>
+                    <option>Harassment</option><option>NSFW Content</option><option>Other</option>
                   </select>
                 </div>
                 <div class="flex gap-2">
@@ -2022,76 +2021,22 @@ const models = [
 ];
 
 // ─── Admin data ───
-const managedUsers = [
-  {id:'kiiakira',    username:'kiiakira',    role:'developer',   isVIP:true,  bots:1, banned:false, joined:'2024-01-01'},
-  {id:'starplayer99',username:'starplayer99',role:'user',        isVIP:false, bots:1, banned:false, joined:'2025-01-15'},
-  {id:'anime_fan21', username:'anime_fan21', role:'beta_tester', isVIP:true,  bots:3, banned:false, joined:'2025-02-10'},
-  {id:'rxblox_dev',  username:'rxblox_dev',  role:'user',        isVIP:false, bots:0, banned:false, joined:'2025-03-01'},
-  {id:'shadow_mod',  username:'shadow_mod',  role:'admin',       isVIP:true,  bots:1, banned:false, joined:'2024-06-01'},
-];
-let whitelist = [
-  {username:'anime_fan21', status:'whitelist', role:'beta_tester'},
-  {username:'shadow_mod',  status:'whitelist', role:'admin'},
-  {username:'bad_actor99', status:'blacklist', role:'none'},
-];
-let activityLog = [
-  {time:'14:32:01', user:'starplayer99', type:'ai',       action:'Used GPT-4 · 2,300 tokens',          status:'OK'},
-  {time:'14:31:45', user:'anime_fan21',  type:'executor', action:'Script executed in Roblox',           status:'OK'},
-  {time:'14:30:12', user:'rxblox_dev',   type:'website',  action:'Visited Create AI',                   status:'OK'},
-  {time:'14:28:55', user:'shadow_mod',   type:'ai',       action:'Used Akira AI · 15,400 tokens (VIP)', status:'OK'},
-  {time:'14:27:33', user:'kiiakira',     type:'website',  action:'Admin Panel access',                  status:'OK'},
-  {time:'14:20:00', user:'unknown',      type:'website',  action:'Failed key verification',             status:'BLOCKED'},
-];
+const managedUsers = []; // populated from backend
+let whitelist      = []; // populated from backend
+let activityLog    = []; // populated from backend
+let bannedList     = []; // populated from backend
 
 // ─── Bot memory ───
-const botMemory = {};
+const botMemory    = {};
 const deployedBots = [];
-let currentMemBot = null;
+let currentMemBot    = null;
 let currentMemDetail = null;
 let memDetailEntries = null;
-let memDetailLimit = 100;
+let memDetailLimit   = 100;
 
 // ═══════════════════════════════════════
 //  MEMORY ENGINE
 // ═══════════════════════════════════════
-const sampleConvos = {
-  server:[
-    ['user','What commands do you have?'],['assistant','I have /chat, /imagine, /help, /clear, and /stats!'],
-    ['user','Can you help me with Roblox scripting?'],['assistant','Sure! I can help with Luau, game mechanics and more.'],
-    ['user','How do I make a part move back and forth?'],['assistant','Use TweenService — create a goal position and tween back and forth.'],
-    ['user','Thanks! Remember this for next time.'],['assistant','Absolutely — I have this in my server memory for this channel.'],
-  ],
-  dm:[
-    ['user','Hey, remember me?'],['assistant','Of course! Last time we talked about Roblox scripting tips.'],
-    ['user','Keep track of my game ideas?'],['assistant','Sure — your DM memory is private and persistent. Go ahead!'],
-    ['user','Idea: sky island builder game'],['assistant','Saved: "Sky Islands Builder — sky islands, player trading economy."'],
-    ['user','Idea 2: horror school game'],['assistant','Saved: "Abandoned School Horror — atmospheric, exploration." Two ideas logged.'],
-  ]
-};
-
-function genEntries(type, count, limit) {
-  const c = sampleConvos[type==='server'?'server':'dm'];
-  const entries=[], base=Date.now()-count*90000;
-  for(let i=0;i<count;i++){
-    const ts=new Date(base+i*60000);
-    entries.push({id:'e_'+Math.random().toString(36).slice(2,9),role:i%2===0?'user':'assistant',content:c[i%c.length][i%2],timestamp:ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),date:ts.toLocaleDateString()});
-  }
-  return entries;
-}
-
-function seedBotMemory(botId, modelId) {
-  botMemory[botId]={model:modelId,serverMemEnabled:true,dmMemEnabled:true,evictionCount:0,
-    servers:{
-      srv_gen:{name:'Anime Hub',channel:'#general',entries:genEntries('server',12,200)},
-      srv_help:{name:'Anime Hub',channel:'#help',entries:genEntries('server',6,200)},
-      srv_bot:{name:'Dev Server',channel:'#bot-cmds',entries:genEntries('server',24,200)},
-    },
-    dms:{
-      dm1:{username:'starplayer99',entries:genEntries('dm',18,200)},
-      dm2:{username:'anime_fan21',entries:genEntries('dm',8,200)},
-    }
-  };
-}
 
 function pushMemEntry(botId, type, ctxKey, role, content) {
   const mem=botMemory[botId]; if(!mem) return;
@@ -3098,6 +3043,7 @@ function setAdmin(panel){
   });
   if(panel==='ailogs')renderAILogs();
   if(panel==='bans')renderBanList();
+  if(panel==='users')renderUserMgmt();
   if(panel==='aicontrol')initCSpeakPanel();
   if(panel==='shutdown')initShutdownPanel();
   if(panel==='bot')initBotPanel();
@@ -3182,91 +3128,91 @@ async function loadVIPList(){
   }catch(e){body.innerHTML='<div style="color:var(--red);padding:12px;font-size:.8rem;">Failed to load</div>';}
 }
 
-function renderActivityLog(){
+async function renderActivityLog(){
   const filter=document.getElementById('logFilter')?.value||'all';
   const tbody=document.getElementById('activityLogBody');if(!tbody)return;
-  const filtered=filter==='all'?activityLog:activityLog.filter(l=>l.type===filter);
-  tbody.innerHTML=filtered.map(l=>`<tr>
-    <td class="font-mono" style="font-size:.7rem;color:var(--text-4);">${l.time}</td>
-    <td style="font-weight:600;">${l.user}</td>
-    <td><span class="badge badge-${l.type==='ai'?'ai':l.type==='executor'?'exec':'web'}" style="font-size:.6rem;">${l.type}</span></td>
-    <td style="color:var(--text-3);font-size:.75rem;">${l.action}</td>
-    <td><span class="badge badge-${l.status==='OK'?'ok':'err'}" style="font-size:.6rem;">${l.status}</span></td>
-  </tr>`).join('');
+  tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text-4);">Loading...</td></tr>';
+  try{
+    const res=await fetch(`${BACKEND_URL}/admin/logs?type=${filter}&limit=200`,{credentials:'include'});
+    const data=await res.json();
+    activityLog=data.logs||[];
+    if(!activityLog.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-4);">No activity yet.</td></tr>';return;}
+    tbody.innerHTML=activityLog.map(l=>`<tr>
+      <td class="font-mono" style="font-size:.7rem;color:var(--text-4);">${l.time}</td>
+      <td style="font-weight:600;">${l.user}</td>
+      <td><span class="badge badge-${l.type==='ai'?'ai':l.type==='executor'?'exec':'web'}" style="font-size:.6rem;">${l.type}</span></td>
+      <td style="color:var(--text-3);font-size:.75rem;">${l.action}</td>
+      <td><span class="badge badge-${l.status==='OK'?'ok':'err'}" style="font-size:.6rem;">${l.status}</span></td>
+    </tr>`).join('');
+  }catch(e){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--red);">Could not load logs.</td></tr>';}
 }
-function refreshLog(){addLog('system','website','Log refreshed');renderActivityLog();toast('Log refreshed');}
-function addLog(user,type,action){
-  activityLog.unshift({time:new Date().toTimeString().slice(0,8),user,type,action,status:'OK'});
-  if(activityLog.length>60)activityLog.pop();
-  const t=document.getElementById('activityLogBody');
-  if(t)renderActivityLog();
-}
+async function refreshLog(){await renderActivityLog();toast('Log refreshed');}
+function addLog(user,type,action){} // frontend logs now come from backend only
 
 // ── AI Logs ──
-function renderAILogs(){
-  const filter=document.getElementById('aiLogFilter')?.value||'all';
+async function renderAILogs(){
   const tbody=document.getElementById('aiLogsBody');if(!tbody)return;
-  const list=filter==='all'?aiUsageLogs:aiUsageLogs.filter(l=>l.model===filter);
-  const modelColors={akira:'#f0b429',gpt4:'#5865f2',claude:'#8338ec',llama:'#3a86ff',mistral:'#f97316'};
-  tbody.innerHTML=list.map(l=>`<tr class="ai-log-row">
-    <td class="font-mono" style="font-size:.7rem;color:var(--text-4);">${l.time}</td>
-    <td style="font-weight:600;">${l.user}</td>
-    <td><span style="display:inline-flex;align-items:center;gap:5px;font-size:.75rem;font-weight:600;color:${modelColors[l.model]||'var(--text-2)'};">
-      <span style="width:6px;height:6px;border-radius:50%;background:${modelColors[l.model]||'#888'};display:inline-block;flex-shrink:0;"></span>
-      ${l.modelName}
-    </span></td>
-    <td style="font-size:.75rem;color:var(--text-2);">${l.server}</td>
-    <td style="font-size:.75rem;color:var(--text-3);font-family:'JetBrains Mono',monospace;">${l.channel}</td>
-    <td style="font-size:.75rem;font-weight:600;font-family:'JetBrains Mono',monospace;color:var(--brand-light);">${l.tokens.toLocaleString()}</td>
-    <td><span class="badge badge-${l.status==='OK'?'ok':'err'}" style="font-size:.6rem;">${l.status}</span></td>
-  </tr>`).join('');
+  tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text-4);">Loading...</td></tr>';
+  try{
+    const res=await fetch(`${BACKEND_URL}/admin/logs?type=ai&limit=200`,{credentials:'include'});
+    const data=await res.json();
+    const logs=data.logs||[];
+    if(!logs.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-4);">No AI usage yet.</td></tr>';return;}
+    tbody.innerHTML=logs.map(l=>`<tr>
+      <td class="font-mono" style="font-size:.7rem;color:var(--text-4);">${l.time}</td>
+      <td style="font-weight:600;">${l.user}</td>
+      <td style="font-size:.75rem;color:var(--brand-light);">${l.action}</td>
+      <td><span class="badge badge-ok" style="font-size:.6rem;">${l.status}</span></td>
+    </tr>`).join('');
+  }catch(e){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--red);">Could not load AI logs.</td></tr>';}
 }
 
 // ── Ban Management ──
-function renderBanList(){
+async function renderBanList(){
   const tbody=document.getElementById('banListBody');if(!tbody)return;
-  if(!banList.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-4);">No active bans.</td></tr>';return;}
-  tbody.innerHTML=banList.map((b,i)=>`<tr>
-    <td style="font-weight:600;">${b.username}</td>
-    <td><span class="badge badge-err" style="font-size:.6rem;">${b.reason}</span></td>
-    <td class="font-mono" style="font-size:.7rem;color:var(--text-4);">${b.bannedAt}</td>
-    <td style="font-size:.75rem;color:var(--text-3);">${b.bannedBy}</td>
-    <td><button onclick="unbanFromList(${i})" class="btn btn-ghost btn-xs">Unban</button></td>
-  </tr>`).join('');
+  tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--text-4);">Loading...</td></tr>';
+  try{
+    const res=await fetch(`${BACKEND_URL}/admin/bans`,{credentials:'include'});
+    const data=await res.json();
+    bannedList=data.bans||[];
+    if(!bannedList.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-4);">No active bans.</td></tr>';return;}
+    tbody.innerHTML=bannedList.map(b=>`<tr>
+      <td style="font-weight:600;">${b.username||'unknown'}</td>
+      <td><span class="badge badge-err" style="font-size:.6rem;">${b.reason}</span></td>
+      <td class="font-mono" style="font-size:.7rem;color:var(--text-4);">${b.bannedAt?.slice(0,10)||'—'}</td>
+      <td style="font-size:.75rem;color:var(--text-3);">${b.bannedBy||'—'}</td>
+      <td><button onclick="unbanById('${b.discordId}')" class="btn btn-ghost btn-xs">Unban</button></td>
+    </tr>`).join('');
+  }catch(e){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--red);">Could not load bans.</td></tr>';}
 }
-function quickBanUser(){
+async function quickBanUser(){
   const name=document.getElementById('banUsername').value.trim();
-  const reason=document.getElementById('banReason').value;
+  const discordId=document.getElementById('banDiscordId')?.value.trim()||'';
+  const reason=document.getElementById('banReason').value||'No reason';
   if(!name){toast('Enter a username','err');return;}
-  const u=managedUsers.find(x=>x.username===name);
-  if(u&&u.role==='developer'){toast('Cannot ban the developer!','err');return;}
-  if(u)u.banned=true;
-  const now=new Date();
-  banList.unshift({username:name,reason,bannedAt:now.toLocaleString(),bannedBy:currentUser.username});
-  document.getElementById('banUsername').value='';
-  renderBanList();
-  renderUserMgmt();
-  toast(`${name} banned — reason: ${reason}`);
-  addLog(currentUser.username,'website',`Banned ${name}: ${reason}`);
+  if(!discordId){toast('Enter Discord ID to ban','err');return;}
+  try{
+    const res=await fetch(`${BACKEND_URL}/admin/ban`,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({discordId,username:name,reason})});
+    const data=await res.json();
+    if(data.error){toast(data.error,'err');return;}
+    toast(`${name} banned!`);
+    document.getElementById('banUsername').value='';
+    if(document.getElementById('banDiscordId'))document.getElementById('banDiscordId').value='';
+    renderBanList();renderUserMgmt();
+  }catch(e){toast('Failed to ban user','err');}
 }
-function quickUnbanUser(){
-  const name=document.getElementById('banUsername').value.trim();
-  if(!name){toast('Enter a username','err');return;}
-  const u=managedUsers.find(x=>x.username===name);
-  if(u)u.banned=false;
-  banList=banList.filter(b=>b.username!==name);
+async function quickUnbanUser(){
+  const discordId=document.getElementById('banDiscordId')?.value.trim()||document.getElementById('banUsername').value.trim();
+  if(!discordId){toast('Enter Discord ID to unban','err');return;}
+  await unbanById(discordId);
   document.getElementById('banUsername').value='';
-  renderBanList();renderUserMgmt();
-  toast(`${name} unbanned`);
-  addLog(currentUser.username,'website',`Unbanned ${name}`);
 }
-function unbanFromList(i){
-  const name=banList[i].username;
-  const u=managedUsers.find(x=>x.username===name);
-  if(u)u.banned=false;
-  banList.splice(i,1);
-  renderBanList();renderUserMgmt();
-  toast(`${name} unbanned`);
+async function unbanById(discordId){
+  try{
+    await fetch(`${BACKEND_URL}/admin/ban/${discordId}`,{method:'DELETE',credentials:'include'});
+    toast('User unbanned!');
+    renderBanList();renderUserMgmt();
+  }catch(e){toast('Failed to unban','err');}
 }
 
 // ── AI Control / /cspeak ──
@@ -3373,32 +3319,46 @@ function addToBlacklist(){
   addLog(currentUser.username,'website',`Blacklisted ${name}`);
 }
 function removeFromList(i){whitelist.splice(i,1);renderWhitelist();toast('Removed');}
-function renderUserMgmt(){
+async function renderUserMgmt(){
   const c=document.getElementById('userMgmtList');if(!c)return;
-  const cls={developer:'badge-dev',admin:'badge-admin',beta_tester:'badge-beta',user:'badge-user'};
-  c.innerHTML=managedUsers.map((u,i)=>`<div class="card" style="padding:16px;opacity:${u.banned?.6:1};">
-    <div class="flex items-center gap-3">
-      <div class="user-avatar">${u.username.slice(0,2).toUpperCase()}</div>
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-2 flex-wrap" style="margin-bottom:4px;">
-          <span style="font-weight:700;font-size:.9375rem;">${u.username}</span>
-          <span class="badge ${cls[u.role]||'badge-user'}" style="font-size:.6rem;">${u.role}</span>
-          ${u.isVIP?'<span class="badge badge-vip" style="font-size:.6rem;">👑 VIP</span>':''}
-          ${u.banned?'<span class="badge badge-err" style="font-size:.6rem;">BANNED</span>':''}
+  c.innerHTML='<div style="text-align:center;padding:24px;color:var(--text-4);">Loading users...</div>';
+  try{
+    const res=await fetch(`${BACKEND_URL}/admin/users`,{credentials:'include'});
+    const data=await res.json();
+    const users=data.users||[];
+    if(!users.length){c.innerHTML='<div style="text-align:center;padding:24px;color:var(--text-4);">No users have logged in yet.</div>';return;}
+    const cls={developer:'badge-dev',admin:'badge-admin',beta_tester:'badge-beta',user:'badge-user'};
+    c.innerHTML=users.map(u=>`<div class="card" style="padding:16px;opacity:${u.banned?.6:1};">
+      <div class="flex items-center gap-3">
+        ${u.avatar?`<img src="${u.avatar}" style="width:36px;height:36px;border-radius:50%;flex-shrink:0;" onerror="this.style.display='none'">`:`<div class="user-avatar">${u.username.slice(0,2).toUpperCase()}</div>`}
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 flex-wrap" style="margin-bottom:4px;">
+            <span style="font-weight:700;font-size:.9375rem;">${u.username}</span>
+            <span class="badge ${cls[u.role]||'badge-user'}" style="font-size:.6rem;">${u.role}</span>
+            ${u.isVIP?'<span class="badge badge-vip" style="font-size:.6rem;">👑 VIP</span>':''}
+            ${u.banned?'<span class="badge badge-err" style="font-size:.6rem;">BANNED</span>':''}
+          </div>
+          <div class="text-xs text-4">${u.botCount||0} bots · Joined ${u.joinedAt||'—'} · Last seen ${u.lastSeen?.slice(0,10)||'—'}</div>
         </div>
-        <div class="text-xs text-4">${u.bots} bots · Joined ${u.joined}</div>
+        ${u.discordId!==currentUser?.discordId?`<div class="flex gap-2">
+          ${!u.banned
+            ?`<button onclick="banUserById('${u.discordId}','${u.username}')" class="btn btn-danger btn-sm">Ban</button>`
+            :`<button onclick="unbanById('${u.discordId}')" class="btn btn-ghost btn-sm">Unban</button>`}
+        </div>`:'<span class="badge badge-user" style="font-size:.6rem;">You</span>'}
       </div>
-      ${u.username!==currentUser?.username?`<div class="flex gap-2">
-        ${!u.banned?`<button onclick="banUser(${i})" class="btn btn-danger btn-sm">Ban</button>`:`<button onclick="unbanUser(${i})" class="btn btn-ghost btn-sm">Unban</button>`}
-        ${u.bots>0?`<button onclick="destroyAI(${i})" class="btn btn-ghost btn-sm" style="color:var(--yellow);border-color:rgba(250,166,26,.25);">Destroy AI</button>`:''}
-      </div>`:'<span class="badge badge-user" style="font-size:.6rem;">You</span>'}
-    </div>
-  </div>`).join('');
+    </div>`).join('');
+  }catch(e){c.innerHTML='<div style="text-align:center;padding:24px;color:var(--red);">Could not load users.</div>';}
 }
-function banUser(i){if(managedUsers[i].role==='developer'){toast('Cannot ban the developer!','err');return;}managedUsers[i].banned=true;renderUserMgmt();toast(`${managedUsers[i].username} banned`);addLog(currentUser.username,'website',`Banned ${managedUsers[i].username}`);}
-function unbanUser(i){managedUsers[i].banned=false;renderUserMgmt();toast(`${managedUsers[i].username} unbanned`);}
-function destroyAI(i){managedUsers[i].bots=0;renderUserMgmt();toast(`Destroyed AI for ${managedUsers[i].username}`);addLog(currentUser.username,'website',`Destroyed AI for ${managedUsers[i].username}`);}
-
+async function banUserById(discordId, username){
+  const reason=prompt(`Reason for banning ${username}?`,'No reason');
+  if(reason===null)return;
+  await fetch(`${BACKEND_URL}/admin/ban`,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({discordId,username,reason})});
+  toast(`${username} banned!`);
+  renderUserMgmt();renderBanList();
+}
+function banUser(i){} // legacy stub
+function unbanUser(i){} // legacy stub
+function destroyAI(i){}
 // ═══════════════════════════════════════
 //  USER MENU
 // ═══════════════════════════════════════
