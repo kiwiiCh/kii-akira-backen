@@ -19,7 +19,7 @@ const {
 } = process.env;
 
 // ─────────────────────────────────────────────────────────────
-//  ① MIDDLEWARE — must come before routes
+//  ① MIDDLEWARE
 // ─────────────────────────────────────────────────────────────
 app.use(cors({ origin: true, credentials: true }));
 app.set('trust proxy', 1);
@@ -33,20 +33,21 @@ app.use(session({
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ─────────────────────────────────────────────────────────────
-//  ② DATA STORES — declared before anything uses them
+//  ② DATA STORES
 // ─────────────────────────────────────────────────────────────
 
 const OWNER_USERNAME  = 'kiiakira';
 const OWNER_DISCORDID = '1093442344310820895';
 
-const adminWhitelist  = new Map(); // username → { addedAt, addedBy }
-const vipUsers        = new Map(); // discordId → { expiresAt, plan, ... }
-const registeredUsers = new Map(); // discordId → user object
+const adminWhitelist  = new Map();
+const vipUsers        = new Map();
+const registeredUsers = new Map();
 const activityLogs    = [];
-const bannedUsers     = new Map(); // discordId → { username, reason, ... }
-const userMemory      = new Map(); // discordId → { facts[], history[], updatedAt }
+const bannedUsers     = new Map();
+const userMemory      = new Map();
 const pendingCodes    = new Map();
-let   maintenanceMode = { enabled: false, message: 'Kii Akira is currently offline for maintenance.', version: 'v1.0.0', notes: [] };
+const userBotConfigs  = new Map(); // persisted bot configs
+let   maintenanceMode = { enabled: false, message: 'Maintenance in progress.', version: 'v1.0.0', notes: [] };
 
 const VIP_DURATION_MS  = 365 * 24 * 60 * 60 * 1000;
 const MAX_LOGS         = 500;
@@ -56,60 +57,45 @@ const MAX_FACTS_FREE   = 50;
 const MAX_FACTS_VIP    = 200;
 
 // ─────────────────────────────────────────────────────────────
-//  ② b  PERSISTENCE — save/load all data to disk
-//       Every Map that matters is persisted — nothing is lost on restart.
-//       Data is ALWAYS keyed by discordId so each user only ever sees
-//       their own records (no bleed between accounts).
+//  ③ PERSISTENCE
 // ─────────────────────────────────────────────────────────────
-const DATA_FILE     = path.join(__dirname, 'kii-data.json');
-const userBotConfigs = new Map(); // botId → config (tokens etc) — persisted separately from live instances
+const DATA_FILE = path.join(__dirname, 'kii-data.json');
 
 function saveData() {
   try {
-    const payload = {
-      // ── Platform-wide ──
+    fs.writeFileSync(DATA_FILE, JSON.stringify({
       adminWhitelist:  [...adminWhitelist.entries()],
       vipUsers:        [...vipUsers.entries()],
       bannedUsers:     [...bannedUsers.entries()],
-      maintenanceMode,
-      // ── Per-user account data (keyed by discordId) ──
       registeredUsers: [...registeredUsers.entries()],
       userMemory:      [...userMemory.entries()],
-      // ── Per-user bots (keyed by botId, config has ownerId for isolation) ──
       userBotConfigs:  [...userBotConfigs.entries()],
+      maintenanceMode,
       savedAt: new Date().toISOString(),
-    };
-    fs.writeFileSync(DATA_FILE, JSON.stringify(payload, null, 2));
-  } catch (e) {
-    console.error('⚠️  Failed to save data:', e.message);
-  }
+    }, null, 2));
+  } catch (e) { console.error('⚠️ Save failed:', e.message); }
 }
 
 function loadData() {
   try {
-    if (!fs.existsSync(DATA_FILE)) { console.log('ℹ️  No saved data — starting fresh'); return; }
+    if (!fs.existsSync(DATA_FILE)) { console.log('ℹ️  No saved data — fresh start'); return; }
     const raw = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    (raw.adminWhitelist  || []).forEach(([k, v]) => adminWhitelist.set(k, v));
-    (raw.vipUsers        || []).forEach(([k, v]) => vipUsers.set(k, v));
-    (raw.bannedUsers     || []).forEach(([k, v]) => bannedUsers.set(k, v));
-    (raw.registeredUsers || []).forEach(([k, v]) => registeredUsers.set(k, v));
-    (raw.userMemory      || []).forEach(([k, v]) => userMemory.set(k, v));
-    (raw.userBotConfigs  || []).forEach(([k, v]) => userBotConfigs.set(k, v));
+    (raw.adminWhitelist  || []).forEach(([k,v]) => adminWhitelist.set(k,v));
+    (raw.vipUsers        || []).forEach(([k,v]) => vipUsers.set(k,v));
+    (raw.bannedUsers     || []).forEach(([k,v]) => bannedUsers.set(k,v));
+    (raw.registeredUsers || []).forEach(([k,v]) => registeredUsers.set(k,v));
+    (raw.userMemory      || []).forEach(([k,v]) => userMemory.set(k,v));
+    (raw.userBotConfigs  || []).forEach(([k,v]) => userBotConfigs.set(k,v));
     if (raw.maintenanceMode) Object.assign(maintenanceMode, raw.maintenanceMode);
-    console.log(`✅ Data loaded — admins:${adminWhitelist.size} vip:${vipUsers.size} users:${registeredUsers.size} bans:${bannedUsers.size} bots:${userBotConfigs.size}`);
-  } catch (e) {
-    console.error('⚠️  Failed to load data:', e.message);
-  }
+    console.log(`✅ Loaded — admins:${adminWhitelist.size} vip:${vipUsers.size} users:${registeredUsers.size} bans:${bannedUsers.size} bots:${userBotConfigs.size}`);
+  } catch (e) { console.error('⚠️ Load failed:', e.message); }
 }
 
-// Load on startup
 loadData();
-
-// Auto-save every 60 seconds
 setInterval(saveData, 60 * 1000);
 
 // ─────────────────────────────────────────────────────────────
-//  ③ HELPER FUNCTIONS
+//  ④ ROLE / AUTH HELPERS
 // ─────────────────────────────────────────────────────────────
 
 function getUserRole(username, discordId) {
@@ -125,35 +111,38 @@ function checkVIP(discordId, username) {
   return !!(vip && Date.now() < vip.expiresAt);
 }
 
+// FIX: use getUserRole consistently — no raw string comparison that breaks on username changes
 function requireDev(req, res, next) {
-  const u = req.session?.user;
-  if (u?.username !== OWNER_USERNAME && u?.discordId !== OWNER_DISCORDID)
-    return res.status(403).json({ error: 'Owner only' });
+  const role = getUserRole(req.session?.user?.username, req.session?.user?.discordId);
+  if (role !== 'developer') return res.status(403).json({ error: 'Owner only' });
   next();
 }
 
 function requireAdmin(req, res, next) {
   const role = getUserRole(req.session?.user?.username, req.session?.user?.discordId);
-  if (role !== 'developer' && role !== 'admin')
-    return res.status(403).json({ error: 'Admin required' });
+  if (role !== 'developer' && role !== 'admin') return res.status(403).json({ error: 'Admin required' });
   next();
 }
 
 function logActivity(username, discordId, type, action, status = 'OK') {
-  activityLogs.unshift({ time: new Date().toTimeString().slice(0,8), timestamp: Date.now(), user: username || 'unknown', discordId: discordId || null, type, action, status });
+  activityLogs.unshift({ time: new Date().toTimeString().slice(0,8), timestamp: Date.now(), user: username||'unknown', discordId: discordId||null, type, action, status });
   if (activityLogs.length > MAX_LOGS) activityLogs.pop();
 }
 
 function registerUser(discordId, username, email, avatar, role, isVIP) {
-  const existing = registeredUsers.get(discordId);
+  const ex = registeredUsers.get(discordId);
   registeredUsers.set(discordId, {
     discordId, username, email: email||null, avatar: avatar||null, role, isVIP,
     banned:   bannedUsers.has(discordId),
-    joinedAt: existing?.joinedAt || new Date().toISOString().slice(0,10),
+    joinedAt: ex?.joinedAt || new Date().toISOString().slice(0,10),
     lastSeen: new Date().toISOString(),
-    botCount: existing?.botCount || 0,
+    botCount: ex?.botCount || 0,
   });
 }
+
+// ─────────────────────────────────────────────────────────────
+//  ⑤ MEMORY ENGINE
+// ─────────────────────────────────────────────────────────────
 
 function getMemoryLimits(userId) {
   const vip = vipUsers.get(userId);
@@ -172,7 +161,8 @@ function getMemory(userId) {
 function addToHistory(userId, role, content) {
   const mem = getMemory(userId);
   const lim = getMemoryLimits(userId);
-  mem.history.push({ role, content: content.slice(0,500) });
+  mem.history.push({ role, content: content.slice(0, 800) });
+  // Rolling delete — oldest message auto-removed, no hard limit on sends
   while (mem.history.length > lim.history) mem.history.shift();
   mem.updatedAt = Date.now();
 }
@@ -207,10 +197,12 @@ function extractFacts(userId, userMsg) {
 }
 
 function buildMessages(systemPrompt, userId, userMsg, ctx = {}) {
-  const mem    = getMemory(userId);
-  const facts  = mem.facts.length ? `\n\n[MEMORY]\n${mem.facts.map(f=>`- ${f}`).join('\n')}\n[/MEMORY]` : '';
-  const loc    = ctx.guildName
-    ? `\n\n[CONTEXT]\nServer: "${ctx.guildName}", channel: #${ctx.channelName||'unknown'}.\n[/CONTEXT]`
+  const mem   = getMemory(userId);
+  const facts = mem.facts.length
+    ? `\n\n[MEMORY]\n${mem.facts.map(f => `- ${f}`).join('\n')}\n[/MEMORY]`
+    : '';
+  const loc = ctx.guildName
+    ? `\n\n[CONTEXT]\nServer: "${ctx.guildName}", channel: #${ctx.channelName || 'unknown'}.\n[/CONTEXT]`
     : ctx.isDM ? `\n\n[CONTEXT]\nPrivate DM.\n[/CONTEXT]` : '';
   return [
     { role: 'system', content: systemPrompt + facts + loc },
@@ -220,13 +212,43 @@ function buildMessages(systemPrompt, userId, userMsg, ctx = {}) {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  ④ KIARA DISCORD BOT
+//  ⑥ AI CALL — no content restrictions, full response
+// ─────────────────────────────────────────────────────────────
+
+const PLATFORM_MODELS = {
+  'akira':    { label: 'Akira AI',       provider: 'groq',     model: 'llama-3.1-8b-instant',    vipOnly: true  },
+  'llama70b': { label: 'Llama 3 70B',    provider: 'groq',     model: 'llama-3.3-70b-versatile', vipOnly: false },
+  'mistral':  { label: 'Mistral 8x7B',   provider: 'groq',     model: 'mixtral-8x7b-32768',      vipOnly: false },
+  'cerebras': { label: 'Cerebras Ultra', provider: 'cerebras', model: 'llama3.1-8b',             vipOnly: false },
+  'gpt4mini': { label: 'GPT-4o Mini',    provider: 'openai',   model: 'gpt-4o-mini',             vipOnly: false },
+  'gpt4':     { label: 'GPT-4 Turbo',    provider: 'openai',   model: 'gpt-4-turbo',             vipOnly: true  },
+};
+
+function getPlatformKey(provider) {
+  if (provider === 'groq')     return process.env.GROQ_API_KEY;
+  if (provider === 'cerebras') return process.env.CEREBRAS_API_KEY || process.env.GROQ_API_KEY;
+  if (provider === 'openai')   return process.env.OPENAI_API_KEY;
+  return null;
+}
+
+async function callAI(provider, apiKey, messages, temperature, model) {
+  // No content filtering — AI runs fully unrestricted as configured by the bot owner
+  const opts = { headers: { Authorization: `Bearer ${apiKey}` }, timeout: 20000 };
+  const body = { model, messages, max_tokens: 1024, temperature }; // 1024 for full responses
+  if (provider === 'groq')     return (await axios.post('https://api.groq.com/openai/v1/chat/completions',  body, opts)).data.choices[0].message.content;
+  if (provider === 'cerebras') return (await axios.post('https://api.cerebras.ai/v1/chat/completions',       body, opts)).data.choices[0].message.content;
+  if (provider === 'openai')   return (await axios.post('https://api.openai.com/v1/chat/completions',         body, opts)).data.choices[0].message.content;
+  throw new Error('Unknown provider: ' + provider);
+}
+
+// ─────────────────────────────────────────────────────────────
+//  ⑦ KIARA BOT
 // ─────────────────────────────────────────────────────────────
 const { Client: DJSClientKiara, GatewayIntentBits: GWI, Events: DJSEvents } = require('discord.js');
 
 global.kiaraConfig = {
   activeChannels: new Set(),
-  personality: 'You are Kiara KiI, a friendly and helpful AI assistant for the Kii Akira platform. Keep responses short and conversational.',
+  personality: 'You are Kiara KiI, a friendly and helpful AI assistant. Be casual, chill, and talk like a real person.',
 };
 
 const kiaraBot = new DJSClientKiara({
@@ -235,7 +257,7 @@ const kiaraBot = new DJSClientKiara({
 });
 
 kiaraBot.once(DJSEvents.ClientReady, c => {
-  console.log(`🤖 Kiara KiI online as ${c.user.tag}`);
+  console.log(`🤖 Kiara online as ${c.user.tag}`);
   c.user.setPresence({ status: 'online', activities: [{ name: 'Kii Akira Dashboard', type: 0 }] });
 });
 
@@ -251,35 +273,34 @@ kiaraBot.on(DJSEvents.MessageCreate, async message => {
     const userMsg = message.content.replace(`<@${kiaraBot.user.id}>`, '').trim();
     if (!userMsg) return message.reply('Hey! How can I help? 👋');
     const groqKey = process.env.GROQ_API_KEY;
-    if (!groqKey) return message.reply('⚠️ AI not configured — admin needs to set GROQ_API_KEY.');
-    const userId  = message.author.id;
-    const ctx     = isDM ? { isDM: true } : { guildName: message.guild.name, channelName: message.channel.name };
-    const msgs    = buildMessages(global.kiaraConfig.personality, userId, userMsg, ctx);
+    if (!groqKey) return message.reply('⚠️ GROQ_API_KEY not set — admin needs to configure this.');
+    const userId = message.author.id;
+    const ctx    = isDM ? { isDM: true } : { guildName: message.guild.name, channelName: message.channel.name };
+    const msgs   = buildMessages(global.kiaraConfig.personality, userId, userMsg, ctx);
+
     let reply = null;
     try {
-      const r = await axios.post('https://api.groq.com/openai/v1/chat/completions',
-        { model: 'llama-3.1-8b-instant', messages: msgs, max_tokens: 400, temperature: 0.75 },
-        { headers: { Authorization: `Bearer ${groqKey}` }, timeout: 15000 });
-      reply = r.data.choices[0]?.message?.content;
-    } catch {
+      reply = await callAI('groq', groqKey, msgs, 0.85, 'llama-3.1-8b-instant');
+    } catch (e1) {
+      console.error('Kiara Groq error:', e1?.response?.data?.error?.message || e1.message);
       try {
-        const r2 = await axios.post('https://api.cerebras.ai/v1/chat/completions',
-          { model: 'llama3.1-8b', messages: msgs, max_tokens: 400 },
-          { headers: { Authorization: `Bearer ${process.env.CEREBRAS_API_KEY || groqKey}` }, timeout: 15000 });
-        reply = r2.data.choices[0]?.message?.content;
-      } catch(e2) { console.error('Kiara fallback error:', e2.message); }
+        reply = await callAI('cerebras', process.env.CEREBRAS_API_KEY || groqKey, msgs, 0.85, 'llama3.1-8b');
+      } catch (e2) {
+        console.error('Kiara Cerebras fallback error:', e2?.response?.data?.error?.message || e2.message);
+        return message.reply(`⚠️ AI error: ${e2?.response?.data?.error?.message || e2.message}`);
+      }
     }
-    if (!reply) return message.reply("I couldn't get a response right now. Try again shortly!");
+
+    if (!reply) return message.reply('Got an empty response — try again!');
     addToHistory(userId, 'user', userMsg);
     addToHistory(userId, 'assistant', reply);
     extractFacts(userId, userMsg);
     logActivity(message.author.username, userId, 'ai', `Kiara in ${isDM ? 'DMs' : message.guild.name}`);
-    // Persist updated memory immediately
     saveData();
     await message.reply(reply.slice(0, 1900));
   } catch(e) {
-    console.error('Kiara error:', e.message);
-    await message.reply('Something went wrong. Try again shortly!');
+    console.error('Kiara handler error:', e.message);
+    await message.reply(`⚠️ Error: ${e.message.slice(0, 200)}`);
   }
 });
 
@@ -290,38 +311,61 @@ if (DISCORD_BOT_TOKEN) {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  ⑤ USER BOT SYSTEM
+//  ⑧ USER BOT SYSTEM
 // ─────────────────────────────────────────────────────────────
 const { Client: DJSClient, GatewayIntentBits, Events } = require('discord.js');
-const userBotInstances = new Map();
+const userBotInstances = new Map(); // botId → { client, config }
 
-const PLATFORM_MODELS = {
-  'akira':    { label: 'Akira AI',       provider: 'groq',     model: 'llama-3.1-8b-instant',    vipOnly: true  },
-  'llama70b': { label: 'Llama 3 70B',    provider: 'groq',     model: 'llama-3.3-70b-versatile', vipOnly: false },
-  'mistral':  { label: 'Mistral Large',  provider: 'groq',     model: 'mixtral-8x7b-32768',      vipOnly: false },
-  'cerebras': { label: 'Cerebras Ultra', provider: 'cerebras', model: 'llama3.1-8b',             vipOnly: false },
-  'gpt4mini': { label: 'GPT-4o Mini',    provider: 'openai',   model: 'gpt-4o-mini',             vipOnly: false },
-  'gpt4':     { label: 'GPT-4 Turbo',    provider: 'openai',   model: 'gpt-4-turbo',             vipOnly: true  },
-};
-
-function getPlatformKey(provider) {
-  if (provider === 'groq')     return process.env.GROQ_API_KEY;
-  if (provider === 'cerebras') return process.env.CEREBRAS_API_KEY || process.env.GROQ_API_KEY;
-  if (provider === 'openai')   return process.env.OPENAI_API_KEY;
-  return null;
-}
-
-async function callAI(provider, apiKey, messages, temperature, model) {
-  const opts = { headers: { Authorization: `Bearer ${apiKey}` }, timeout: 15000 };
-  const body = { model, messages, max_tokens: 400, temperature };
-  if (provider === 'groq')     return (await axios.post('https://api.groq.com/openai/v1/chat/completions',  body, opts)).data.choices[0].message.content;
-  if (provider === 'cerebras') return (await axios.post('https://api.cerebras.ai/v1/chat/completions',       body, opts)).data.choices[0].message.content;
-  if (provider === 'openai')   return (await axios.post('https://api.openai.com/v1/chat/completions',         body, opts)).data.choices[0].message.content;
-  return 'Unknown provider.';
+async function spawnUserBot(botId, cfg) {
+  if (userBotInstances.has(botId)) {
+    try { userBotInstances.get(botId).client.destroy(); } catch {}
+  }
+  const botClient = new DJSClient({
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.DirectMessages, GatewayIntentBits.DirectMessageTyping],
+    partials: ['CHANNEL','MESSAGE'],
+  });
+  botClient.once(Events.ClientReady, c => {
+    c.user.setPresence({ status: 'online', activities: [{ name: cfg.name, type: 0 }] });
+    console.log(`🤖 User bot "${cfg.name}" online as ${c.user.tag}`);
+  });
+  botClient.on(Events.MessageCreate, async message => {
+    if (message.author.bot) return;
+    const isDM      = !message.guild;
+    const mentioned = message.mentions.has(botClient.user);
+    if (!isDM && !mentioned) return;
+    const live = userBotInstances.get(botId)?.config;
+    if (!live || live.paused) return; // paused bots stay connected but don't reply
+    try {
+      await message.channel.sendTyping();
+      const userMsg = message.content.replace(`<@${botClient.user.id}>`, '').trim();
+      if (!userMsg) return message.reply(`Hey! I'm ${live.name}. How can I help? 👋`);
+      const md = PLATFORM_MODELS[live.modelId];
+      if (!md) return message.reply('⚠️ Bot model not configured.');
+      const key = getPlatformKey(md.provider);
+      if (!key) return message.reply(`⚠️ ${md.provider.toUpperCase()} API key not set on server.`);
+      const uid   = message.author.id;
+      const ctx   = isDM ? { isDM: true } : { guildName: message.guild.name, channelName: message.channel.name };
+      const msgs  = buildMessages(live.systemPrompt, uid, userMsg, ctx);
+      const reply = await callAI(md.provider, key, msgs, live.temperature, md.model);
+      addToHistory(uid, 'user', userMsg);
+      addToHistory(uid, 'assistant', reply);
+      extractFacts(uid, userMsg);
+      logActivity(message.author.username, uid, 'ai', `Used ${live.modelId} via bot "${live.name}"`);
+      saveData();
+      await message.reply(reply.slice(0, 1900));
+    } catch(e) {
+      // Show the REAL error so users can debug — no silent swallowing
+      const errText = e?.response?.data?.error?.message || e.message || 'Unknown error';
+      console.error(`Bot "${live.name}" error:`, errText);
+      await message.reply(`⚠️ ${errText.slice(0, 200)}`);
+    }
+  });
+  await botClient.login(cfg.token);
+  userBotInstances.set(botId, { client: botClient, config: cfg });
 }
 
 // ─────────────────────────────────────────────────────────────
-//  ⑥ ALL ROUTES
+//  ⑨ ROUTES
 // ─────────────────────────────────────────────────────────────
 
 // ── Auth ──
@@ -358,8 +402,10 @@ app.get('/auth/callback', async (req, res) => {
 app.get('/auth/me', (req, res) => {
   if (!req.session?.user?.loggedIn) return res.json({ loggedIn: false });
   const u = req.session.user;
+  // Always re-derive role/VIP live so whitelist changes apply immediately without re-login
   u.role  = getUserRole(u.username, u.discordId);
   u.isVIP = checkVIP(u.discordId, u.username);
+  req.session.user = u; // write back updated values
   res.json({ loggedIn: true, user: u });
 });
 
@@ -370,8 +416,7 @@ app.post('/auth/send-code', async (req, res) => {
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Invalid email' });
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   pendingCodes.set(email, { code, expiresAt: Date.now() + 10 * 60 * 1000 });
-  const nodemailerOk = (() => { try { require.resolve('nodemailer'); return true; } catch { return false; } })();
-  if (!nodemailerOk || !process.env.SMTP_USER) { console.log(`[DEV] Code for ${email}: ${code}`); return res.json({ success: true, dev_code: code }); }
+  if (!process.env.SMTP_USER) { console.log(`[DEV] Email code for ${email}: ${code}`); return res.json({ success: true, dev_code: code }); }
   try {
     const nodemailer = require('nodemailer');
     const t = nodemailer.createTransport({ host: process.env.SMTP_HOST||'smtp.gmail.com', port: 587, auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } });
@@ -390,7 +435,7 @@ app.post('/auth/verify-code', (req, res) => {
   res.json({ success: true });
 });
 
-// ── Memory ──
+// ── Memory routes ──
 app.get('/memory/me/stats', (req, res) => {
   if (!req.session?.user?.loggedIn) return res.json({ facts: 0, history: 0, sizeKB: '0.00' });
   const userId = req.session.user.discordId;
@@ -402,6 +447,7 @@ app.get('/memory/me/stats', (req, res) => {
 app.delete('/memory/me/clear', (req, res) => {
   if (!req.session?.user?.loggedIn) return res.status(401).json({ error: 'Not logged in' });
   userMemory.delete(req.session.user.discordId);
+  saveData();
   res.json({ success: true });
 });
 app.get('/memory/:userId', requireAdmin, (req, res) => {
@@ -409,15 +455,16 @@ app.get('/memory/:userId', requireAdmin, (req, res) => {
 });
 app.delete('/memory/:userId', requireAdmin, (req, res) => {
   userMemory.delete(req.params.userId);
+  saveData();
   res.json({ success: true });
 });
 
-// ── Admin ──
+// ── Admin routes ──
 app.get('/admin/users', requireAdmin, (req, res) => {
   const users = [...registeredUsers.values()].map(u => ({
     ...u,
     banned:   bannedUsers.has(u.discordId),
-    botCount: [...userBotInstances.values()].filter(v => v.config?.ownerId === u.username).length,
+    botCount: [...userBotConfigs.values()].filter(c => c.ownerId === u.username || c.ownerDiscordId === u.discordId).length,
     role:     getUserRole(u.username, u.discordId),
     isVIP:    checkVIP(u.discordId, u.username),
   }));
@@ -428,9 +475,7 @@ app.get('/admin/logs', requireAdmin, (req, res) => {
   const logs = (type && type !== 'all') ? activityLogs.filter(l => l.type === type) : activityLogs;
   res.json({ logs: logs.slice(0, parseInt(limit)) });
 });
-app.get('/admin/bans', requireAdmin, (req, res) => {
-  res.json({ bans: [...bannedUsers.values()] });
-});
+app.get('/admin/bans', requireAdmin, (req, res) => res.json({ bans: [...bannedUsers.values()] }));
 app.post('/admin/ban', requireAdmin, (req, res) => {
   const { discordId, username, reason } = req.body;
   if (!discordId) return res.status(400).json({ error: 'discordId required' });
@@ -457,7 +502,6 @@ app.post('/admin/whitelist', requireDev, (req, res) => {
   if (!username) return res.status(400).json({ error: 'username required' });
   if (username === OWNER_USERNAME) return res.status(400).json({ error: 'Owner is already developer' });
   adminWhitelist.set(username, { addedAt: Date.now(), addedBy: req.session.user.username });
-  console.log(`🛡️ Admin granted: ${username}`);
   saveData();
   res.json({ success: true });
 });
@@ -468,13 +512,13 @@ app.delete('/admin/whitelist/:username', requireDev, (req, res) => {
   res.json({ success: true });
 });
 
-// ── VIP ──
+// ── VIP routes ──
 app.get('/vip/status', (req, res) => {
   if (!req.session?.user?.loggedIn) return res.json({ isVIP: false });
   const { discordId, username } = req.session.user;
+  const role  = getUserRole(username, discordId);
   const isVIP = checkVIP(discordId, username);
   if (!isVIP) return res.json({ isVIP: false });
-  const role = getUserRole(username, discordId);
   if (role === 'developer' || role === 'admin') return res.json({ isVIP: true, plan: 'complimentary', daysLeft: 99999, role });
   const vip = vipUsers.get(discordId);
   res.json({ isVIP: true, expiresAt: vip.expiresAt, daysLeft: Math.ceil((vip.expiresAt - Date.now()) / 86400000), plan: vip.plan });
@@ -500,56 +544,13 @@ app.post('/vip/webhook', express.raw({ type: 'application/json' }), (req, res) =
     const event = JSON.parse(req.body.toString());
     if (event.data?.attributes?.type === 'link.payment.paid') {
       const discordId = (event.data?.attributes?.data?.attributes?.remarks||'').replace('vip_','');
-      if (discordId) vipUsers.set(discordId, { expiresAt: Date.now() + VIP_DURATION_MS, paidAt: Date.now(), plan: 'yearly' });
+      if (discordId) { vipUsers.set(discordId, { expiresAt: Date.now() + VIP_DURATION_MS, paidAt: Date.now(), plan: 'yearly' }); saveData(); }
     }
     res.json({ received: true });
   } catch { res.json({ received: true }); }
 });
 
-// ── User Bots ──
-
-// Shared function: given a saved config, create the live Discord client.
-// Used on /create AND on startup to restore all saved bots.
-async function spawnUserBot(botId, cfg) {
-  if (userBotInstances.has(botId)) {
-    try { userBotInstances.get(botId).client.destroy(); } catch {}
-  }
-  const botClient = new DJSClient({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.DirectMessages, GatewayIntentBits.DirectMessageTyping],
-    partials: ['CHANNEL','MESSAGE'],
-  });
-  botClient.once(Events.ClientReady, c => {
-    c.user.setPresence({ status: 'online', activities: [{ name: cfg.name, type: 0 }] });
-    console.log(`🤖 User bot online: ${c.user.tag} (owner: ${cfg.ownerId})`);
-  });
-  botClient.on(Events.MessageCreate, async message => {
-    if (message.author.bot) return;
-    const isDM      = !message.guild;
-    const mentioned = message.mentions.has(botClient.user);
-    if (!isDM && !mentioned) return;
-    const live = userBotInstances.get(botId)?.config;
-    if (!live) return;
-    try {
-      await message.channel.sendTyping();
-      const userMsg = message.content.replace(`<@${botClient.user.id}>`, '').trim();
-      if (!userMsg) return message.reply(`Hey! I'm ${live.name}. How can I help? 👋`);
-      const md    = PLATFORM_MODELS[live.modelId];
-      const uid   = message.author.id; // always the message sender's discordId — fully isolated
-      const ctx   = isDM ? { isDM: true } : { guildName: message.guild.name, channelName: message.channel.name };
-      const msgs  = buildMessages(live.systemPrompt, uid, userMsg, ctx);
-      const reply = await callAI(md.provider, getPlatformKey(md.provider), msgs, live.temperature, md.model);
-      addToHistory(uid, 'user', userMsg);   // saved under sender's own discordId
-      addToHistory(uid, 'assistant', reply);
-      extractFacts(uid, userMsg);
-      logActivity(message.author.username, uid, 'ai', `Used ${live.modelId} via bot "${live.name}"`);
-      saveData();
-      await message.reply(reply.slice(0, 1900));
-    } catch(e) { await message.reply('Having trouble. Try again shortly!'); }
-  });
-  await botClient.login(cfg.token);
-  userBotInstances.set(botId, { client: botClient, config: cfg });
-}
-
+// ── User Bot routes ──
 app.get('/user-bots/models', (req, res) => {
   const { discordId, username } = req.session?.user || {};
   const isVIP = checkVIP(discordId, username||'');
@@ -557,131 +558,150 @@ app.get('/user-bots/models', (req, res) => {
 });
 
 app.post('/user-bots/create', async (req, res) => {
-  const { name, token, modelId, systemPrompt, temperature, ownerId } = req.body;
+  const { name, token, modelId, systemPrompt, temperature } = req.body;
   if (!name||!token||!modelId) return res.status(400).json({ error: 'name, token and modelId required' });
   const modelDef = PLATFORM_MODELS[modelId];
   if (!modelDef) return res.status(400).json({ error: 'Invalid model' });
   const { discordId, username } = req.session?.user || {};
   const isVIP = checkVIP(discordId, username||'');
-  if (modelDef.vipOnly && !isVIP) return res.status(403).json({ error: '👑 This model requires VIP!' });
+  if (modelDef.vipOnly && !isVIP) return res.status(403).json({ error: `👑 ${modelDef.label} requires VIP!` });
   const platformKey = getPlatformKey(modelDef.provider);
-  if (!platformKey) return res.status(500).json({ error: `${modelDef.provider.toUpperCase()} key not configured.` });
-
-  // Validate token first with a throw-away client
+  if (!platformKey) return res.status(500).json({ error: `${modelDef.provider.toUpperCase()} API key not configured on server.` });
   const testClient = new DJSClient({ intents: [GatewayIntentBits.Guilds] });
   try {
     await testClient.login(token);
     const botId = testClient.user.id, botTag = testClient.user.tag;
     testClient.destroy();
-
     const cfg = {
-      name, modelId,
-      ownerId:      ownerId || username,        // always tied to the creating user
-      ownerDiscordId: discordId || null,        // extra safety — store discordId too
-      isVIP, token,
-      systemPrompt: systemPrompt || `You are ${name}, a helpful AI assistant. Be friendly and concise.`,
-      temperature:  temperature  || 0.7,
-      createdAt:    new Date().toISOString(),
+      name, modelId, token, isVIP,
+      ownerId:        username || null,
+      ownerDiscordId: discordId || null,
+      systemPrompt:   systemPrompt || `You are ${name}, a helpful AI assistant. Be friendly and genuine.`,
+      temperature:    temperature  || 0.8,
+      paused:         false,
+      createdAt:      new Date().toISOString(),
     };
-
     await spawnUserBot(botId, cfg);
-    userBotConfigs.set(botId, cfg);  // persist the config
+    userBotConfigs.set(botId, cfg);
     saveData();
-
     res.json({ success: true, botId, botTag, inviteUrl: `https://discord.com/api/oauth2/authorize?client_id=${botId}&permissions=277025459200&scope=bot`, model: modelDef.model, provider: modelDef.provider });
-  } catch { res.status(400).json({ error: 'Invalid bot token — please check and try again' }); }
+  } catch (e) {
+    res.status(400).json({ error: `Bot token error: ${e.message}` });
+  }
 });
 
-// GET /user-bots — only returns bots owned by the requesting user (or all for admin)
+// GET all bots for this user
 app.get('/user-bots', (req, res) => {
   const { username, discordId } = req.session?.user || {};
   const role    = getUserRole(username, discordId);
   const isAdmin = (role === 'developer' || role === 'admin');
-
-  // Also check saved configs for bots that failed to restore (offline)
-  const allBotIds = new Set([...userBotInstances.keys(), ...userBotConfigs.keys()]);
-
-  const bots = [...allBotIds]
-    .map(botId => {
-      const inst   = userBotInstances.get(botId);
-      const config = inst?.config || userBotConfigs.get(botId);
-      if (!config) return null;
-      if (!isAdmin && config.ownerId !== username && config.ownerDiscordId !== discordId) return null;
-
-      // Count unique users this bot has memory for (users who've talked to it)
-      // Memory is per-user discordId; we tag it via activityLogs
-      const botUsers = new Set(
-        activityLogs
-          .filter(l => l.action?.includes(`bot "${config.name}"`))
-          .map(l => l.discordId)
-          .filter(Boolean)
-      );
-      const totalMemKB = [...botUsers].reduce((sum, uid) => {
-        const m = userMemory.get(uid);
-        return sum + (m ? JSON.stringify(m).length / 1024 : 0);
-      }, 0);
-
-      return {
-        botId,
-        name:         config.name,
-        tag:          inst?.client?.user?.tag || null,
-        online:       inst?.client?.isReady() || false,
-        modelId:      config.modelId,
-        ownerId:      config.ownerId,
-        systemPrompt: config.systemPrompt || '',
-        temperature:  config.temperature  || 0.7,
-        inviteUrl:    `https://discord.com/api/oauth2/authorize?client_id=${botId}&permissions=277025459200&scope=bot`,
-        userCount:    botUsers.size,
-        memKB:        parseFloat(totalMemKB.toFixed(2)),
-      };
-    })
-    .filter(Boolean);
-
+  const allIds  = new Set([...userBotInstances.keys(), ...userBotConfigs.keys()]);
+  const bots = [...allIds].map(botId => {
+    const inst   = userBotInstances.get(botId);
+    const config = inst?.config || userBotConfigs.get(botId);
+    if (!config) return null;
+    if (!isAdmin && config.ownerId !== username && config.ownerDiscordId !== discordId) return null;
+    const botUsers = new Set(activityLogs.filter(l => l.action?.includes(`"${config.name}"`)).map(l => l.discordId).filter(Boolean));
+    const totalMemKB = [...botUsers].reduce((sum, uid) => { const m = userMemory.get(uid); return sum + (m ? JSON.stringify(m).length/1024 : 0); }, 0);
+    const guilds = inst?.client?.isReady()
+      ? inst.client.guilds.cache.map(g => ({ id: g.id, name: g.name, icon: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png` : null, memberCount: g.memberCount }))
+      : [];
+    return {
+      botId, name: config.name,
+      tag:          inst?.client?.user?.tag || null,
+      online:       inst?.client?.isReady() || false,
+      paused:       config.paused || false,
+      modelId:      config.modelId,
+      ownerId:      config.ownerId,
+      systemPrompt: config.systemPrompt || '',
+      temperature:  config.temperature  || 0.8,
+      inviteUrl:    `https://discord.com/api/oauth2/authorize?client_id=${botId}&permissions=277025459200&scope=bot`,
+      userCount:    botUsers.size,
+      memKB:        parseFloat(totalMemKB.toFixed(2)),
+      guilds,
+    };
+  }).filter(Boolean);
   res.json({ bots });
 });
 
-app.delete('/user-bots/:botId', (req, res) => {
+// Pause bot (stays connected, stops replying)
+app.post('/user-bots/:botId/pause', (req, res) => {
   const { username, discordId } = req.session?.user || {};
-  const inst = userBotInstances.get(req.params.botId);
-  if (!inst) return res.status(404).json({ error: 'Bot not found' });
-  // Only the owner or admin can delete
+  const inst   = userBotInstances.get(req.params.botId);
+  const config = inst?.config || userBotConfigs.get(req.params.botId);
+  if (!config) return res.status(404).json({ error: 'Bot not found' });
+  const role = getUserRole(username, discordId);
+  if (role !== 'developer' && role !== 'admin' && config.ownerId !== username && config.ownerDiscordId !== discordId)
+    return res.status(403).json({ error: 'Not your bot' });
+  config.paused = true;
+  if (userBotConfigs.has(req.params.botId)) userBotConfigs.get(req.params.botId).paused = true;
+  saveData();
+  res.json({ success: true, paused: true });
+});
+
+// Resume bot
+app.post('/user-bots/:botId/resume', async (req, res) => {
+  const { username, discordId } = req.session?.user || {};
+  const inst   = userBotInstances.get(req.params.botId);
+  const config = inst?.config || userBotConfigs.get(req.params.botId);
+  if (!config) return res.status(404).json({ error: 'Bot not found' });
+  const role = getUserRole(username, discordId);
+  if (role !== 'developer' && role !== 'admin' && config.ownerId !== username && config.ownerDiscordId !== discordId)
+    return res.status(403).json({ error: 'Not your bot' });
+  config.paused = false;
+  if (userBotConfigs.has(req.params.botId)) userBotConfigs.get(req.params.botId).paused = false;
+  // If bot was offline, try to reconnect
+  if (!inst?.client?.isReady()) {
+    try { await spawnUserBot(req.params.botId, config); } catch(e) { return res.status(500).json({ error: `Could not reconnect: ${e.message}` }); }
+  }
+  saveData();
+  res.json({ success: true, paused: false });
+});
+
+// PATCH — edit name, model, personality, temperature
+app.patch('/user-bots/:botId', (req, res) => {
+  const { username, discordId } = req.session?.user || {};
+  const inst   = userBotInstances.get(req.params.botId);
+  const config = inst?.config || userBotConfigs.get(req.params.botId);
+  if (!config) return res.status(404).json({ error: 'Bot not found' });
   const role = getUserRole(username, discordId);
   const isAdmin = (role === 'developer' || role === 'admin');
-  if (!isAdmin && inst.config.ownerId !== username && inst.config.ownerDiscordId !== discordId)
+  if (!isAdmin && config.ownerId !== username && config.ownerDiscordId !== discordId)
     return res.status(403).json({ error: 'Not your bot' });
-  inst.client.destroy();
-  userBotInstances.delete(req.params.botId);
+  const { name, modelId, systemPrompt, temperature } = req.body;
+  if (modelId) {
+    const md = PLATFORM_MODELS[modelId];
+    if (!md) return res.status(400).json({ error: 'Invalid model' });
+    if (md.vipOnly && !config.isVIP) return res.status(403).json({ error: 'VIP required for this model' });
+    config.modelId = modelId;
+  }
+  if (name         !== undefined) config.name         = name;
+  if (systemPrompt !== undefined) config.systemPrompt = systemPrompt;
+  if (temperature  !== undefined) config.temperature  = temperature;
+  // Sync to persisted config and live instance
+  if (userBotConfigs.has(req.params.botId)) Object.assign(userBotConfigs.get(req.params.botId), config);
+  if (inst) inst.config = config;
+  saveData();
+  res.json({ success: true });
+});
+
+// DELETE
+app.delete('/user-bots/:botId', (req, res) => {
+  const { username, discordId } = req.session?.user || {};
+  const inst   = userBotInstances.get(req.params.botId);
+  const config = inst?.config || userBotConfigs.get(req.params.botId);
+  if (!config) return res.status(404).json({ error: 'Bot not found' });
+  const role = getUserRole(username, discordId);
+  const isAdmin = (role === 'developer' || role === 'admin');
+  if (!isAdmin && config.ownerId !== username && config.ownerDiscordId !== discordId)
+    return res.status(403).json({ error: 'Not your bot' });
+  if (inst) { try { inst.client.destroy(); } catch {} userBotInstances.delete(req.params.botId); }
   userBotConfigs.delete(req.params.botId);
   saveData();
   res.json({ success: true });
 });
 
-app.patch('/user-bots/:botId', (req, res) => {
-  const { username, discordId } = req.session?.user || {};
-  const inst = userBotInstances.get(req.params.botId);
-  if (!inst) return res.status(404).json({ error: 'Bot not found' });
-  const role = getUserRole(username, discordId);
-  const isAdmin = (role === 'developer' || role === 'admin');
-  if (!isAdmin && inst.config.ownerId !== username && inst.config.ownerDiscordId !== discordId)
-    return res.status(403).json({ error: 'Not your bot' });
-  const { modelId, systemPrompt, temperature } = req.body;
-  if (modelId) {
-    const md = PLATFORM_MODELS[modelId];
-    if (!md) return res.status(400).json({ error: 'Invalid model' });
-    if (md.vipOnly && !inst.config.isVIP) return res.status(403).json({ error: 'VIP required' });
-    inst.config.modelId = modelId;
-  }
-  if (systemPrompt !== undefined) inst.config.systemPrompt = systemPrompt;
-  if (temperature  !== undefined) inst.config.temperature  = temperature;
-  // Sync back to persisted config
-  if (userBotConfigs.has(req.params.botId)) {
-    Object.assign(userBotConfigs.get(req.params.botId), inst.config);
-  }
-  saveData();
-  res.json({ success: true });
-});
-
-// ── Kiara Admin Controls ──
+// ── Kiara admin controls ──
 app.get('/bot/channels', async (req, res) => {
   try {
     const guild = kiaraBot.guilds.cache.first();
@@ -711,33 +731,28 @@ app.post('/bot/say', async (req, res) => {
 });
 
 // ── Maintenance ──
-app.get('/admin/maintenance', (req, res) => {
-  res.json(maintenanceMode);
-});
+app.get('/admin/maintenance', (req, res) => res.json(maintenanceMode));
 app.post('/admin/maintenance', requireDev, (req, res) => {
   const { enabled, message, version, notes } = req.body;
-  if (enabled !== undefined) maintenanceMode.enabled = !!enabled;
-  if (message  !== undefined) maintenanceMode.message = message;
-  if (version  !== undefined) maintenanceMode.version = version;
-  if (notes    !== undefined) maintenanceMode.notes   = notes;
+  if (enabled  !== undefined) maintenanceMode.enabled  = !!enabled;
+  if (message  !== undefined) maintenanceMode.message  = message;
+  if (version  !== undefined) maintenanceMode.version  = version;
+  if (notes    !== undefined) maintenanceMode.notes    = notes;
   saveData();
   res.json({ success: true, maintenanceMode });
 });
 
 // ─────────────────────────────────────────────────────────────
-//  ⑦ START + RESTORE
+//  ⑩ START + BOT RESTORE
 // ─────────────────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 Kii Akira backend → http://0.0.0.0:${PORT}`);
   console.log(`   Owner: ${OWNER_USERNAME} (developer + VIP always)\n`);
-
-  // Restore all saved user bots on startup
   if (userBotConfigs.size > 0) {
     console.log(`🔄 Restoring ${userBotConfigs.size} user bot(s)...`);
     for (const [botId, cfg] of userBotConfigs.entries()) {
       spawnUserBot(botId, cfg).catch(e => {
-        console.warn(`⚠️  Could not restore bot ${botId} (${cfg.name}): ${e.message}`);
-        // Remove broken bot from saved configs so it doesn't loop on next restart
+        console.warn(`⚠️ Could not restore bot "${cfg.name}": ${e.message}`);
         userBotConfigs.delete(botId);
         saveData();
       });
