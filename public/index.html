@@ -2151,43 +2151,65 @@ function updateStats(){
 // ═══════════════════════════════════════
 //  PERSISTENT STORAGE
 // ═══════════════════════════════════════
-const STORE_KEY = 'kiiakira_session';
-const ACCOUNTS_KEY = 'kiiakira_accounts';
+// ── Per-user session storage — keyed by discordId so accounts never bleed into each other ──
 
-function saveSession(){
-  if(!currentUser)return;
-  try{
-    localStorage.setItem(STORE_KEY,JSON.stringify({
-      username:currentUser.username,
-      role:currentUser.role,
-      isVIP:currentUser.isVIP,
-      email:currentUser.email||'',
-      discordLinked:currentUser.discordLinked||false,
-      savedAt:Date.now()
+function userKey(suffix) {
+  // Each user gets their own localStorage namespace
+  const id = currentUser?.discordId || currentUser?.username || 'anon';
+  return `kiiakira_u_${id}_${suffix}`;
+}
+
+function saveSession() {
+  if (!currentUser) return;
+  try {
+    // Only save minimal identity — real data lives on backend
+    localStorage.setItem(userKey('session'), JSON.stringify({
+      discordId:     currentUser.discordId,
+      username:      currentUser.username,
+      role:          currentUser.role,
+      isVIP:         currentUser.isVIP,
+      email:         currentUser.email || '',
+      avatar:        currentUser.avatar || null,
+      discordLinked: currentUser.discordLinked || false,
+      savedAt:       Date.now(),
     }));
-    // also save all accounts so they persist
-    localStorage.setItem(ACCOUNTS_KEY,JSON.stringify(managedUsers));
-  }catch(e){}
+    // Also remember WHICH user was last logged in (so we can auto-restore)
+    localStorage.setItem('kiiakira_lastUser', currentUser.discordId || currentUser.username);
+  } catch(e) {}
 }
-function loadSavedAccounts(){
-  try{
-    const a=localStorage.getItem(ACCOUNTS_KEY);
-    if(a){const parsed=JSON.parse(a);parsed.forEach(p=>{if(!managedUsers.find(u=>u.id===p.id))managedUsers.push(p);});}
-  }catch(e){}
-}
-function loadSession(){
-  try{
-    const s=localStorage.getItem(STORE_KEY);
-    if(!s)return null;
-    const d=JSON.parse(s);
-    // expire after 7 days
-    if(Date.now()-d.savedAt>7*24*60*60*1000){localStorage.removeItem(STORE_KEY);return null;}
+
+function loadSession() {
+  try {
+    // Try to find the last logged-in user's session
+    const lastId = localStorage.getItem('kiiakira_lastUser');
+    if (!lastId) return null;
+    const key = `kiiakira_u_${lastId}_session`;
+    const s = localStorage.getItem(key);
+    if (!s) return null;
+    const d = JSON.parse(s);
+    // Expire after 7 days
+    if (Date.now() - d.savedAt > 7 * 24 * 60 * 60 * 1000) {
+      localStorage.removeItem(key);
+      return null;
+    }
     return d;
-  }catch(e){return null;}
+  } catch(e) { return null; }
 }
-function clearSession(){
-  try{localStorage.removeItem(STORE_KEY);}catch(e){}
+
+function clearSession() {
+  try {
+    if (currentUser) {
+      localStorage.removeItem(userKey('session'));
+    }
+    localStorage.removeItem('kiiakira_lastUser');
+  } catch(e) {}
 }
+
+function loadSavedAccounts() {
+  // No longer needed — user data comes from backend only
+  // Keep as no-op so existing calls don't crash
+}
+
 
 // auto-save on page close / navigation away
 window.addEventListener('beforeunload',()=>{saveSession();});
@@ -2195,64 +2217,66 @@ window.addEventListener('beforeunload',()=>{saveSession();});
 const BACKEND_URL='https://kii-akira-backen-production-f0d7.up.railway.app';
 
 window.addEventListener('DOMContentLoaded',async()=>{
-  loadSavedAccounts();
+  loadSavedAccounts(); // no-op now, harmless
   checkMaintenanceOnLoad();
 
-  // Check if Discord just redirected back
+  // Clear Discord OAuth param from URL
   const params=new URLSearchParams(window.location.search);
   if(params.get('discord_login')==='success'){
     window.history.replaceState({},'',window.location.pathname);
   }
 
-  // Ask backend if session is active
+  // ── Primary: ask backend if a session cookie exists ──
   try{
     const res=await fetch(`${BACKEND_URL}/auth/me`,{credentials:'include'});
     const data=await res.json();
     if(data.loggedIn){
       const u=data.user;
-      const found=managedUsers.find(x=>x.username===u.username);
-      currentUser=found||{
-        id:u.username,username:u.username,role:'user',isVIP:false,
-        bots:0,banned:false,email:u.email,discordId:u.discordId,
-        avatar:u.avatar,discordLinked:true,
+      currentUser={
+        id:u.username, username:u.username,
+        role:u.role,   isVIP:u.isVIP,
+        email:u.email||'', discordId:u.discordId,
+        avatar:u.avatar||null, discordLinked:true,
+        bots:0, banned:false,
       };
-      if(!found)managedUsers.push(currentUser);
-      // ALWAYS use backend values — never trust stale localStorage
-      currentUser.role      = u.role;
-      currentUser.isVIP     = u.isVIP;
-      currentUser.email     = u.email;
-      currentUser.discordId = u.discordId;
-      currentUser.avatar    = u.avatar;
-      currentUser.discordLinked = true;
-      // Force admin panel for owner by Discord ID (belt + suspenders)
+      // Owner always developer
       if(currentUser.discordId==='1093442344310820895'||currentUser.username==='kiiakira'){
-        currentUser.role='developer';
+        currentUser.role='developer'; currentUser.isVIP=true;
       }
-      if(currentUser.isVIP) applyVIPTheme();
+      if(currentUser.role==='admin') currentUser.isVIP=true;
       document.getElementById('loginView').classList.remove('active');
       document.getElementById('mainView').classList.add('active');
       initApp();
+      saveSession(); // update this user's own localStorage slot
       toast(`Welcome back, ${currentUser.username}!`);
       return;
     }
-  }catch(e){console.warn('Backend unreachable — using offline mode');}
+  }catch(e){ console.warn('Backend unreachable — trying localStorage fallback'); }
 
-  // Fallback: localStorage session
+  // ── Fallback: per-user localStorage (offline only) ──
   const sess=loadSession();
   if(sess){
-    const found=managedUsers.find(u=>u.username===sess.username)||{
-      id:sess.username,username:sess.username,role:sess.role||'user',
-      isVIP:sess.isVIP||false,email:sess.email||'',discordLinked:sess.discordLinked||false,bots:0,banned:false
+    currentUser={
+      id:sess.username, username:sess.username,
+      role:sess.role||'user', isVIP:sess.isVIP||false,
+      email:sess.email||'', discordId:sess.discordId||null,
+      avatar:sess.avatar||null, discordLinked:sess.discordLinked||false,
+      bots:0, banned:false,
     };
-    if(found.banned){clearSession();return;}
-    currentUser=found;
-    currentUser.discordLinked=sess.discordLinked||true;
-    currentUser.email=sess.email||'';
+    // Owner override even in offline mode
+    if(currentUser.discordId==='1093442344310820895'||currentUser.username==='kiiakira'){
+      currentUser.role='developer'; currentUser.isVIP=true;
+    }
+    if(currentUser.role==='admin') currentUser.isVIP=true;
     document.getElementById('loginView').classList.remove('active');
     document.getElementById('mainView').classList.add('active');
     initApp();
-    toast(`Welcome back, ${currentUser.username}!`);
+    toast(`Welcome back, ${currentUser.username}! (offline mode)`);
+    return;
   }
+
+  // ── No session — show login ──
+  document.getElementById('loginView').classList.add('active');
 });
 
 // ═══════════════════════════════════════
@@ -2489,8 +2513,12 @@ function initApp(){
   // Owner override — always force developer regardless of what backend said
   if(currentUser.discordId==='1093442344310820895' || currentUser.username==='kiiakira'){
     currentUser.role='developer';
+    currentUser.isVIP=true;
   }
-  console.log('[initApp] user:', currentUser.username, '| role:', currentUser.role, '| discordId:', currentUser.discordId);
+  // Admin also always gets VIP perks
+  if(currentUser.role==='admin') currentUser.isVIP=true;
+
+  console.log('[initApp] user:', currentUser.username, '| role:', currentUser.role, '| isVIP:', currentUser.isVIP, '| discordId:', currentUser.discordId);
 
   // Show admin nav
   const adminBtn = document.getElementById('nav-admin');
@@ -2500,9 +2528,11 @@ function initApp(){
       console.log('[initApp] Admin panel SHOWN');
     } else {
       adminBtn.style.cssText='display:none!important;';
-      console.log('[initApp] Admin panel hidden — role is:', currentUser.role);
     }
   }
+
+  // Apply VIP theme immediately if entitled
+  if(currentUser.isVIP) applyVIPTheme();
 
   updateUserUI();
   renderCreateModels();
@@ -3566,20 +3596,17 @@ async function logout(){
 // ═══════════════════════════════════════
 //  SHUT DOWN WEB SYSTEM
 // ═══════════════════════════════════════
-const MAINT_KEY = 'kiiakira_maintenance';
+const MAINT_KEY = 'kiiakira_maintenance'; // kept for reference, no longer used for storage
 let updateNotes = [];
 let countdownTimer = null;
 
-// Load maintenance state from localStorage on startup
-function checkMaintenanceOnLoad(){
+// Load maintenance state from BACKEND on startup
+async function checkMaintenanceOnLoad(){
   try{
-    const raw = localStorage.getItem(MAINT_KEY);
-    if(!raw) return;
-    const m = JSON.parse(raw);
-    if(m.active){
-      // Show maintenance screen to everyone
+    const res = await fetch(`${BACKEND_URL}/admin/maintenance`);
+    const m = await res.json();
+    if(m.enabled){
       showMaintenanceScreen(m);
-      // If admin/dev is already logged in, show bypass button
       if(currentUser && (currentUser.role==='developer'||currentUser.role==='admin'||currentUser.username==='kiiakira')){
         document.getElementById('maintAdminBypass').style.display = 'block';
       }
@@ -3592,16 +3619,12 @@ function showMaintenanceScreen(m){
   scr.style.display = 'flex';
   document.getElementById('maintMsgDisplay').textContent = m.message || 'Under maintenance. Back soon.';
   document.getElementById('maintVersionDisplay').textContent = m.version || 'v1.0.0';
-
-  // ETA
   if(m.eta){
     document.getElementById('maintEtaBox').style.display = 'block';
     const etaDate = new Date(m.eta);
     document.getElementById('maintEtaDisplay').textContent = etaDate.toLocaleString();
     startCountdown(etaDate);
   }
-
-  // Update notes
   if(m.notes && m.notes.length){
     document.getElementById('maintUpdateBox').style.display = 'block';
     document.getElementById('maintUpdateDisplay').innerHTML = m.notes.map(n=>`<div style="display:flex;align-items:flex-start;gap:8px;padding:3px 0;"><span style="color:#5865f2;flex-shrink:0;margin-top:1px;">→</span><span>${n}</span></div>`).join('');
@@ -3624,34 +3647,35 @@ function startCountdown(etaDate){
   countdownTimer = setInterval(update, 1000);
 }
 
-function initShutdownPanel(){
-  updateShutdownStatusUI();
-  renderUpdateNotes();
+async function initShutdownPanel(){
+  try{
+    const res = await fetch(`${BACKEND_URL}/admin/maintenance`,{credentials:'include'});
+    const m = await res.json();
+    updateNotes = m.notes || [];
+    if(document.getElementById('maintMsgInput')) document.getElementById('maintMsgInput').value = m.message || '';
+    if(document.getElementById('maintVersionInput')) document.getElementById('maintVersionInput').value = m.version || 'v1.0.0';
+    updateShutdownStatusUI(m.enabled);
+    renderUpdateNotes();
+  } catch(e){ updateShutdownStatusUI(false); renderUpdateNotes(); }
 }
 
-function updateShutdownStatusUI(){
-  try{
-    const raw = localStorage.getItem(MAINT_KEY);
-    const m = raw ? JSON.parse(raw) : {active: false};
-    const isDown = m.active;
-    const badge = document.getElementById('siteStatusBadge');
-    const ring = document.getElementById('shutdownIconRing');
-    const icon = document.getElementById('shutdownIconSvg');
-    const label = document.getElementById('shutdownStatusLabel');
-    const sub = document.getElementById('shutdownStatusSub');
-    const toggle = document.getElementById('siteOnlineToggle');
-    const shutBtn = document.getElementById('shutdownBtn');
-    const pubBtn = document.getElementById('publishUpdateBtn');
-
-    if(badge){badge.className='badge '+(isDown?'badge-err':'badge-ok');badge.textContent=isDown?'● OFFLINE':'● ONLINE';}
-    if(ring){ring.style.borderColor=isDown?'var(--red)':'var(--green)';}
-    if(icon){icon.setAttribute('stroke',isDown?'#ed4245':'#3ba55d');}
-    if(label){label.style.color=isDown?'var(--red)':'var(--green)';label.textContent=isDown?'Site is Offline':'Site is Online';}
-    if(sub){sub.textContent=isDown?'Users are seeing the maintenance screen.':'All users can access the dashboard normally.';}
-    if(toggle){toggle.classList.toggle('on',!isDown);}
-    if(shutBtn){shutBtn.style.display=isDown?'none':'flex';}
-    if(pubBtn){pubBtn.style.display=isDown?'flex':'none';}
-  } catch(e){}
+function updateShutdownStatusUI(isDown){
+  const badge = document.getElementById('siteStatusBadge');
+  const ring  = document.getElementById('shutdownIconRing');
+  const icon  = document.getElementById('shutdownIconSvg');
+  const label = document.getElementById('shutdownStatusLabel');
+  const sub   = document.getElementById('shutdownStatusSub');
+  const toggle= document.getElementById('siteOnlineToggle');
+  const shutBtn= document.getElementById('shutdownBtn');
+  const pubBtn = document.getElementById('publishUpdateBtn');
+  if(badge){badge.className='badge '+(isDown?'badge-err':'badge-ok');badge.textContent=isDown?'● OFFLINE':'● ONLINE';}
+  if(ring) ring.style.borderColor=isDown?'var(--red)':'var(--green)';
+  if(icon) icon.setAttribute('stroke',isDown?'#ed4245':'#3ba55d');
+  if(label){label.style.color=isDown?'var(--red)':'var(--green)';label.textContent=isDown?'Site is Offline':'Site is Online';}
+  if(sub)  sub.textContent=isDown?'Users are seeing the maintenance screen.':'All users can access the dashboard normally.';
+  if(toggle) toggle.classList.toggle('on',!isDown);
+  if(shutBtn) shutBtn.style.display=isDown?'none':'flex';
+  if(pubBtn)  pubBtn.style.display=isDown?'flex':'none';
 }
 
 function renderUpdateNotes(){
@@ -3701,70 +3725,51 @@ function checkShutdownConfirm(){
   btn.style.cursor = ok ? 'pointer' : 'not-allowed';
 }
 
-function confirmToggleMaintenance(){
+async function confirmToggleMaintenance(){
   try{
-    const raw = localStorage.getItem(MAINT_KEY);
-    const m = raw ? JSON.parse(raw) : {active:false};
-    if(!m.active){ confirmShutdown(); }
+    const res = await fetch(`${BACKEND_URL}/admin/maintenance`,{credentials:'include'});
+    const m = await res.json();
+    if(!m.enabled){ confirmShutdown(); }
     else { publishUpdate(); }
   } catch(e){ confirmShutdown(); }
 }
 
-function executeShutdown(){
-  const message = document.getElementById('maintMsgInput')?.value.trim() || 'Kii Akira is currently offline for maintenance. We\'ll be back shortly.';
-  const eta = document.getElementById('maintEtaInput')?.value || '';
+async function executeShutdown(){
+  const message = document.getElementById('maintMsgInput')?.value.trim() || 'Kii Akira is currently offline for maintenance.';
+  const eta     = document.getElementById('maintEtaInput')?.value || '';
   const version = document.getElementById('maintVersionInput')?.value.trim() || 'v1.0.0';
-
-  const maintData = {
-    active: true,
-    message,
-    eta,
-    version,
-    notes: [...updateNotes],
-    shutdownAt: new Date().toLocaleString(),
-    shutdownBy: currentUser?.username || 'admin'
-  };
-
-  try{ localStorage.setItem(MAINT_KEY, JSON.stringify(maintData)); } catch(e){}
-
+  try{
+    await fetch(`${BACKEND_URL}/admin/maintenance`,{
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ enabled: true, message, version, notes: [...updateNotes], eta }),
+    });
+  } catch(e){ toast('Failed to save maintenance state','err'); return; }
   closeShutdownConfirm();
   addShutdownLogEntry('🔴 Shutdown', message, version);
-  addLog(currentUser?.username||'admin', 'website', `Site shut down — ${version}`);
-  updateShutdownStatusUI();
+  updateShutdownStatusUI(true);
   toast('Website is now offline. Users see maintenance screen.', 'warn');
-
-  // Show the maintenance screen overlay (they can bypass as admin)
-  showMaintenanceScreen(maintData);
+  showMaintenanceScreen({ enabled:true, message, version, notes:[...updateNotes], eta });
   document.getElementById('maintAdminBypass').style.display = 'block';
 }
 
-function publishUpdate(){
-  const message = document.getElementById('maintMsgInput')?.value.trim() || '';
+async function publishUpdate(){
   const version = document.getElementById('maintVersionInput')?.value.trim() || 'v1.0.0';
-
-  // Bring site back online
   try{
-    const raw = localStorage.getItem(MAINT_KEY);
-    const m = raw ? JSON.parse(raw) : {};
-    m.active = false;
-    m.bringOnlineAt = new Date().toLocaleString();
-    m.bringOnlineBy = currentUser?.username || 'admin';
-    localStorage.setItem(MAINT_KEY, JSON.stringify(m));
-  } catch(e){}
-
-  // Hide maintenance screen
+    await fetch(`${BACKEND_URL}/admin/maintenance`,{
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ enabled: false, version }),
+    });
+  } catch(e){ toast('Failed to bring site online','err'); return; }
   const scr = document.getElementById('maintenanceScreen');
   if(scr) scr.style.display = 'none';
   clearInterval(countdownTimer);
-
   addShutdownLogEntry('🟢 Back Online', `Update pushed — ${version}`, version);
-  addLog(currentUser?.username||'admin', 'website', `Site back online — update ${version} pushed`);
-  updateShutdownStatusUI();
-
-  // Clear notes after push
+  updateShutdownStatusUI(false);
   updateNotes = [];
   renderUpdateNotes();
-  if(document.getElementById('maintMsgInput')) document.getElementById('maintMsgInput').value = 'Kii Akira is currently offline for maintenance and improvements. We\'ll be back shortly.';
+  if(document.getElementById('maintMsgInput')) document.getElementById('maintMsgInput').value = '';
   if(document.getElementById('maintEtaInput')) document.getElementById('maintEtaInput').value = '';
 
   toast(`✓ Update ${version} pushed — site is back online!`);
@@ -4139,23 +4144,33 @@ function renderVIPList(){
 //  VIP SYSTEM
 // ═══════════════════════════════════════
 async function initVIPPage(){
+  // Developer and admin always have VIP — no need to ask backend
+  if(currentUser.role==='developer'||currentUser.role==='admin'||currentUser.username==='kiiakira'||currentUser.discordId==='1093442344310820895'){
+    currentUser.isVIP=true;
+    const activeView=document.getElementById('vipActiveView');
+    const upgradeView=document.getElementById('vipUpgradeView');
+    if(activeView) activeView.style.display='block';
+    if(upgradeView) upgradeView.style.display='none';
+    const lbl=document.getElementById('vipExpireLabel');
+    if(lbl) lbl.textContent=`VIP active · Complimentary (${currentUser.role})`;
+    applyVIPTheme();
+    return;
+  }
   try{
     const res=await fetch(`${BACKEND_URL}/vip/status`,{credentials:'include'});
     const data=await res.json();
     const activeView=document.getElementById('vipActiveView');
     const upgradeView=document.getElementById('vipUpgradeView');
     if(data.isVIP){
-      activeView.style.display='block';
-      upgradeView.style.display='none';
+      if(activeView) activeView.style.display='block';
+      if(upgradeView) upgradeView.style.display='none';
       const lbl=document.getElementById('vipExpireLabel');
-      if(lbl)lbl.textContent=`VIP active · ${data.daysLeft} days remaining`;
-      // Apply VIP theme
+      if(lbl) lbl.textContent=`VIP active · ${data.daysLeft} days remaining`;
       applyVIPTheme();
-      // Update user object
       currentUser.isVIP=true;
     }else{
-      activeView.style.display='none';
-      upgradeView.style.display='block';
+      if(activeView) activeView.style.display='none';
+      if(upgradeView) upgradeView.style.display='block';
       currentUser.isVIP=false;
     }
   }catch(e){
