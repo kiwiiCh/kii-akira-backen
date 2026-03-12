@@ -767,7 +767,7 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
 
     <div class="nav-section" style="margin-top:4px;">
       <div class="nav-divider"></div>
-      <button class="nav-item hidden" id="nav-admin" onclick="switchPage('admin',this)">
+      <button class="nav-item" id="nav-admin" style="display:none;" onclick="switchPage('admin',this)">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         <span>Admin Panel</span>
         <span class="nav-badge" style="background:rgba(237,66,69,.1);color:#f07070;border-color:rgba(237,66,69,.2);">Dev</span>
@@ -2395,7 +2395,7 @@ function initApp(){
   startSimulation();
   if(currentUser.role==='developer'||currentUser.role==='admin'||currentUser.username==='kiiakira'||currentUser.discordId==='1093442344310820895'){
     currentUser.role='developer';
-    document.getElementById('nav-admin').classList.remove('hidden');
+    document.getElementById('nav-admin').style.display='flex';
   }
   addLog(currentUser.username,'website','Logged into platform');
   saveSession(); // persist immediately after login
@@ -3415,7 +3415,7 @@ async function logout(){
   document.getElementById('mainView').classList.remove('active');
   document.getElementById('loginView').classList.add('active');
   document.getElementById('keyInput').value='';
-  document.getElementById('nav-admin').classList.add('hidden');
+  document.getElementById('nav-admin').style.display='none';
   authStep=1;authEmailValue='';authCodeGenerated='';
   toast('Signed out');
 }
