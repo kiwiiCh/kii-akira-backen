@@ -21,10 +21,12 @@ const {
 // ─────────────────────────────────────────────────────────────
 //  ① MIDDLEWARE
 // ─────────────────────────────────────────────────────────────
+const FileStore  = require('session-file-store')(session);
 app.use(cors({ origin: true, credentials: true }));
 app.set('trust proxy', 1);
 app.use(express.json());
 app.use(session({
+  store: new FileStore({ path: path.join(__dirname, 'sessions'), retries: 1, ttl: 7 * 24 * 60 * 60 }),
   secret: SESSION_SECRET || 'kiiakira_super_secret_2025',
   resave: false,
   saveUninitialized: false,
