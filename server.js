@@ -198,17 +198,42 @@ function extractFacts(userId, userMsg) {
   }
 }
 
-function buildMessages(systemPrompt, userId, userMsg, ctx = {}) {
-  const mem   = getMemory(userId);
-  const facts = mem.facts.length
-    ? `\n\n[MEMORY]\n${mem.facts.map(f => `- ${f}`).join('\n')}\n[/MEMORY]`
-    : '';
-  const loc = ctx.guildName
-    ? `\n\n[CONTEXT]\nServer: "${ctx.guildName}", channel: #${ctx.channelName || 'unknown'}.\n[/CONTEXT]`
-    : ctx.isDM ? `\n\n[CONTEXT]\nPrivate DM.\n[/CONTEXT]` : '';
+function buildMessages(systemPrompt, userId, userMsg, ctx = {}, personalityMode = 'custom') {
+  const mem  = getMemory(userId);
+
+  // Store up to lim.history messages in memory, but only send last 40 to the API.
+  // Sending 1000 messages would exceed every model's context window.
+  const API_CONTEXT_LIMIT = 40;
+  const history = mem.history.slice(-API_CONTEXT_LIMIT);
+
+  const locText = ctx.guildName
+    ? `\nServer: "${ctx.guildName}" | Channel: #${ctx.channelName || 'unknown'}`
+    : ctx.isDM ? '\nThis is a private DM.' : '';
+
+  let fullSystem;
+
+  if (personalityMode === 'sentient') {
+    const observed = mem.facts.length
+      ? `\n\n[THINGS YOU HAVE OBSERVED SO FAR]\n${mem.facts.map(f => `- ${f}`).join('\n')}`
+      : '';
+    fullSystem = systemPrompt + observed;
+
+  } else if (personalityMode === 'human') {
+    const remembered = mem.facts.length
+      ? `\n\n[WHAT YOU REMEMBER ABOUT THIS PERSON]\n${mem.facts.map(f => `- ${f}`).join('\n')}`
+      : '';
+    fullSystem = systemPrompt + remembered + (locText ? `\n\n[WHERE YOU ARE]${locText}` : '');
+
+  } else {
+    const facts = mem.facts.length
+      ? `\n\n[USER CONTEXT]\n${mem.facts.map(f => `- ${f}`).join('\n')}`
+      : '';
+    fullSystem = systemPrompt + facts + (locText ? `\n\n[LOCATION]${locText}` : '');
+  }
+
   return [
-    { role: 'system', content: systemPrompt + facts + loc },
-    ...mem.history.slice(-20),
+    { role: 'system', content: fullSystem },
+    ...history,
     { role: 'user', content: userMsg },
   ];
 }
@@ -278,7 +303,7 @@ kiaraBot.on(DJSEvents.MessageCreate, async message => {
     if (!groqKey) return message.reply('⚠️ GROQ_API_KEY not set — admin needs to configure this.');
     const userId = message.author.id;
     const ctx    = isDM ? { isDM: true } : { guildName: message.guild.name, channelName: message.channel.name };
-    const msgs   = buildMessages(global.kiaraConfig.personality, userId, userMsg, ctx);
+    const msgs   = buildMessages(global.kiaraConfig.personality, userId, userMsg, ctx, 'professional');
 
     let reply = null;
     try {
@@ -347,7 +372,7 @@ async function spawnUserBot(botId, cfg) {
       if (!key) return message.reply(`⚠️ ${md.provider.toUpperCase()} API key not set on server.`);
       const uid   = message.author.id;
       const ctx   = isDM ? { isDM: true } : { guildName: message.guild.name, channelName: message.channel.name };
-      const msgs  = buildMessages(live.systemPrompt, uid, userMsg, ctx);
+      const msgs  = buildMessages(live.systemPrompt, uid, userMsg, ctx, live.personalityMode || 'custom');
       const reply = await callAI(md.provider, key, msgs, live.temperature, md.model);
       addToHistory(uid, 'user', userMsg);
       addToHistory(uid, 'assistant', reply);
@@ -580,6 +605,7 @@ app.post('/user-bots/create', async (req, res) => {
       ownerDiscordId: discordId || null,
       systemPrompt:   systemPrompt || `You are ${name}, a helpful AI assistant. Be friendly and genuine.`,
       temperature:    temperature  || 0.8,
+      personalityMode: req.body.personalityMode || 'custom',
       paused:         false,
       createdAt:      new Date().toISOString(),
     };
@@ -670,16 +696,17 @@ app.patch('/user-bots/:botId', (req, res) => {
   const isAdmin = (role === 'developer' || role === 'admin');
   if (!isAdmin && config.ownerId !== username && config.ownerDiscordId !== discordId)
     return res.status(403).json({ error: 'Not your bot' });
-  const { name, modelId, systemPrompt, temperature } = req.body;
+  const { name, modelId, systemPrompt, temperature, personalityMode } = req.body;
   if (modelId) {
     const md = PLATFORM_MODELS[modelId];
     if (!md) return res.status(400).json({ error: 'Invalid model' });
     if (md.vipOnly && !config.isVIP) return res.status(403).json({ error: 'VIP required for this model' });
     config.modelId = modelId;
   }
-  if (name         !== undefined) config.name         = name;
-  if (systemPrompt !== undefined) config.systemPrompt = systemPrompt;
-  if (temperature  !== undefined) config.temperature  = temperature;
+  if (name             !== undefined) config.name            = name;
+  if (systemPrompt     !== undefined) config.systemPrompt    = systemPrompt;
+  if (temperature      !== undefined) config.temperature     = temperature;
+  if (personalityMode  !== undefined) config.personalityMode = personalityMode;
   // Sync to persisted config and live instance
   if (userBotConfigs.has(req.params.botId)) Object.assign(userBotConfigs.get(req.params.botId), config);
   if (inst) inst.config = config;
