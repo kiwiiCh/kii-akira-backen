@@ -239,8 +239,43 @@ function buildMessages(systemPrompt, userId, userMsg, ctx = {}, personalityMode 
 }
 
 // ─────────────────────────────────────────────────────────────
-//  ⑥ AI CALL — no content restrictions, full response
+//  IMAGE GENERATION — Pollinations.ai (free, no API key)
 // ─────────────────────────────────────────────────────────────
+
+const IMAGE_TRIGGERS = [
+  /^(draw|paint|sketch|generate|create|make|show|give me|send|produce)\s+(me\s+)?(a\s+|an\s+|the\s+)?(image|picture|photo|pic|illustration|drawing|artwork|art|painting|portrait|wallpaper|thumbnail|meme)\s+(of\s+)?/i,
+  /\b(image|picture|photo|pic|draw|paint|sketch)\s+(of|me|showing|depicting)\b/i,
+  /^imagine\s+/i,
+  /^visualize\s+/i,
+  /can you (draw|paint|generate|create|make|show)\b/i,
+  /show me (a |an |the )?(image|picture|photo|pic|drawing|painting)\b/i,
+];
+
+function detectImageRequest(msg) {
+  const clean = msg.trim();
+  for (const pattern of IMAGE_TRIGGERS) {
+    if (pattern.test(clean)) {
+      // Extract the actual image subject — strip the trigger phrase
+      const subject = clean
+        .replace(/^(draw|paint|sketch|generate|create|make|show me|give me|send|produce|imagine|visualize|can you draw|can you paint|can you generate|can you create|can you make|can you show|show me)\s*/i, '')
+        .replace(/^(me\s+)?(a\s+|an\s+|the\s+)?(image|picture|photo|pic|illustration|drawing|artwork|art|painting|portrait|wallpaper|thumbnail|meme)\s+(of\s+)?/i, '')
+        .trim();
+      return subject || clean;
+    }
+  }
+  return null;
+}
+
+async function generateImage(prompt) {
+  // Pollinations.ai — completely free, no API key, returns image URL directly
+  const encoded = encodeURIComponent(prompt);
+  const url = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&nologo=true&enhance=true&model=flux`;
+  // Validate the URL loads (Pollinations generates on-demand)
+  await axios.head(url, { timeout: 20000 });
+  return url;
+}
+
+
 
 const PLATFORM_MODELS = {
   'akira':    { label: 'Akira AI',       provider: 'groq',     model: 'llama-3.1-8b-instant',    vipOnly: true  },
@@ -298,10 +333,28 @@ kiaraBot.on(DJSEvents.MessageCreate, async message => {
   try {
     await message.channel.sendTyping();
     const userMsg = message.content.replace(`<@${kiaraBot.user.id}>`, '').trim();
+    const userId = message.author.id;
     if (!userMsg) return message.reply('Hey! How can I help? 👋');
+
+    // ── Image generation check ──
+    const imageSubject = detectImageRequest(userMsg);
+    if (imageSubject) {
+      try {
+        await message.channel.sendTyping();
+        const imgUrl = await generateImage(imageSubject);
+        addToHistory(userId, 'user', userMsg);
+        addToHistory(userId, 'assistant', `[Generated image: ${imageSubject}]`);
+        logActivity(message.author.username, userId, 'ai', `Kiara generated image: "${imageSubject}"`);
+        saveData();
+        return await message.reply({ content: `Here's "${imageSubject}" 🎨`, files: [{ attachment: imgUrl, name: 'generated.png' }] });
+      } catch(imgErr) {
+        console.error('Image generation error:', imgErr.message);
+        // Fall through to text response if image fails
+      }
+    }
+
     const groqKey = process.env.GROQ_API_KEY;
     if (!groqKey) return message.reply('⚠️ GROQ_API_KEY not set — admin needs to configure this.');
-    const userId = message.author.id;
     const ctx    = isDM ? { isDM: true } : { guildName: message.guild.name, channelName: message.channel.name };
     const msgs   = buildMessages(global.kiaraConfig.personality, userId, userMsg, ctx, 'professional');
 
@@ -365,12 +418,30 @@ async function spawnUserBot(botId, cfg) {
     try {
       await message.channel.sendTyping();
       const userMsg = message.content.replace(`<@${botClient.user.id}>`, '').trim();
+      const uid   = message.author.id;
       if (!userMsg) return message.reply(`Hey! I'm ${live.name}. How can I help? 👋`);
+
+      // ── Image generation check ──
+      const imageSubject = detectImageRequest(userMsg);
+      if (imageSubject) {
+        try {
+          await message.channel.sendTyping();
+          const imgUrl = await generateImage(imageSubject);
+          addToHistory(uid, 'user', userMsg);
+          addToHistory(uid, 'assistant', `[Generated image: ${imageSubject}]`);
+          logActivity(message.author.username, uid, 'ai', `Bot "${live.name}" generated image: "${imageSubject}"`);
+          saveData();
+          return await message.reply({ content: `Here's "${imageSubject}" 🎨`, files: [{ attachment: imgUrl, name: 'generated.png' }] });
+        } catch(imgErr) {
+          console.error(`Bot "${live.name}" image error:`, imgErr.message);
+          // Fall through to text response if image fails
+        }
+      }
+
       const md = PLATFORM_MODELS[live.modelId];
       if (!md) return message.reply('⚠️ Bot model not configured.');
       const key = getPlatformKey(md.provider);
       if (!key) return message.reply(`⚠️ ${md.provider.toUpperCase()} API key not set on server.`);
-      const uid   = message.author.id;
       const ctx   = isDM ? { isDM: true } : { guildName: message.guild.name, channelName: message.channel.name };
       const msgs  = buildMessages(live.systemPrompt, uid, userMsg, ctx, live.personalityMode || 'custom');
       const reply = await callAI(md.provider, key, msgs, live.temperature, md.model);
