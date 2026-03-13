@@ -321,6 +321,7 @@ const kiaraBot = new DJSClientKiara({
 kiaraBot.once(DJSEvents.ClientReady, c => {
   console.log(`🤖 Kiara online as ${c.user.tag}`);
   c.user.setPresence({ status: 'online', activities: [{ name: 'Kii Akira Dashboard', type: 0 }] });
+  registerSlashCommands(c, DISCORD_BOT_TOKEN);
 });
 
 kiaraBot.on(DJSEvents.MessageCreate, async message => {
@@ -407,6 +408,62 @@ async function spawnUserBot(botId, cfg) {
   botClient.once(Events.ClientReady, c => {
     c.user.setPresence({ status: 'online', activities: [{ name: cfg.name, type: 0 }] });
     console.log(`🤖 User bot "${cfg.name}" online as ${c.user.tag}`);
+    registerSlashCommands(c, cfg.token);
+  });
+
+  // Slash command handler for user bots
+  botClient.on(Events.InteractionCreate, async interaction => {
+    if (!interaction.isChatInputCommand()) return;
+    const live = userBotInstances.get(botId)?.config;
+    if (!live || live.paused) return;
+    const uid = interaction.user.id;
+    const username = interaction.user.username;
+    const md = PLATFORM_MODELS[live.modelId];
+    const key = md ? getPlatformKey(md.provider) : null;
+
+    if (interaction.commandName === 'chat') {
+      const userMsg = interaction.options.getString('message');
+      await interaction.deferReply();
+      try {
+        if (!md || !key) return interaction.editReply('⚠️ Bot model not configured.');
+        const ctx = interaction.guild
+          ? { guildName: interaction.guild.name, channelName: interaction.channel?.name }
+          : { isDM: true };
+        const msgs = buildMessages(live.systemPrompt, uid, userMsg, ctx, live.personalityMode || 'custom');
+        const reply = await callAI(md.provider, key, msgs, live.temperature, md.model);
+        addToHistory(uid, 'user', userMsg);
+        addToHistory(uid, 'assistant', reply);
+        extractFacts(uid, userMsg);
+        logActivity(username, uid, 'ai', `Used ${live.modelId} via bot "${live.name}" /chat`);
+        saveData();
+        await interaction.editReply(reply.slice(0, 2000));
+      } catch(e) { await interaction.editReply(`⚠️ ${(e?.response?.data?.error?.message || e.message).slice(0, 200)}`); }
+
+    } else if (interaction.commandName === 'imagine') {
+      const prompt = interaction.options.getString('prompt');
+      await interaction.deferReply();
+      try {
+        const imgUrl = await generateImage(prompt);
+        addToHistory(uid, 'user', `/imagine ${prompt}`);
+        addToHistory(uid, 'assistant', `[Generated image: ${prompt}]`);
+        saveData();
+        await interaction.editReply({ content: `Here's "${prompt}" 🎨`, files: [{ attachment: imgUrl, name: 'generated.png' }] });
+      } catch(e) { await interaction.editReply(`⚠️ Could not generate image: ${e.message.slice(0, 100)}`); }
+
+    } else if (interaction.commandName === 'memory') {
+      const mem = userMemory.get(uid);
+      if (!mem || (!mem.facts.length && !mem.history.length)) {
+        return interaction.reply({ content: "I don't remember anything about you yet.", ephemeral: true });
+      }
+      const factsText = mem.facts.length ? `**Facts I know about you:**\n${mem.facts.map(f => `• ${f}`).join('\n')}` : '';
+      const histText = `**Conversation history:** ${mem.history.length} messages stored`;
+      await interaction.reply({ content: [factsText, histText].filter(Boolean).join('\n\n'), ephemeral: true });
+
+    } else if (interaction.commandName === 'forget') {
+      userMemory.delete(uid);
+      saveData();
+      await interaction.reply({ content: '✅ Done — I\'ve cleared everything I remembered about you.', ephemeral: true });
+    }
   });
   botClient.on(Events.MessageCreate, async message => {
     if (message.author.bot) return;
@@ -683,7 +740,7 @@ app.post('/user-bots/create', async (req, res) => {
     await spawnUserBot(botId, cfg);
     userBotConfigs.set(botId, cfg);
     saveData();
-    res.json({ success: true, botId, botTag, inviteUrl: `https://discord.com/api/oauth2/authorize?client_id=${botId}&permissions=277025459200&scope=bot`, model: modelDef.model, provider: modelDef.provider });
+    res.json({ success: true, botId, botTag, inviteUrl: `https://discord.com/api/oauth2/authorize?client_id=${botId}&permissions=277025459200&scope=bot%20applications.commands`, model: modelDef.model, provider: modelDef.provider });
   } catch (e) {
     res.status(400).json({ error: `Bot token error: ${e.message}` });
   }
@@ -714,7 +771,7 @@ app.get('/user-bots', (req, res) => {
       ownerId:      config.ownerId,
       systemPrompt: config.systemPrompt || '',
       temperature:  config.temperature  || 0.8,
-      inviteUrl:    `https://discord.com/api/oauth2/authorize?client_id=${botId}&permissions=277025459200&scope=bot`,
+      inviteUrl:    `https://discord.com/api/oauth2/authorize?client_id=${botId}&permissions=277025459200&scope=bot%20applications.commands`,
       userCount:    botUsers.size,
       memKB:        parseFloat(totalMemKB.toFixed(2)),
       guilds,
@@ -802,32 +859,58 @@ app.delete('/user-bots/:botId', (req, res) => {
 });
 
 // ── Kiara admin controls ──
-app.get('/bot/channels', async (req, res) => {
+// ── Kiara admin controls (requireAdmin on all write routes) ──
+app.get('/bot/channels', requireAdmin, async (req, res) => {
   try {
-    const guild = kiaraBot.guilds.cache.first();
-    if (!guild) return res.json({ channels: [] });
-    res.json({ channels: guild.channels.cache.filter(c => c.type === 0).map(c => ({ id: c.id, name: c.name })).sort((a,b) => a.name.localeCompare(b.name)) });
-  } catch { res.json({ channels: [] }); }
+    if (!kiaraBot.isReady()) return res.json({ channels: [], guilds: [] });
+    // Return channels from ALL guilds Kiara is in, grouped by guild
+    const guilds = kiaraBot.guilds.cache.map(g => ({
+      id: g.id, name: g.name,
+      channels: g.channels.cache
+        .filter(c => c.type === 0) // ChannelType.GuildText = 0
+        .map(c => ({ id: c.id, name: c.name, guildId: g.id, guildName: g.name }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    }));
+    // Flat list for backward compat + grouped for display
+    const channels = guilds.flatMap(g => g.channels);
+    res.json({ channels, guilds });
+  } catch(e) { res.json({ channels: [], guilds: [] }); }
 });
-app.get('/bot/status', (req, res) => {
-  res.json({ online: kiaraBot?.isReady()||false, tag: kiaraBot?.user?.tag||null, activeChannels: [...(global.kiaraConfig?.activeChannels||[])], personality: global.kiaraConfig?.personality });
+
+app.get('/bot/status', requireAdmin, (req, res) => {
+  const guilds = kiaraBot.isReady()
+    ? kiaraBot.guilds.cache.map(g => ({ id: g.id, name: g.name, memberCount: g.memberCount }))
+    : [];
+  res.json({
+    online: kiaraBot?.isReady() || false,
+    tag: kiaraBot?.user?.tag || null,
+    activeChannels: [...(global.kiaraConfig?.activeChannels || [])],
+    personality: global.kiaraConfig?.personality,
+    guilds,
+  });
 });
-app.post('/bot/channels', (req, res) => {
+
+app.post('/bot/channels', requireAdmin, (req, res) => {
   const { channelIds } = req.body;
   if (!Array.isArray(channelIds)) return res.status(400).json({ error: 'channelIds must be array' });
   global.kiaraConfig.activeChannels = new Set(channelIds);
   res.json({ success: true, activeChannels: channelIds });
 });
-app.post('/bot/personality', (req, res) => {
+
+app.post('/bot/personality', requireAdmin, (req, res) => {
   if (!req.body.personality) return res.status(400).json({ error: 'personality required' });
   global.kiaraConfig.personality = req.body.personality;
   res.json({ success: true });
 });
-app.post('/bot/say', async (req, res) => {
+
+app.post('/bot/say', requireAdmin, async (req, res) => {
   const { channelId, message } = req.body;
-  if (!channelId||!message) return res.status(400).json({ error: 'channelId and message required' });
-  try { const ch = await kiaraBot.channels.fetch(channelId); await ch.send(message); res.json({ success: true }); }
-  catch(err) { res.status(500).json({ error: err.message }); }
+  if (!channelId || !message) return res.status(400).json({ error: 'channelId and message required' });
+  try {
+    const ch = await kiaraBot.channels.fetch(channelId);
+    await ch.send(message);
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── Maintenance ──
@@ -845,6 +928,98 @@ app.post('/admin/maintenance', requireDev, (req, res) => {
 // ─────────────────────────────────────────────────────────────
 //  ⑩ START + BOT RESTORE
 // ─────────────────────────────────────────────────────────────
+
+// Slash command definitions — registered for both Kiara and every user bot
+const SLASH_COMMANDS = [
+  {
+    name: 'chat',
+    description: 'Chat with the AI',
+    options: [{ name: 'message', description: 'Your message', type: 3, required: true }],
+  },
+  {
+    name: 'imagine',
+    description: 'Generate an image',
+    options: [{ name: 'prompt', description: 'What to draw', type: 3, required: true }],
+  },
+  {
+    name: 'memory',
+    description: 'Show what this AI remembers about you',
+  },
+  {
+    name: 'forget',
+    description: 'Clear what this AI remembers about you',
+  },
+];
+
+async function registerSlashCommands(client, token) {
+  try {
+    const { REST, Routes } = require('discord.js');
+    const rest = new REST({ version: '10' }).setToken(token);
+    await rest.put(
+      Routes.applicationCommands(client.user.id),
+      { body: SLASH_COMMANDS },
+    );
+    console.log(`✅ Slash commands registered for ${client.user.tag}`);
+  } catch(e) {
+    console.warn(`⚠️ Slash command registration failed for ${client.user?.tag}: ${e.message}`);
+  }
+}
+
+// Kiara slash command handler
+kiaraBot.on(DJSEvents.InteractionCreate, async interaction => {
+  if (!interaction.isChatInputCommand()) return;
+  const userId = interaction.user.id;
+  const username = interaction.user.username;
+
+  if (interaction.commandName === 'chat') {
+    const userMsg = interaction.options.getString('message');
+    await interaction.deferReply();
+    try {
+      const groqKey = process.env.GROQ_API_KEY;
+      if (!groqKey) return interaction.editReply('⚠️ GROQ_API_KEY not configured.');
+      const ctx = interaction.guild
+        ? { guildName: interaction.guild.name, channelName: interaction.channel?.name }
+        : { isDM: true };
+      const msgs = buildMessages(global.kiaraConfig.personality, userId, userMsg, ctx, 'professional');
+      let reply;
+      try { reply = await callAI('groq', groqKey, msgs, 0.85, 'llama-3.1-8b-instant'); }
+      catch { reply = await callAI('cerebras', process.env.CEREBRAS_API_KEY || groqKey, msgs, 0.85, 'llama3.1-8b'); }
+      addToHistory(userId, 'user', userMsg);
+      addToHistory(userId, 'assistant', reply);
+      extractFacts(userId, userMsg);
+      logActivity(username, userId, 'ai', `Kiara /chat in ${interaction.guild?.name || 'DMs'}`);
+      saveData();
+      await interaction.editReply(reply.slice(0, 2000));
+    } catch(e) { await interaction.editReply(`⚠️ ${e.message.slice(0, 200)}`); }
+
+  } else if (interaction.commandName === 'imagine') {
+    const prompt = interaction.options.getString('prompt');
+    await interaction.deferReply();
+    try {
+      const imgUrl = await generateImage(prompt);
+      addToHistory(userId, 'user', `/imagine ${prompt}`);
+      addToHistory(userId, 'assistant', `[Generated image: ${prompt}]`);
+      saveData();
+      await interaction.editReply({ content: `Here's "${prompt}" 🎨`, files: [{ attachment: imgUrl, name: 'generated.png' }] });
+    } catch(e) { await interaction.editReply(`⚠️ Could not generate image: ${e.message.slice(0, 100)}`); }
+
+  } else if (interaction.commandName === 'memory') {
+    const mem = userMemory.get(userId);
+    if (!mem || (!mem.facts.length && !mem.history.length)) {
+      return interaction.reply({ content: "I don't remember anything about you yet.", ephemeral: true });
+    }
+    const factsText = mem.facts.length ? `**Facts I know about you:**\n${mem.facts.map(f => `• ${f}`).join('\n')}` : '';
+    const histText = `**Conversation history:** ${mem.history.length} messages stored`;
+    await interaction.reply({ content: [factsText, histText].filter(Boolean).join('\n\n'), ephemeral: true });
+
+  } else if (interaction.commandName === 'forget') {
+    userMemory.delete(userId);
+    saveData();
+    await interaction.reply({ content: '✅ Done — I\'ve cleared everything I remembered about you.', ephemeral: true });
+  }
+});
+
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 Kii Akira backend → http://0.0.0.0:${PORT}`);
   console.log(`   Owner: ${OWNER_USERNAME} (developer + VIP always)\n`);
