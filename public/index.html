@@ -4181,7 +4181,7 @@ function openEditBot(botId){
 
   // Active Servers — user bots respond to @mentions in ANY server they're invited to
   // No channel config needed (unlike Kiara which is admin-controlled)
-  const inviteUrl = bot.inviteUrl || `https://discord.com/api/oauth2/authorize?client_id=${bot.id || bot.botId}&permissions=277025459200&scope=bot`;
+  const inviteUrl = bot.inviteUrl || `https://discord.com/api/oauth2/authorize?client_id=${bot.id || bot.botId}&permissions=277025459200&scope=bot%20applications.commands`;
   document.getElementById('editBotServers').innerHTML = `
     <div style="color:var(--text-3);font-size:.8rem;line-height:1.6;">
       <div style="margin-bottom:8px;">✅ <strong style="color:var(--text-1);">Your bot responds anywhere it's invited</strong></div>
@@ -4446,7 +4446,6 @@ let botChannels=[];
 let selectedBotChannels=new Set();
 
 async function initBotPanel(){
-  // Load bot status
   try{
     const res=await fetch(`${BACKEND_URL}/bot/status`,{credentials:'include'});
     const data=await res.json();
@@ -4456,7 +4455,8 @@ async function initBotPanel(){
     if(data.online){
       dot.style.background='var(--green)';
       label.textContent='Bot Online';
-      tag.textContent=data.tag||'Connected';
+      const guildCount = data.guilds?.length || 0;
+      tag.textContent=`${data.tag||'Connected'} · ${guildCount} server${guildCount!==1?'s':''}`;
     }else{
       dot.style.background='var(--red)';
       label.textContent='Bot Offline';
@@ -4469,27 +4469,44 @@ async function initBotPanel(){
     }
   }catch(e){console.warn('Bot status error',e);}
 
-  // Load channels
   try{
     const res=await fetch(`${BACKEND_URL}/bot/channels`,{credentials:'include'});
     const data=await res.json();
     botChannels=data.channels||[];
+    botGuilds=data.guilds||[];
     renderBotChannels();
     populateBotSayDropdown();
   }catch(e){
-    document.getElementById('botChannelList').innerHTML='<div style="color:var(--text-4);font-size:.8125rem;">Could not load channels — is the bot online?</div>';
+    document.getElementById('botChannelList').innerHTML='<div style="color:var(--text-4);font-size:.8125rem;">Could not load channels — is the bot online and in at least one server?</div>';
   }
 }
 
+let botGuilds=[];
+
 function renderBotChannels(){
   const list=document.getElementById('botChannelList');
-  if(!botChannels.length){list.innerHTML='<div style="color:var(--text-4);font-size:.8125rem;">No channels found — bot may be offline or not in your server.</div>';return;}
-  list.innerHTML=botChannels.map(c=>`
-    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px;border-radius:6px;background:var(--bg-3);">
-      <input type="checkbox" ${selectedBotChannels.has(c.id)?'checked':''} onchange="toggleBotChannel('${c.id}',this.checked)" style="accent-color:var(--accent);">
-      <span style="font-size:.875rem;"># ${c.name}</span>
-    </label>
-  `).join('');
+  if(!botChannels.length){
+    list.innerHTML='<div style="color:var(--text-4);font-size:.8125rem;">No channels found — invite Kiara to a server first, then come back here.</div>';
+    return;
+  }
+  // Group by guild
+  if(botGuilds.length){
+    list.innerHTML=botGuilds.map(g=>`
+      <div style="margin-bottom:12px;">
+        <div style="font-size:.75rem;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;padding:0 4px;">${g.name}</div>
+        ${g.channels.map(c=>`
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:7px 8px;border-radius:6px;background:var(--bg-300);margin-bottom:4px;">
+            <input type="checkbox" ${selectedBotChannels.has(c.id)?'checked':''} onchange="toggleBotChannel('${c.id}',this.checked)" style="accent-color:var(--accent);">
+            <span style="font-size:.875rem;"># ${c.name}</span>
+          </label>`).join('')}
+      </div>`).join('');
+  } else {
+    list.innerHTML=botChannels.map(c=>`
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px;border-radius:6px;background:var(--bg-300);margin-bottom:4px;">
+        <input type="checkbox" ${selectedBotChannels.has(c.id)?'checked':''} onchange="toggleBotChannel('${c.id}',this.checked)" style="accent-color:var(--accent);">
+        <span style="font-size:.875rem;"># ${c.name} <span style="color:var(--text-4);font-size:.75rem;">(${c.guildName})</span></span>
+      </label>`).join('');
+  }
 }
 
 function toggleBotChannel(id,checked){
