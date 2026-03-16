@@ -714,6 +714,74 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
   .topbar-title-group .topbar-sub{display:none;}
   .stat-card-value{font-size:1.25rem;}
 }
+
+/* ═══════════════════════════════════════
+   DOLL SYSTEM
+═══════════════════════════════════════ */
+#dollOverlay{position:fixed;z-index:9000;pointer-events:none;bottom:80px;left:60px;user-select:none;}
+#dollOverlay.visible{pointer-events:all;}
+.doll-wrap{position:relative;width:72px;cursor:grab;touch-action:none;}
+.doll-wrap:active{cursor:grabbing;}
+.doll-sprite{width:72px;height:120px;position:relative;transition:transform .1s;}
+/* Character layers */
+.doll-body{position:absolute;bottom:0;left:0;width:72px;height:120px;}
+/* Walk animation */
+@keyframes dollWalkR{0%,100%{transform:translateX(0)}50%{transform:translateX(3px)}}
+@keyframes dollWalkL{0%,100%{transform:translateX(0)}50%{transform:translateX(-3px)}}
+@keyframes legSwingF{0%,100%{transform:rotate(-18deg)}50%{transform:rotate(18deg)}}
+@keyframes legSwingB{0%,100%{transform:rotate(18deg)}50%{transform:rotate(-18deg)}}
+@keyframes armSwing{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(12deg)}}
+@keyframes dollBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes dollSit{to{transform:translateY(10px)}}
+@keyframes dollDance{0%{transform:rotate(-6deg) translateY(0)}25%{transform:rotate(6deg) translateY(-6px)}50%{transform:rotate(-6deg) translateY(0)}75%{transform:rotate(6deg) translateY(-6px)}100%{transform:rotate(-6deg) translateY(0)}}
+@keyframes dollIdle{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+@keyframes chatPop{from{opacity:0;transform:scale(.8) translateY(6px)}to{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes coinPop{from{opacity:0;transform:translateY(0)}to{opacity:0;transform:translateY(-40px)}}
+.doll-state-walk{animation:dollBob .4s ease-in-out infinite;}
+.doll-state-idle{animation:dollIdle 2s ease-in-out infinite;}
+.doll-state-sit{animation:dollSit .3s forwards;}
+.doll-state-dance{animation:dollDance .5s ease-in-out infinite;}
+/* Interaction buttons */
+.doll-btns{position:absolute;bottom:130px;left:50%;transform:translateX(-50%);display:flex;gap:6px;white-space:nowrap;transition:opacity .3s;}
+.doll-btns.hidden{opacity:0;pointer-events:none;}
+.doll-btn{background:rgba(20,20,30,.85);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:20px;padding:5px 12px;font-size:.72rem;font-weight:600;cursor:pointer;transition:background .15s;}
+.doll-btn:hover{background:rgba(88,101,242,.8);}
+.doll-btn.active{background:rgba(88,101,242,.9);border-color:var(--brand);}
+/* Chat bubble */
+.doll-chat{position:absolute;bottom:128px;left:50%;transform:translateX(-50%);background:rgba(20,20,30,.92);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:10px 14px;font-size:.8rem;color:#fff;max-width:200px;min-width:120px;text-align:center;line-height:1.45;animation:chatPop .25s ease;white-space:normal;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.4);}
+.doll-chat::after{content:'';position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);border:7px solid transparent;border-top-color:rgba(20,20,30,.92);border-bottom:0;}
+.doll-chat-input-wrap{position:absolute;bottom:128px;left:50%;transform:translateX(-50%);display:flex;gap:4px;min-width:200px;}
+.doll-chat-input{flex:1;background:rgba(20,20,30,.92);border:1px solid rgba(255,255,255,.15);border-radius:20px;color:#fff;padding:6px 12px;font-size:.75rem;outline:none;}
+.doll-chat-input::placeholder{color:rgba(255,255,255,.4);}
+.doll-chat-send{background:var(--brand);border:none;border-radius:50%;width:28px;height:28px;color:#fff;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;}
+/* Coin display */
+.doll-coins{position:fixed;bottom:16px;right:16px;z-index:8999;background:rgba(20,20,30,.85);backdrop-filter:blur(8px);border:1px solid rgba(240,180,41,.3);border-radius:20px;padding:6px 14px;font-size:.8rem;font-weight:700;color:var(--gold);display:none;}
+.doll-coins.visible{display:flex;align-items:center;gap:5px;}
+.coin-pop{position:fixed;z-index:9001;font-size:.8rem;font-weight:700;color:var(--gold);pointer-events:none;animation:coinPop 1.2s ease forwards;}
+/* Toggle button in topbar area */
+.doll-toggle{position:fixed;bottom:16px;left:70px;z-index:8999;background:rgba(20,20,30,.85);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:6px 14px;font-size:.78rem;font-weight:600;color:var(--text-2);cursor:pointer;display:none;gap:6px;align-items:center;transition:background .15s;}
+.doll-toggle.show{display:flex;}
+.doll-toggle:hover{background:rgba(88,101,242,.4);}
+/* Shop styles */
+.shop-cat-slider{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;margin-bottom:16px;}
+.shop-cat-slider::-webkit-scrollbar{display:none;}
+.shop-cat-btn{flex-shrink:0;padding:6px 16px;border-radius:20px;border:1px solid var(--border);background:var(--bg-300);color:var(--text-3);font-size:.8rem;cursor:pointer;white-space:nowrap;transition:all .15s;}
+.shop-cat-btn.active{background:var(--brand);border-color:var(--brand);color:#fff;}
+.shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;}
+.shop-item{background:var(--bg-200);border:1px solid var(--border);border-radius:var(--r-md);padding:12px;text-align:center;cursor:pointer;transition:border-color .15s;}
+.shop-item:hover{border-color:var(--border-mid);}
+.shop-item.owned{border-color:var(--green);background:rgba(87,242,135,.05);}
+.shop-item.equipped{border-color:var(--brand);background:rgba(88,101,242,.08);}
+.shop-item-preview{width:64px;height:64px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;}
+.shop-item-name{font-size:.8rem;font-weight:600;margin-bottom:4px;}
+.shop-item-price{font-size:.75rem;color:var(--gold);}
+.shop-item-price.free{color:var(--green);}
+.doll-char-slider{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;margin-bottom:16px;}
+.doll-char-slider::-webkit-scrollbar{display:none;}
+.doll-char-card{flex-shrink:0;width:80px;text-align:center;cursor:pointer;}
+.doll-char-card-inner{border:2px solid var(--border);border-radius:var(--r-md);padding:8px;margin-bottom:4px;transition:border-color .15s;background:var(--bg-300);}
+.doll-char-card.active .doll-char-card-inner{border-color:var(--brand);background:rgba(88,101,242,.1);}
+.doll-char-label{font-size:.7rem;color:var(--text-3);}
 </style>
 </head>
 <body>
@@ -839,6 +907,11 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
         <span>VIP</span>
         <span class="nav-badge gold">Store</span>
+      </button>
+      <button class="nav-item" id="nav-doll" onclick="switchPage('doll',this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="7" r="4"/><path d="M12 11c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z"/><path d="M9 21l3-3 3 3"/></svg>
+        <span>Doll</span>
+        <span class="nav-badge" style="background:rgba(255,105,180,.12);color:#ff69b4;border-color:rgba(255,105,180,.25);">New</span>
       </button>
     </div>
 
@@ -1343,6 +1416,40 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
             <button onclick="confirmDeleteBot()" class="btn btn-danger btn-sm" style="width:100%;">🗑 Delete Bot</button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- ─── DOLL PAGE ─── -->
+    <div class="page" id="dollPage" style="display:none;">
+      <div class="section-header" style="margin-bottom:20px;">
+        <div>
+          <div class="section-title">🎀 Doll</div>
+          <div style="font-size:.8rem;color:var(--text-4);margin-top:2px;">Your virtual companion — lives on your screen, learns from you</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="display:flex;align-items:center;gap:6px;background:var(--bg-300);border:1px solid rgba(240,180,41,.3);border-radius:20px;padding:6px 14px;">
+            <span style="font-size:1rem;">¢</span>
+            <span id="dollCoinDisplay" style="font-weight:700;color:var(--gold);font-size:.9rem;">0</span>
+          </div>
+          <button onclick="toggleDoll()" id="dollToggleBtn" class="btn btn-primary btn-sm">Show Doll</button>
+        </div>
+      </div>
+
+      <!-- Character selector -->
+      <div class="card" style="margin-bottom:16px;padding:16px;">
+        <div style="font-weight:600;margin-bottom:12px;">My Characters</div>
+        <div class="doll-char-slider" id="dollCharSlider"></div>
+        <div style="font-size:.75rem;color:var(--text-4);">Click a character to equip her. Buy more in the Shop below.</div>
+      </div>
+
+      <!-- Shop -->
+      <div class="card" style="padding:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div style="font-weight:700;font-size:1rem;">🛍 Shop</div>
+          <div style="font-size:.8rem;color:var(--text-4);">Balance: <span id="shopCoinDisplay" style="color:var(--gold);font-weight:700;">¢0</span></div>
+        </div>
+        <div class="shop-cat-slider" id="shopCatSlider"></div>
+        <div class="shop-grid" id="shopGrid"></div>
       </div>
     </div>
 
@@ -2765,6 +2872,7 @@ const pageMap={
   vip:{el:'vipPage',type:'page',title:'VIP Store',sub:'Unlock the full platform'},
   mybots:{el:'mybotsPage',type:'page',title:'My Bots',sub:'Manage your deployed AI bots'},
   admin:{el:'adminPage',type:'flex',title:'Admin Panel',sub:'Platform management'},
+  doll:{el:'dollPage',type:'page',title:'Doll','sub':'Your virtual companion'},
 };
 
 function switchPage(page,navBtn){
@@ -2800,6 +2908,7 @@ function switchPage(page,navBtn){
   if(page==='executor')addLog(currentUser.username,'executor','Opened Akira Executor');
   if(page==='vip')initVIPPage();
   if(page==='mybots')renderMyBots();
+  if(page==='doll'){if(!currentDollData)currentDollData=getDollState();initDollPage();}
 }
 
 // ═══════════════════════════════════════
@@ -4559,5 +4668,536 @@ async function saveBotPersonality(){
   }catch(e){toast('Failed to save','err');}
 }
 </script>
+<!-- ═══════════════ DOLL OVERLAY ═══════════════ -->
+<div id="dollOverlay">
+  <div class="doll-wrap" id="dollWrap">
+    <!-- Chat bubble / input -->
+    <div class="doll-chat" id="dollChat" style="display:none;"></div>
+    <div class="doll-chat-input-wrap" id="dollChatInput" style="display:none;">
+      <input class="doll-chat-input" id="dollMsgInput" placeholder="Talk to her..." maxlength="200" onkeydown="if(event.key==='Enter')sendDollMsg()">
+      <button class="doll-chat-send" onclick="sendDollMsg()">➤</button>
+    </div>
+    <!-- Interaction buttons -->
+    <div class="doll-btns" id="dollBtns">
+      <button class="doll-btn" onclick="dollAction('sit')" id="btnSit">🪑 Sit</button>
+      <button class="doll-btn" onclick="dollAction('dance')" id="btnDance">💃 Dance</button>
+      <button class="doll-btn" onclick="dollAction('talk')" id="btnTalk">💬 Talk</button>
+      <button class="doll-btn" onclick="toggleDoll()" style="background:rgba(237,66,69,.3);">✕</button>
+    </div>
+    <!-- The doll sprite -->
+    <div class="doll-sprite doll-state-idle" id="dollSprite" onclick="onDollClick(event)"></div>
+  </div>
+</div>
+<!-- Coin display overlay -->
+<div class="doll-coins" id="dollCoinsOverlay">
+  <span style="font-size:1rem;">¢</span>
+  <span id="dollCoinsCount">0</span>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  DOLL SYSTEM
+// ═══════════════════════════════════════════════════════
+
+// ── Data ──
+const DOLL_KEY = () => `kiiakira_doll_${currentUser?.discordId||'anon'}`;
+
+function loadDollData(){
+  try{ return JSON.parse(localStorage.getItem(DOLL_KEY()))||{}; }catch{ return {}; }
+}
+function saveDollData(d){ localStorage.setItem(DOLL_KEY(), JSON.stringify(d)); }
+
+function getDollState(){
+  const d = loadDollData();
+  return {
+    coins:      d.coins      || 0,
+    ownedChars: d.ownedChars || ['homeless'],
+    ownedItems: d.ownedItems || [],
+    equipped:   d.equipped   || { char:'homeless', outfit:'homeless_outfit', hair:'none', accessory:'none' },
+    visible:    d.visible    || false,
+    posX:       d.posX       !== undefined ? d.posX : 60,
+    posY:       d.posY       !== undefined ? d.posY : 80,
+  };
+}
+function saveDollState(s){ saveDollData(s); }
+
+// ── Characters & items catalog ──
+const DOLL_CHARS = [
+  { id:'homeless', name:'Mika', emoji:'🧍', desc:'Your starter companion', price:0,
+    svg: buildCharSVG('#e8c99a','#888','#aaa','#ccc','gray') },
+  { id:'sakura', name:'Sakura', emoji:'🌸', desc:'Cherry blossom girl', price:200,
+    svg: buildCharSVG('#f5c6a0','#ff9fc8','#ffb3d1','#fff0f5','#ff69b4') },
+  { id:'yuki', name:'Yuki', emoji:'❄️', desc:'Winter snow maiden', price:200,
+    svg: buildCharSVG('#f0e6ff','#b0c4ff','#c8daff','#f0f4ff','#7090ff') },
+  { id:'hana', name:'Hana', emoji:'🌺', desc:'Summer flower spirit', price:300,
+    svg: buildCharSVG('#f9d4a0','#ff7043','#ffab40','#fff3e0','#ff5722') },
+  { id:'luna', name:'Luna', emoji:'🌙', desc:'Moonlit guardian', price:350,
+    svg: buildCharSVG('#d4b8e0','#9c27b0','#ce93d8','#f3e5f5','#7b1fa2') },
+];
+
+const SHOP_ITEMS = [
+  // Outfits
+  { id:'homeless_outfit', cat:'outfit', name:'Rags', emoji:'🧥', price:0, desc:'Default look' },
+  { id:'school_outfit', cat:'outfit', name:'School Uniform', emoji:'👗', price:80, desc:'Classic sailor uniform' },
+  { id:'maid_outfit', cat:'outfit', name:'Maid Dress', emoji:'🎀', price:120, desc:'Frilly maid outfit' },
+  { id:'idol_outfit', cat:'outfit', name:'Idol Stage', emoji:'✨', price:180, desc:'Pop idol performance wear' },
+  { id:'casual_outfit', cat:'outfit', name:'Casual Cute', emoji:'👕', price:60, desc:'Everyday street style' },
+  { id:'gothic_outfit', cat:'outfit', name:'Gothic Lolita', emoji:'🖤', price:200, desc:'Dark elegant dress' },
+  // Hair
+  { id:'twin_tails', cat:'hair', name:'Twin Tails', emoji:'💇', price:50, desc:'Iconic twin tails' },
+  { id:'long_hair', cat:'hair', name:'Long Flowing', emoji:'💆', price:40, desc:'Beautiful long hair' },
+  { id:'short_hair', cat:'hair', name:'Short Bob', emoji:'✂️', price:30, desc:'Cute short bob' },
+  { id:'ahoge_hair', cat:'hair', name:'Ahoge', emoji:'🌀', price:60, desc:'Signature antenna hair' },
+  // Accessories
+  { id:'cat_ears', cat:'accessory', name:'Cat Ears', emoji:'🐱', price:70, desc:'Cute ne-ko ears' },
+  { id:'hair_bow', cat:'accessory', name:'Hair Bow', emoji:'🎀', price:40, desc:'Big ribbon bow' },
+  { id:'glasses', cat:'accessory', name:'Glasses', emoji:'👓', price:50, desc:'Round cute glasses' },
+  { id:'headphones', cat:'accessory', name:'Headphones', emoji:'🎧', price:90, desc:'Music headphones' },
+  // Characters (same as DOLL_CHARS except homeless)
+  ...DOLL_CHARS.filter(c=>c.id!=='homeless').map(c=>({ id:c.id, cat:'character', name:c.name, emoji:c.emoji, price:c.price, desc:c.desc })),
+];
+
+function buildCharSVG(skin, hairCol, clothCol, bgCol, accentCol){
+  return `<svg width="72" height="120" viewBox="0 0 72 120" xmlns="http://www.w3.org/2000/svg">
+  <!-- Body glow bg -->
+  <ellipse cx="36" cy="110" rx="22" ry="5" fill="rgba(0,0,0,.15)"/>
+  <!-- Legs -->
+  <g id="legs">
+    <rect x="27" y="85" width="8" height="22" rx="4" fill="${skin}"/>
+    <rect x="37" y="85" width="8" height="22" rx="4" fill="${skin}"/>
+    <!-- Shoes -->
+    <ellipse cx="31" cy="107" rx="6" ry="4" fill="${accentCol}"/>
+    <ellipse cx="41" cy="107" rx="6" ry="4" fill="${accentCol}"/>
+  </g>
+  <!-- Skirt/body -->
+  <path d="M20 58 Q22 88 28 90 L44 90 Q50 88 52 58 Z" fill="${clothCol}"/>
+  <!-- Torso -->
+  <rect x="25" y="42" width="22" height="20" rx="4" fill="${clothCol}"/>
+  <!-- Arms -->
+  <rect x="14" y="44" width="10" height="20" rx="5" fill="${skin}" transform="rotate(-8,19,44)"/>
+  <rect x="48" y="44" width="10" height="20" rx="5" fill="${skin}" transform="rotate(8,53,44)"/>
+  <!-- Neck -->
+  <rect x="32" y="36" width="8" height="10" rx="4" fill="${skin}"/>
+  <!-- Head -->
+  <ellipse cx="36" cy="28" rx="16" ry="17" fill="${skin}"/>
+  <!-- Hair back -->
+  <ellipse cx="36" cy="22" rx="17" ry="14" fill="${hairCol}"/>
+  <!-- Face -->
+  <ellipse cx="36" cy="30" rx="13" ry="13" fill="${skin}"/>
+  <!-- Eyes -->
+  <ellipse cx="30" cy="29" rx="4" ry="4.5" fill="white"/>
+  <ellipse cx="42" cy="29" rx="4" ry="4.5" fill="white"/>
+  <ellipse cx="30" cy="30" rx="2.5" ry="3" fill="${accentCol}"/>
+  <ellipse cx="42" cy="30" rx="2.5" ry="3" fill="${accentCol}"/>
+  <circle cx="31" cy="28.5" r="1" fill="white"/>
+  <circle cx="43" cy="28.5" r="1" fill="white"/>
+  <!-- Blush -->
+  <ellipse cx="25" cy="34" rx="4" ry="2" fill="rgba(255,150,150,.35)"/>
+  <ellipse cx="47" cy="34" rx="4" ry="2" fill="rgba(255,150,150,.35)"/>
+  <!-- Mouth -->
+  <path d="M32 37 Q36 40 40 37" stroke="${accentCol}" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <!-- Hair front -->
+  <path d="M20 20 Q18 30 22 38 Q24 20 36 13 Q48 20 50 38 Q54 30 52 20 Q44 6 36 8 Q28 6 20 20Z" fill="${hairCol}"/>
+</svg>`;
+}
+
+// ── DOM refs ──
+let dollEl, dollWrap, dollSprite, dollBtns, dollChat, dollChatInput, dollMsgInput;
+let dollVisible = false;
+let dollState = 'idle'; // idle | walk | sit | dance
+let dollX = 60, dollY = 80;
+let dollDir = 1; // 1=right, -1=left
+let dollWalkInterval = null;
+let dollBtnTimeout = null;
+let dollCoinInterval = null;
+let dollDragging = false;
+let dollDragStartX, dollDragStartY, dollDragOriginX, dollDragOriginY;
+let dollChatTimeout = null;
+let currentDollData = null;
+
+function initDollSystem(){
+  dollEl       = document.getElementById('dollOverlay');
+  dollWrap     = document.getElementById('dollWrap');
+  dollSprite   = document.getElementById('dollSprite');
+  dollBtns     = document.getElementById('dollBtns');
+  dollChat     = document.getElementById('dollChat');
+  dollChatInput= document.getElementById('dollChatInput');
+  dollMsgInput = document.getElementById('dollMsgInput');
+  if(!dollEl) return;
+
+  currentDollData = getDollState();
+  updateDollCoinDisplay();
+  renderDollSprite();
+  setupDollDrag();
+
+  if(currentDollData.visible) showDoll();
+  else hideDoll(true);
+}
+
+// ── Sprite ──
+function renderDollSprite(){
+  const d = currentDollData || getDollState();
+  const char = DOLL_CHARS.find(c=>c.id===d.equipped.char) || DOLL_CHARS[0];
+  if(dollSprite) dollSprite.innerHTML = char.svg;
+  // Apply outfit tint via overlay (simple approach)
+}
+
+// ── Show / Hide ──
+function toggleDoll(){
+  if(dollVisible) hideDoll();
+  else showDoll();
+}
+
+function showDoll(){
+  if(!dollEl) initDollSystem();
+  dollVisible = true;
+  dollEl.classList.add('visible');
+  dollEl.style.display = 'block';
+  document.getElementById('dollCoinsOverlay').classList.add('visible');
+  document.getElementById('dollToggleBtn').textContent = 'Hide Doll';
+  const btn = document.querySelector('.doll-toggle');
+  if(btn){ btn.classList.add('show'); btn.textContent='🎀 Hide Doll'; }
+  currentDollData = getDollState();
+  dollX = currentDollData.posX;
+  dollY = currentDollData.posY;
+  updateDollPos();
+  startDollWalk();
+  startCoinTimer();
+  currentDollData.visible = true;
+  saveDollState(currentDollData);
+}
+
+function hideDoll(silent){
+  dollVisible = false;
+  if(dollEl){ dollEl.classList.remove('visible'); dollEl.style.display='none'; }
+  document.getElementById('dollCoinsOverlay').classList.remove('visible');
+  const tb = document.getElementById('dollToggleBtn');
+  if(tb) tb.textContent='Show Doll';
+  stopDollWalk();
+  stopCoinTimer();
+  if(currentDollData){ currentDollData.visible=false; saveDollState(currentDollData); }
+}
+
+// ── Walking AI ──
+function startDollWalk(){
+  if(dollWalkInterval) clearInterval(dollWalkInterval);
+  setDollState('idle');
+  dollWalkInterval = setInterval(()=>{
+    if(dollDragging || dollState==='sit' || dollState==='dance') return;
+    if(Math.random()<0.35){ setDollState('idle'); return; }
+    setDollState('walk');
+    const speed = 60 + Math.random()*60;
+    // Bounce off screen edges
+    const vw = window.innerWidth - 90;
+    const vh = window.innerHeight - 140;
+    const step = speed * dollDir * 0.08;
+    dollX += step;
+    if(dollX <= 10){ dollDir=1; dollX=10; flipDoll(); }
+    if(dollX >= vw){ dollDir=-1; dollX=vw; flipDoll(); }
+    // Small random Y drift
+    dollY += (Math.random()-0.5)*8;
+    dollY = Math.max(10, Math.min(vh, dollY));
+    updateDollPos();
+  }, 120);
+}
+
+function stopDollWalk(){
+  if(dollWalkInterval){ clearInterval(dollWalkInterval); dollWalkInterval=null; }
+}
+
+function updateDollPos(){
+  if(dollEl){ dollEl.style.left=dollX+'px'; dollEl.style.bottom=dollY+'px'; }
+  if(currentDollData){ currentDollData.posX=dollX; currentDollData.posY=dollY; }
+}
+
+function flipDoll(){
+  if(dollSprite) dollSprite.style.transform = dollDir===1 ? 'scaleX(1)' : 'scaleX(-1)';
+}
+
+function setDollState(state){
+  if(!dollSprite) return;
+  dollState = state;
+  dollSprite.className = `doll-sprite doll-state-${state}`;
+}
+
+// ── Click interaction ──
+function onDollClick(e){
+  e.stopPropagation();
+  if(dollDragging) return;
+  showDollBtns();
+}
+
+function showDollBtns(){
+  if(!dollBtns) return;
+  dollBtns.classList.remove('hidden');
+  clearTimeout(dollBtnTimeout);
+  dollBtnTimeout = setTimeout(()=>dollBtns.classList.add('hidden'), 3000);
+}
+
+function dollAction(action){
+  clearTimeout(dollBtnTimeout);
+  if(action==='sit'){
+    setDollState('sit');
+    stopDollWalk();
+    document.getElementById('btnSit').classList.add('active');
+    document.getElementById('btnDance').classList.remove('active');
+    setTimeout(()=>{ setDollState('idle'); startDollWalk(); document.getElementById('btnSit').classList.remove('active'); }, 5000);
+  } else if(action==='dance'){
+    setDollState('dance');
+    stopDollWalk();
+    document.getElementById('btnDance').classList.add('active');
+    document.getElementById('btnSit').classList.remove('active');
+    dollSay('💃 La la la~');
+    setTimeout(()=>{ setDollState('idle'); startDollWalk(); document.getElementById('btnDance').classList.remove('active'); }, 6000);
+  } else if(action==='talk'){
+    const ci = document.getElementById('dollChatInput');
+    const isOpen = ci.style.display==='flex';
+    ci.style.display = isOpen?'none':'flex';
+    if(!isOpen){ document.getElementById('dollMsgInput').focus(); dollSay('What\'s up? 👀'); }
+    else hideDollChat();
+  }
+  dollBtnTimeout = setTimeout(()=>dollBtns.classList.add('hidden'), 3000);
+}
+
+// ── Chat ──
+function dollSay(text, duration=3000){
+  if(!dollChat) return;
+  hideDollChat();
+  dollChat.textContent = text;
+  dollChat.style.display = 'block';
+  dollChatTimeout = setTimeout(hideDollChat, duration);
+}
+
+function hideDollChat(){
+  if(dollChat) dollChat.style.display='none';
+  clearTimeout(dollChatTimeout);
+}
+
+async function sendDollMsg(){
+  const input = document.getElementById('dollMsgInput');
+  const msg = input?.value.trim();
+  if(!msg) return;
+  input.value='';
+  dollSay('...', 60000);
+
+  // Determine personality from equipped char
+  const d = currentDollData || getDollState();
+  const char = DOLL_CHARS.find(c=>c.id===d.equipped.char)||DOLL_CHARS[0];
+  const sysPrompt = `You are ${char.name}, a cute anime companion living on the user's screen. You're sweet, playful, and expressive. Use light Japanese words occasionally (nyan, senpai, kawaii etc). Keep replies short — 1-2 sentences max. Use emojis. Never break character.`;
+
+  try{
+    const res = await fetch(`${BACKEND_URL}/user-bots/models`,{credentials:'include'});
+    const mdata = await res.json();
+    // Use first available free model
+    const freeModel = (mdata.models||[]).find(m=>!m.vipOnly&&m.keyConfigured);
+    if(!freeModel){ dollSay('I can\'t talk right now 😢'); return; }
+    const modelMap = {akira:'llama-3.1-8b-instant',llama70b:'llama-3.3-70b-versatile',mistral:'mixtral-8x7b-32768',cerebras:'llama3.1-8b',gpt4mini:'gpt-4o-mini',gpt4:'gpt-4-turbo'};
+    const provMap = {akira:'groq',llama70b:'groq',mistral:'groq',cerebras:'cerebras',gpt4mini:'openai',gpt4:'openai'};
+    // Call through a lightweight proxy-style fetch to backend
+    const aiRes = await fetch(`${BACKEND_URL}/doll/chat`,{
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ message: msg, systemPrompt: sysPrompt, modelId: freeModel.id }),
+    });
+    const aiData = await aiRes.json();
+    dollSay(aiData.reply || 'Hmm~? 🤔', 5000);
+  } catch(e){
+    // Fallback cute responses if no AI available
+    const fallbacks=['Ehehe~ 💕','Tell me more! 👀','That\'s so interesting nyan~','You\'re so funny senpai 😄','I don\'t know but I like you! 🌸'];
+    dollSay(fallbacks[Math.floor(Math.random()*fallbacks.length)], 4000);
+  }
+}
+
+// Random idle chatter
+function startDollIdleChatter(){
+  const lines=['Bored... play with me! 🥺','I like being here~ 💕','Nyan! 🐱','You\'re working hard! 😊','*yawns* 😴','Hey! 👋','...zoning out~','Ehehe~','I\'m hungry 🍡'];
+  setInterval(()=>{
+    if(!dollVisible||dollState==='dance') return;
+    if(Math.random()<0.1) dollSay(lines[Math.floor(Math.random()*lines.length)], 3000);
+  }, 15000);
+}
+
+// ── Dragging ──
+function setupDollDrag(){
+  const wrap = document.getElementById('dollWrap');
+  if(!wrap) return;
+  wrap.addEventListener('mousedown', startDrag);
+  wrap.addEventListener('touchstart', startDrag, {passive:true});
+  document.addEventListener('mousemove', onDrag);
+  document.addEventListener('touchmove', onDrag, {passive:false});
+  document.addEventListener('mouseup', endDrag);
+  document.addEventListener('touchend', endDrag);
+}
+
+function startDrag(e){
+  if(e.target.classList.contains('doll-btn')||e.target.classList.contains('doll-chat-send')||e.target.classList.contains('doll-chat-input')) return;
+  dollDragging = false;
+  const pt = e.touches?e.touches[0]:e;
+  dollDragStartX = pt.clientX;
+  dollDragStartY = pt.clientY;
+  dollDragOriginX = dollX;
+  dollDragOriginY = dollY;
+  const wrap = document.getElementById('dollWrap');
+  if(wrap) wrap._dragDown = true;
+}
+
+function onDrag(e){
+  const wrap = document.getElementById('dollWrap');
+  if(!wrap||!wrap._dragDown) return;
+  const pt = e.touches?e.touches[0]:e;
+  const dx = pt.clientX - dollDragStartX;
+  const dy = -(pt.clientY - dollDragStartY); // invert because bottom positioning
+  if(Math.abs(dx)>5||Math.abs(dy)>5) dollDragging=true;
+  if(!dollDragging) return;
+  if(e.touches) e.preventDefault();
+  stopDollWalk();
+  dollX = Math.max(0, Math.min(window.innerWidth-90, dollDragOriginX+dx));
+  dollY = Math.max(10, Math.min(window.innerHeight-140, dollDragOriginY+dy));
+  updateDollPos();
+}
+
+function endDrag(){
+  const wrap = document.getElementById('dollWrap');
+  if(wrap) wrap._dragDown=false;
+  if(dollDragging){
+    dollDragging=false;
+    if(currentDollData){ saveDollState(currentDollData); }
+    setTimeout(()=>startDollWalk(), 500);
+  }
+}
+
+// ── Coin system ──
+function startCoinTimer(){
+  if(dollCoinInterval) clearInterval(dollCoinInterval);
+  dollCoinInterval = setInterval(()=>{
+    if(!dollVisible||!currentDollData) return;
+    currentDollData.coins = (currentDollData.coins||0)+5;
+    saveDollState(currentDollData);
+    updateDollCoinDisplay();
+    showCoinPop();
+  }, 60000); // +5 every minute
+}
+
+function stopCoinTimer(){
+  if(dollCoinInterval){ clearInterval(dollCoinInterval); dollCoinInterval=null; }
+}
+
+function showCoinPop(){
+  const pop = document.createElement('div');
+  pop.className='coin-pop';
+  pop.textContent='+¢5';
+  pop.style.left=(dollX+30)+'px';
+  pop.style.bottom=(dollY+130)+'px';
+  document.body.appendChild(pop);
+  setTimeout(()=>pop.remove(), 1300);
+}
+
+function updateDollCoinDisplay(){
+  const coins = currentDollData?.coins||0;
+  const els = document.querySelectorAll('#dollCoinDisplay,#dollCoinsCount,#shopCoinDisplay');
+  els.forEach(el=>{ if(el){ el.textContent = el.id==='shopCoinDisplay'?'¢'+coins:coins; }});
+}
+
+// ── Doll Page ──
+function initDollPage(){
+  if(!currentDollData) currentDollData=getDollState();
+  updateDollCoinDisplay();
+  renderDollCharSlider();
+  renderShop('outfit');
+}
+
+function renderDollCharSlider(){
+  const slider = document.getElementById('dollCharSlider');
+  if(!slider) return;
+  const d = currentDollData||getDollState();
+  slider.innerHTML = d.ownedChars.map(cid=>{
+    const char = DOLL_CHARS.find(c=>c.id===cid)||DOLL_CHARS[0];
+    const isActive = d.equipped.char===cid;
+    return `<div class="doll-char-card ${isActive?'active':''}" onclick="equipChar('${cid}')">
+      <div class="doll-char-card-inner">${char.svg.replace('width="72" height="120"','width="48" height="80"')}</div>
+      <div class="doll-char-label">${char.name}</div>
+    </div>`;
+  }).join('');
+}
+
+function equipChar(charId){
+  currentDollData = getDollState();
+  if(!currentDollData.ownedChars.includes(charId)) return;
+  currentDollData.equipped.char = charId;
+  saveDollState(currentDollData);
+  renderDollSprite();
+  renderDollCharSlider();
+  if(dollVisible) dollSay('New look! How do I look? ✨', 3000);
+}
+
+const SHOP_CATS = ['outfit','hair','accessory','character'];
+let activeShopCat = 'outfit';
+
+function renderShopCats(){
+  const slider = document.getElementById('shopCatSlider');
+  if(!slider) return;
+  slider.innerHTML = SHOP_CATS.map(c=>`
+    <button class="shop-cat-btn ${c===activeShopCat?'active':''}" onclick="renderShop('${c}')">
+      ${{outfit:'👗 Outfits',hair:'💇 Hair',accessory:'🎀 Accessories',character:'👤 Characters'}[c]}
+    </button>`).join('');
+}
+
+function renderShop(cat){
+  activeShopCat = cat;
+  renderShopCats();
+  const grid = document.getElementById('shopGrid');
+  if(!grid) return;
+  const d = currentDollData||getDollState();
+  const items = SHOP_ITEMS.filter(i=>i.cat===cat);
+  grid.innerHTML = items.map(item=>{
+    const owned = item.price===0 || d.ownedItems.includes(item.id) || (item.cat==='character'&&d.ownedChars.includes(item.id));
+    const equipped = d.equipped[item.cat]===item.id || (item.cat==='character'&&d.equipped.char===item.id);
+    return `<div class="shop-item ${owned?'owned':''} ${equipped?'equipped':''}" onclick="shopAction('${item.id}','${item.cat}',${item.price},${owned})">
+      <div class="shop-item-preview">${item.emoji}</div>
+      <div class="shop-item-name">${item.name}</div>
+      <div class="shop-item-price ${item.price===0?'free':''}">${item.price===0?'Free':'¢'+item.price}</div>
+      <div style="font-size:.65rem;color:var(--text-4);margin-top:2px;">${equipped?'✓ Equipped':owned?'Tap to equip':'Tap to buy'}</div>
+    </div>`;
+  }).join('');
+}
+
+function shopAction(itemId, cat, price, owned){
+  currentDollData = getDollState();
+  if(owned){
+    // Equip
+    if(cat==='character') currentDollData.equipped.char = itemId;
+    else currentDollData.equipped[cat] = itemId;
+    saveDollState(currentDollData);
+    renderShop(cat);
+    renderDollCharSlider();
+    renderDollSprite();
+    toast(`Equipped!`);
+    if(dollVisible) dollSay('New style! 💖', 2500);
+  } else {
+    // Buy
+    if(currentDollData.coins < price){ toast(`Need ¢${price} — only ¢${currentDollData.coins}`, 'err'); return; }
+    if(!confirm(`Buy ${SHOP_ITEMS.find(i=>i.id===itemId)?.name} for ¢${price}?`)) return;
+    currentDollData.coins -= price;
+    if(cat==='character') currentDollData.ownedChars.push(itemId);
+    else currentDollData.ownedItems.push(itemId);
+    // Auto-equip
+    if(cat==='character') currentDollData.equipped.char = itemId;
+    else currentDollData.equipped[cat] = itemId;
+    saveDollState(currentDollData);
+    updateDollCoinDisplay();
+    renderShop(cat);
+    renderDollCharSlider();
+    renderDollSprite();
+    toast(`Bought & equipped! ✨`);
+  }
+}
+
+// Wire into page system
+document.addEventListener('DOMContentLoaded', ()=>{
+  setTimeout(initDollSystem, 500);
+  setTimeout(startDollIdleChatter, 2000);
+});
+</script>
+
 </body>
 </html>
