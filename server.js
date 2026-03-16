@@ -913,6 +913,25 @@ app.post('/bot/say', requireAdmin, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── Doll chat (lightweight AI for desktop companion) ──
+app.post('/doll/chat', async (req, res) => {
+  const { message, systemPrompt, modelId } = req.body;
+  if (!message) return res.status(400).json({ error: 'message required' });
+  const md = PLATFORM_MODELS[modelId] || PLATFORM_MODELS['llama70b'];
+  const key = getPlatformKey(md.provider);
+  if (!key) return res.status(500).json({ error: 'No API key configured' });
+  try {
+    const msgs = [
+      { role: 'system', content: systemPrompt || 'You are a cute anime companion. Keep replies to 1-2 sentences. Use emojis.' },
+      { role: 'user', content: message },
+    ];
+    const reply = await callAI(md.provider, key, msgs, 0.9, md.model);
+    res.json({ reply });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Maintenance ──
 app.get('/admin/maintenance', (req, res) => res.json(maintenanceMode));
 app.post('/admin/maintenance', requireDev, (req, res) => {
