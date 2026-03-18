@@ -2720,7 +2720,15 @@ function openDiscordModal(){
 
 // Called by the email login button on the main login page
 function startEmailLogin(){
+  const emailInput = document.getElementById('loginEmail');
+  const email = emailInput ? emailInput.value.trim() : '';
+  // Open the email verification modal
   openDiscordModal();
+  // Pre-fill the email in the modal's input field
+  if(email){
+    const authEmailEl = document.getElementById('authEmail');
+    if(authEmailEl) authEmailEl.value = email;
+  }
 }
 function closeDiscord(){
   if(authStep>=4)return; // don't close mid-success
