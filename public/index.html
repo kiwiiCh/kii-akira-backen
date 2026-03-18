@@ -958,7 +958,7 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
             <input type="text" id="loginCodeInput" class="input" placeholder="Enter 6-digit code" maxlength="6" style="letter-spacing:.2em;font-size:1.1rem;text-align:center;" oninput="if(this.value.length===6)verifyLoginCode()">
             <div id="loginCodeErr" style="display:none;font-size:.75rem;color:var(--red);margin-top:4px;"></div>
           </div>
-          <button class="btn btn-primary btn-full" onclick="handleEmailLoginBtn()" id="emailLoginBtn" style="margin-top:8px;">
+          <button class="btn btn-primary btn-full" onclick="if(window.handleEmailLoginBtn)handleEmailLoginBtn()" id="emailLoginBtn" style="margin-top:8px;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
             Continue with Email
           </button>
@@ -984,16 +984,9 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
     </p>
 
     <script>
-    // Detect if running inside the KiiAkira Android app
-    const isApp = new URLSearchParams(window.location.search).get('app') === '1'
-                  || navigator.userAgent.includes('KiiAkiraApp');
-    if (isApp) {
-      // Hide Discord login, show email only
-      document.getElementById('discordLoginSection').style.display = 'none';
-      document.getElementById('loginSubtitle').textContent = 'Sign in with your email to continue.';
-      // Store app mode so it persists through email verification steps
-      sessionStorage.setItem('appMode', '1');
-    }
+    // Flag checked after DOM loads
+    window._kiiIsApp = new URLSearchParams(window.location.search).get('app') === '1'
+                       || navigator.userAgent.includes('KiiAkiraApp');
     </script>
   </div>
 </div>
@@ -2636,8 +2629,17 @@ window.addEventListener('beforeunload',()=>{saveSession();});
 const BACKEND_URL='https://kii-akira-backen-production-f0d7.up.railway.app';
 
 window.addEventListener('DOMContentLoaded',async()=>{
-  loadSavedAccounts(); // no-op now, harmless
+  loadSavedAccounts();
   checkMaintenanceOnLoad();
+
+  // App mode detection — hide Discord login, show email only
+  if(window._kiiIsApp){
+    const ds = document.getElementById('discordLoginSection');
+    const ls = document.getElementById('loginSubtitle');
+    if(ds) ds.style.display='none';
+    if(ls) ls.textContent='Sign in with your email to continue.';
+    sessionStorage.setItem('appMode','1');
+  }
 
   // Clear Discord OAuth param from URL
   const params=new URLSearchParams(window.location.search);
