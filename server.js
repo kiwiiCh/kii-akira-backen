@@ -40,6 +40,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const OWNER_USERNAME  = 'kiiakira';
 const OWNER_DISCORDID = '1093442344310820895';
+const OWNER_EMAIL     = 'mikeorbita02@gmail.com';
 
 const adminWhitelist  = new Map();
 const vipUsers        = new Map();
@@ -102,14 +103,14 @@ setInterval(saveData, 60 * 1000);
 //  ④ ROLE / AUTH HELPERS
 // ─────────────────────────────────────────────────────────────
 
-function getUserRole(username, discordId) {
-  if (username === OWNER_USERNAME || discordId === OWNER_DISCORDID) return 'developer';
+function getUserRole(username, discordId, email) {
+  if (username === OWNER_USERNAME || discordId === OWNER_DISCORDID || email === OWNER_EMAIL) return 'developer';
   if (adminWhitelist.has(username)) return 'admin';
   return 'user';
 }
 
-function checkVIP(discordId, username) {
-  const role = getUserRole(username, discordId);
+function checkVIP(discordId, username, email) {
+  const role = getUserRole(username, discordId, email);
   if (role === 'developer' || role === 'admin') return true;
   const vip = vipUsers.get(discordId);
   return !!(vip && Date.now() < vip.expiresAt);
@@ -117,13 +118,15 @@ function checkVIP(discordId, username) {
 
 // FIX: use getUserRole consistently — no raw string comparison that breaks on username changes
 function requireDev(req, res, next) {
-  const role = getUserRole(req.session?.user?.username, req.session?.user?.discordId);
+  const { username, discordId, email } = req.session?.user || {};
+  const role = getUserRole(username, discordId, email);
   if (role !== 'developer') return res.status(403).json({ error: 'Owner only' });
   next();
 }
 
 function requireAdmin(req, res, next) {
-  const role = getUserRole(req.session?.user?.username, req.session?.user?.discordId);
+  const { username, discordId, email } = req.session?.user || {};
+  const role = getUserRole(username, discordId, email);
   if (role !== 'developer' && role !== 'admin') return res.status(403).json({ error: 'Admin required' });
   next();
 }
@@ -619,10 +622,9 @@ app.get('/auth/callback', async (req, res) => {
 app.get('/auth/me', (req, res) => {
   if (!req.session?.user?.loggedIn) return res.json({ loggedIn: false });
   const u = req.session.user;
-  // Always re-derive role/VIP live so whitelist changes apply immediately without re-login
-  u.role  = getUserRole(u.username, u.discordId);
-  u.isVIP = checkVIP(u.discordId, u.username);
-  req.session.user = u; // write back updated values
+  u.role  = getUserRole(u.username, u.discordId, u.email);
+  u.isVIP = checkVIP(u.discordId, u.username, u.email);
+  req.session.user = u;
   res.json({ loggedIn: true, user: u });
 });
 
@@ -649,6 +651,13 @@ app.post('/auth/verify-code', (req, res) => {
   if (Date.now() > entry.expiresAt) { pendingCodes.delete(email); return res.status(400).json({ error: 'Code expired' }); }
   if (entry.code !== code) return res.status(400).json({ error: 'Incorrect code' });
   pendingCodes.delete(email);
+
+  // Create session for email login — link owner email to developer role
+  const username = email === OWNER_EMAIL ? OWNER_USERNAME : email.split('@')[0].replace(/[^a-z0-9]/gi,'').toLowerCase() || 'user';
+  const discordId = email === OWNER_EMAIL ? OWNER_DISCORDID : null;
+  const role = getUserRole(username, discordId, email);
+  const isVIP = checkVIP(discordId, username, email);
+  req.session.user = { username, discordId, email, role, isVIP, loggedIn: true, avatar: null };
   res.json({ success: true });
 });
 
