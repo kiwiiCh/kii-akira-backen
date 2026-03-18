@@ -72,6 +72,7 @@ function saveData() {
       registeredUsers: [...registeredUsers.entries()],
       userMemory:      [...userMemory.entries()],
       userBotConfigs:  [...userBotConfigs.entries()],
+      dollCoins:       [...dollCoins.entries()],
       maintenanceMode,
       savedAt: new Date().toISOString(),
     }, null, 2));
@@ -88,6 +89,7 @@ function loadData() {
     (raw.registeredUsers || []).forEach(([k,v]) => registeredUsers.set(k,v));
     (raw.userMemory      || []).forEach(([k,v]) => userMemory.set(k,v));
     (raw.userBotConfigs  || []).forEach(([k,v]) => userBotConfigs.set(k,v));
+    (raw.dollCoins       || []).forEach(([k,v]) => dollCoins.set(k,v));
     if (raw.maintenanceMode) Object.assign(maintenanceMode, raw.maintenanceMode);
     console.log(`✅ Loaded — admins:${adminWhitelist.size} vip:${vipUsers.size} users:${registeredUsers.size} bans:${bannedUsers.size} bots:${userBotConfigs.size}`);
   } catch (e) { console.error('⚠️ Load failed:', e.message); }
@@ -143,8 +145,13 @@ function registerUser(discordId, username, email, avatar, role, isVIP) {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  ⑤ MEMORY ENGINE
+//  ⑤ MEMORY ENGINE  (bot-scoped: each bot has its own memory per user)
 // ─────────────────────────────────────────────────────────────
+
+function memKey(botId, userId) {
+  // Key format: "botId:userId" — completely isolated per bot per user
+  return `${botId}:${userId}`;
+}
 
 function getMemoryLimits(userId) {
   const vip = vipUsers.get(userId);
@@ -155,22 +162,22 @@ function getMemoryLimits(userId) {
   return { history: MAX_HISTORY_FREE, facts: MAX_FACTS_FREE };
 }
 
-function getMemory(userId) {
-  if (!userMemory.has(userId)) userMemory.set(userId, { facts: [], history: [], updatedAt: Date.now() });
-  return userMemory.get(userId);
+function getMemory(botId, userId) {
+  const k = memKey(botId, userId);
+  if (!userMemory.has(k)) userMemory.set(k, { facts: [], history: [], updatedAt: Date.now() });
+  return userMemory.get(k);
 }
 
-function addToHistory(userId, role, content) {
-  const mem = getMemory(userId);
+function addToHistory(botId, userId, role, content) {
+  const mem = getMemory(botId, userId);
   const lim = getMemoryLimits(userId);
   mem.history.push({ role, content: content.slice(0, 800) });
-  // Rolling delete — oldest message auto-removed, no hard limit on sends
   while (mem.history.length > lim.history) mem.history.shift();
   mem.updatedAt = Date.now();
 }
 
-function extractFacts(userId, userMsg) {
-  const mem = getMemory(userId);
+function extractFacts(botId, userId, userMsg) {
+  const mem = getMemory(botId, userId);
   const lim = getMemoryLimits(userId);
   const patterns = [
     { r: /my name is ([a-zA-Z]+)/i,                    f: m => `User's name is ${m[1]}` },
@@ -183,6 +190,7 @@ function extractFacts(userId, userMsg) {
     { r: /i hate ([a-zA-Z\s,]+)/i,                     f: m => `User hates ${m[1].trim()}` },
     { r: /i play ([a-zA-Z\s,]+)/i,                     f: m => `User plays ${m[1].trim()}` },
     { r: /my favorite ([a-zA-Z]+) is ([a-zA-Z\s,]+)/i, f: m => `User's favorite ${m[1]} is ${m[2].trim()}` },
+    { r: /call me ([a-zA-Z0-9_\-\s]+)/i,               f: m => `User wants to be called "${m[1].trim()}"` },
     { r: /remember (?:that )?(.{5,80})/i,              f: m => m[1].trim() },
     { r: /don'?t forget (?:that )?(.{5,80})/i,         f: m => m[1].trim() },
   ];
@@ -198,11 +206,8 @@ function extractFacts(userId, userMsg) {
   }
 }
 
-function buildMessages(systemPrompt, userId, userMsg, ctx = {}, personalityMode = 'custom') {
-  const mem  = getMemory(userId);
-
-  // Store up to lim.history messages in memory, but only send last 40 to the API.
-  // Sending 1000 messages would exceed every model's context window.
+function buildMessages(botId, systemPrompt, userId, userMsg, ctx = {}, personalityMode = 'custom') {
+  const mem  = getMemory(botId, userId);
   const API_CONTEXT_LIMIT = 40;
   const history = mem.history.slice(-API_CONTEXT_LIMIT);
 
@@ -217,13 +222,11 @@ function buildMessages(systemPrompt, userId, userMsg, ctx = {}, personalityMode 
       ? `\n\n[THINGS YOU HAVE OBSERVED SO FAR]\n${mem.facts.map(f => `- ${f}`).join('\n')}`
       : '';
     fullSystem = systemPrompt + observed;
-
   } else if (personalityMode === 'human') {
     const remembered = mem.facts.length
       ? `\n\n[WHAT YOU REMEMBER ABOUT THIS PERSON]\n${mem.facts.map(f => `- ${f}`).join('\n')}`
       : '';
     fullSystem = systemPrompt + remembered + (locText ? `\n\n[WHERE YOU ARE]${locText}` : '');
-
   } else {
     const facts = mem.facts.length
       ? `\n\n[USER CONTEXT]\n${mem.facts.map(f => `- ${f}`).join('\n')}`
@@ -324,6 +327,8 @@ kiaraBot.once(DJSEvents.ClientReady, c => {
   registerSlashCommands(c, DISCORD_BOT_TOKEN);
 });
 
+const KIARA_BOT_ID = 'kiara'; // fixed ID for Kiara's memory namespace
+
 kiaraBot.on(DJSEvents.MessageCreate, async message => {
   if (message.author.bot) return;
   const isDM      = !message.guild;
@@ -334,30 +339,24 @@ kiaraBot.on(DJSEvents.MessageCreate, async message => {
   try {
     await message.channel.sendTyping();
     const userMsg = message.content.replace(`<@${kiaraBot.user.id}>`, '').trim();
-    const userId = message.author.id;
     if (!userMsg) return message.reply('Hey! How can I help? 👋');
 
-    // ── Image generation check ──
     const imageSubject = detectImageRequest(userMsg);
     if (imageSubject) {
       try {
-        await message.channel.sendTyping();
         const imgUrl = await generateImage(imageSubject);
-        addToHistory(userId, 'user', userMsg);
-        addToHistory(userId, 'assistant', `[Generated image: ${imageSubject}]`);
-        logActivity(message.author.username, userId, 'ai', `Kiara generated image: "${imageSubject}"`);
+        addToHistory(KIARA_BOT_ID, message.author.id, 'user', userMsg);
+        addToHistory(KIARA_BOT_ID, message.author.id, 'assistant', `[Generated image: ${imageSubject}]`);
         saveData();
         return await message.reply({ content: `Here's "${imageSubject}" 🎨`, files: [{ attachment: imgUrl, name: 'generated.png' }] });
-      } catch(imgErr) {
-        console.error('Image generation error:', imgErr.message);
-        // Fall through to text response if image fails
-      }
+      } catch {}
     }
 
     const groqKey = process.env.GROQ_API_KEY;
-    if (!groqKey) return message.reply('⚠️ GROQ_API_KEY not set — admin needs to configure this.');
+    if (!groqKey) return message.reply('⚠️ GROQ_API_KEY not set.');
+    const userId = message.author.id;
     const ctx    = isDM ? { isDM: true } : { guildName: message.guild.name, channelName: message.channel.name };
-    const msgs   = buildMessages(global.kiaraConfig.personality, userId, userMsg, ctx, 'professional');
+    const msgs   = buildMessages(KIARA_BOT_ID, global.kiaraConfig.personality, userId, userMsg, ctx, 'professional');
 
     let reply = null;
     try {
@@ -367,15 +366,14 @@ kiaraBot.on(DJSEvents.MessageCreate, async message => {
       try {
         reply = await callAI('cerebras', process.env.CEREBRAS_API_KEY || groqKey, msgs, 0.85, 'llama3.1-8b');
       } catch (e2) {
-        console.error('Kiara Cerebras fallback error:', e2?.response?.data?.error?.message || e2.message);
         return message.reply(`⚠️ AI error: ${e2?.response?.data?.error?.message || e2.message}`);
       }
     }
 
     if (!reply) return message.reply('Got an empty response — try again!');
-    addToHistory(userId, 'user', userMsg);
-    addToHistory(userId, 'assistant', reply);
-    extractFacts(userId, userMsg);
+    addToHistory(KIARA_BOT_ID, userId, 'user', userMsg);
+    addToHistory(KIARA_BOT_ID, userId, 'assistant', reply);
+    extractFacts(KIARA_BOT_ID, userId, userMsg);
     logActivity(message.author.username, userId, 'ai', `Kiara in ${isDM ? 'DMs' : message.guild.name}`);
     saveData();
     await message.reply(reply.slice(0, 1900));
@@ -429,11 +427,11 @@ async function spawnUserBot(botId, cfg) {
         const ctx = interaction.guild
           ? { guildName: interaction.guild.name, channelName: interaction.channel?.name }
           : { isDM: true };
-        const msgs = buildMessages(live.systemPrompt, uid, userMsg, ctx, live.personalityMode || 'custom');
+        const msgs = buildMessages(botId, live.systemPrompt, uid, userMsg, ctx, live.personalityMode || 'custom');
         const reply = await callAI(md.provider, key, msgs, live.temperature, md.model);
-        addToHistory(uid, 'user', userMsg);
-        addToHistory(uid, 'assistant', reply);
-        extractFacts(uid, userMsg);
+        addToHistory(botId, uid, 'user', userMsg);
+        addToHistory(botId, uid, 'assistant', reply);
+        extractFacts(botId, uid, userMsg);
         logActivity(username, uid, 'ai', `Used ${live.modelId} via bot "${live.name}" /chat`);
         saveData();
         await interaction.editReply(reply.slice(0, 2000));
@@ -444,14 +442,14 @@ async function spawnUserBot(botId, cfg) {
       await interaction.deferReply();
       try {
         const imgUrl = await generateImage(prompt);
-        addToHistory(uid, 'user', `/imagine ${prompt}`);
-        addToHistory(uid, 'assistant', `[Generated image: ${prompt}]`);
+        addToHistory(botId, uid, 'user', `/imagine ${prompt}`);
+        addToHistory(botId, uid, 'assistant', `[Generated image: ${prompt}]`);
         saveData();
         await interaction.editReply({ content: `Here's "${prompt}" 🎨`, files: [{ attachment: imgUrl, name: 'generated.png' }] });
       } catch(e) { await interaction.editReply(`⚠️ Could not generate image: ${e.message.slice(0, 100)}`); }
 
     } else if (interaction.commandName === 'memory') {
-      const mem = userMemory.get(uid);
+      const mem = userMemory.get(memKey(botId, uid));
       if (!mem || (!mem.facts.length && !mem.history.length)) {
         return interaction.reply({ content: "I don't remember anything about you yet.", ephemeral: true });
       }
@@ -460,56 +458,104 @@ async function spawnUserBot(botId, cfg) {
       await interaction.reply({ content: [factsText, histText].filter(Boolean).join('\n\n'), ephemeral: true });
 
     } else if (interaction.commandName === 'forget') {
-      userMemory.delete(uid);
+      userMemory.delete(memKey(botId, uid));
       saveData();
-      await interaction.reply({ content: '✅ Done — I\'ve cleared everything I remembered about you.', ephemeral: true });
+      await interaction.reply({ content: '✅ Done — cleared everything I remembered about you.', ephemeral: true });
+
+    } else if (interaction.commandName === 'yap') {
+      if (!interaction.channel) return interaction.reply({ content: '⚠️ Cannot yap here.', ephemeral: true });
+      if (!live.yapChannels) live.yapChannels = new Map();
+      if (live.yapChannels.has(interaction.channel.id)) {
+        return interaction.reply({ content: 'Already yapping here! Use /unyap to stop.', ephemeral: true });
+      }
+      const interval = setInterval(async () => {
+        try {
+          if (!md || !key) return;
+          const yapPrompts = ['What\'s on everyone\'s mind?','Talk to me 👀','Anyone home?','What\'s good?','Say something!','Bored... entertain me'];
+          const prompt = yapPrompts[Math.floor(Math.random() * yapPrompts.length)];
+          const msgs = [{ role: 'system', content: live.systemPrompt }, { role: 'user', content: prompt }];
+          const reply = await callAI(md.provider, key, msgs, live.temperature, md.model);
+          const ch = await botClient.channels.fetch(interaction.channel.id);
+          await ch.send(reply.slice(0, 1900));
+        } catch(e) { console.error(`Yap error (${live.name}):`, e.message); }
+      }, 15000 + Math.random() * 15000);
+      live.yapChannels.set(interaction.channel.id, interval);
+      await interaction.reply(`✅ ${live.name} is now yapping in <#${interaction.channel.id}>! Use /unyap to stop.`);
+
+    } else if (interaction.commandName === 'unyap') {
+      if (!live.yapChannels) return interaction.reply({ content: 'Not yapping anywhere.', ephemeral: true });
+      const interval = live.yapChannels.get(interaction.channel?.id);
+      if (!interval) return interaction.reply({ content: 'Not yapping in this channel.', ephemeral: true });
+      clearInterval(interval);
+      live.yapChannels.delete(interaction.channel.id);
+      await interaction.reply(`✅ ${live.name} stopped yapping.`);
     }
   });
   botClient.on(Events.MessageCreate, async message => {
-    if (message.author.bot) return;
     const isDM      = !message.guild;
     const mentioned = message.mentions.has(botClient.user);
-    if (!isDM && !mentioned) return;
     const live = userBotInstances.get(botId)?.config;
-    if (!live || live.paused) return; // paused bots stay connected but don't reply
+    if (!live || live.paused) return;
+
+    // Bot-to-bot interaction — only when yapping AND mentioned by another bot
+    const isOtherBot = message.author.bot && message.author.id !== botClient.user?.id;
+    if (isOtherBot) {
+      if (!mentioned) return; // only respond when another bot @mentions this bot
+      if (!live.yapChannels?.has(message.channel.id)) return; // only in yap channels
+      // 5 second cooldown to prevent spam
+      const now = Date.now();
+      if (live.lastBotReply && now - live.lastBotReply < 5000) return;
+      live.lastBotReply = now;
+      try {
+        if (!md || !key) return;
+        const userMsg = message.content.replace(`<@${botClient.user.id}>`, '').trim();
+        const ctx = { guildName: message.guild?.name, channelName: message.channel?.name };
+        const msgs = buildMessages(botId, live.systemPrompt, message.author.id, userMsg, ctx, live.personalityMode || 'custom');
+        await message.channel.sendTyping();
+        const reply = await callAI(md.provider, key, msgs, live.temperature, md.model);
+        addToHistory(botId, message.author.id, 'user', userMsg);
+        addToHistory(botId, message.author.id, 'assistant', reply);
+        saveData();
+        await message.reply(reply.slice(0, 1900));
+      } catch(e) { console.error(`Bot-to-bot error (${live.name}):`, e.message); }
+      return;
+    }
+
+    if (message.author.bot) return; // ignore other bots unless yapping
+    if (!isDM && !mentioned) return;
+
     try {
       await message.channel.sendTyping();
       const userMsg = message.content.replace(`<@${botClient.user.id}>`, '').trim();
-      const uid   = message.author.id;
+      const uid = message.author.id;
       if (!userMsg) return message.reply(`Hey! I'm ${live.name}. How can I help? 👋`);
 
-      // ── Image generation check ──
       const imageSubject = detectImageRequest(userMsg);
       if (imageSubject) {
         try {
-          await message.channel.sendTyping();
           const imgUrl = await generateImage(imageSubject);
-          addToHistory(uid, 'user', userMsg);
-          addToHistory(uid, 'assistant', `[Generated image: ${imageSubject}]`);
+          addToHistory(botId, uid, 'user', userMsg);
+          addToHistory(botId, uid, 'assistant', `[Generated image: ${imageSubject}]`);
           logActivity(message.author.username, uid, 'ai', `Bot "${live.name}" generated image: "${imageSubject}"`);
           saveData();
           return await message.reply({ content: `Here's "${imageSubject}" 🎨`, files: [{ attachment: imgUrl, name: 'generated.png' }] });
-        } catch(imgErr) {
-          console.error(`Bot "${live.name}" image error:`, imgErr.message);
-          // Fall through to text response if image fails
-        }
+        } catch(imgErr) { /* fall through */ }
       }
 
       const md = PLATFORM_MODELS[live.modelId];
       if (!md) return message.reply('⚠️ Bot model not configured.');
       const key = getPlatformKey(md.provider);
       if (!key) return message.reply(`⚠️ ${md.provider.toUpperCase()} API key not set on server.`);
-      const ctx   = isDM ? { isDM: true } : { guildName: message.guild.name, channelName: message.channel.name };
-      const msgs  = buildMessages(live.systemPrompt, uid, userMsg, ctx, live.personalityMode || 'custom');
+      const ctx = isDM ? { isDM: true } : { guildName: message.guild.name, channelName: message.channel.name };
+      const msgs = buildMessages(botId, live.systemPrompt, uid, userMsg, ctx, live.personalityMode || 'custom');
       const reply = await callAI(md.provider, key, msgs, live.temperature, md.model);
-      addToHistory(uid, 'user', userMsg);
-      addToHistory(uid, 'assistant', reply);
-      extractFacts(uid, userMsg);
+      addToHistory(botId, uid, 'user', userMsg);
+      addToHistory(botId, uid, 'assistant', reply);
+      extractFacts(botId, uid, userMsg);
       logActivity(message.author.username, uid, 'ai', `Used ${live.modelId} via bot "${live.name}"`);
       saveData();
       await message.reply(reply.slice(0, 1900));
     } catch(e) {
-      // Show the REAL error so users can debug — no silent swallowing
       const errText = e?.response?.data?.error?.message || e.message || 'Unknown error';
       console.error(`Bot "${live.name}" error:`, errText);
       await message.reply(`⚠️ ${errText.slice(0, 200)}`);
@@ -523,7 +569,23 @@ async function spawnUserBot(botId, cfg) {
 //  ⑨ ROUTES
 // ─────────────────────────────────────────────────────────────
 
-// ── Auth ──
+// Android App Links verification — required for deep links to work
+// This tells Android that the KiiAkira app owns this domain
+app.get('/.well-known/assetlinks.json', (req, res) => {
+  res.json([{
+    relation: ['delegate_permission/common.handle_all_urls'],
+    target: {
+      namespace: 'android_app',
+      package_name: 'com.kiiakira.app',
+      sha256_cert_fingerprints: [
+        // Debug keystore fingerprint (works for debug APK builds)
+        'FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C'
+      ]
+    }
+  }]);
+});
+
+
 app.get('/auth/discord', (req, res) => {
   const p = new URLSearchParams({ client_id: DISCORD_CLIENT_ID, redirect_uri: DISCORD_REDIRECT_URI, response_type: 'code', scope: 'identify email', prompt: 'consent' });
   res.redirect(`https://discord.com/oauth2/authorize?${p}`);
@@ -594,14 +656,26 @@ app.post('/auth/verify-code', (req, res) => {
 app.get('/memory/me/stats', (req, res) => {
   if (!req.session?.user?.loggedIn) return res.json({ facts: 0, history: 0, sizeKB: '0.00' });
   const userId = req.session.user.discordId;
-  const mem = userMemory.get(userId);
   const lim = getMemoryLimits(userId);
-  if (!mem) return res.json({ facts: 0, history: 0, sizeKB: '0.00', maxHistory: lim.history, maxFacts: lim.facts });
-  res.json({ facts: mem.facts.length, history: mem.history.length, sizeKB: (JSON.stringify(mem).length/1024).toFixed(2), maxHistory: lim.history, maxFacts: lim.facts, updatedAt: mem.updatedAt });
+  // Aggregate across all bots for this user
+  let totalFacts = 0, totalHistory = 0, totalSize = 0;
+  for (const [k, mem] of userMemory.entries()) {
+    if (k.endsWith(':' + userId)) {
+      totalFacts   += mem.facts.length;
+      totalHistory += mem.history.length;
+      totalSize    += JSON.stringify(mem).length;
+    }
+  }
+  if (!totalHistory && !totalFacts) return res.json({ facts: 0, history: 0, sizeKB: '0.00', maxHistory: lim.history, maxFacts: lim.facts });
+  res.json({ facts: totalFacts, history: totalHistory, sizeKB: (totalSize/1024).toFixed(2), maxHistory: lim.history, maxFacts: lim.facts });
 });
 app.delete('/memory/me/clear', (req, res) => {
   if (!req.session?.user?.loggedIn) return res.status(401).json({ error: 'Not logged in' });
-  userMemory.delete(req.session.user.discordId);
+  const userId = req.session.user.discordId;
+  // Clear all bot memories for this user
+  for (const k of userMemory.keys()) {
+    if (k.endsWith(':' + userId)) userMemory.delete(k);
+  }
   saveData();
   res.json({ success: true });
 });
@@ -913,24 +987,49 @@ app.post('/bot/say', requireAdmin, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── Doll chat (lightweight AI for desktop companion) ──
+// ── Doll — coin persistence + chat ──
+const dollCoins = new Map(); // discordId → coins
+
+app.post('/doll/coins', (req, res) => {
+  if (!req.session?.user?.loggedIn) return res.status(401).json({ error: 'Not logged in' });
+  const { coins } = req.body;
+  if (typeof coins !== 'number') return res.status(400).json({ error: 'coins must be number' });
+  const id = req.session.user.discordId;
+  // Only update if higher — prevents accidental coin loss from stale local data
+  const current = dollCoins.get(id) || 0;
+  if (coins >= current) {
+    dollCoins.set(id, coins);
+    saveData();
+  }
+  res.json({ success: true, coins: dollCoins.get(id) });
+});
+
+app.get('/doll/coins/me', (req, res) => {
+  if (!req.session?.user?.loggedIn) return res.json({ coins: 0 });
+  const coins = dollCoins.get(req.session.user.discordId) || 0;
+  res.json({ coins });
+});
+
 app.post('/doll/chat', async (req, res) => {
-  const { message, systemPrompt, modelId } = req.body;
+  const { message, charName } = req.body;
   if (!message) return res.status(400).json({ error: 'message required' });
-  const md = PLATFORM_MODELS[modelId] || PLATFORM_MODELS['llama70b'];
+  const md = PLATFORM_MODELS['llama70b'];
   const key = getPlatformKey(md.provider);
   if (!key) return res.status(500).json({ error: 'No API key configured' });
   try {
-    const msgs = [
-      { role: 'system', content: systemPrompt || 'You are a cute anime companion. Keep replies to 1-2 sentences. Use emojis.' },
+    const name = charName || 'Mika';
+    const sysPrompt = `You are ${name}, a cute anime girl companion who lives on the user's screen. You're sweet, playful, and expressive. Keep replies to 1-2 sentences max. Use light Japanese words occasionally (nyan, senpai, kawaii, ehehe etc). Use emojis. Never break character. Never say you're an AI.`;
+    const reply = await callAI(md.provider, key, [
+      { role: 'system', content: sysPrompt },
       { role: 'user', content: message },
-    ];
-    const reply = await callAI(md.provider, key, msgs, 0.9, md.model);
+    ], 0.95, md.model);
     res.json({ reply });
   } catch(e) {
     res.status(500).json({ error: e.message });
   }
 });
+
+
 
 // ── Maintenance ──
 app.get('/admin/maintenance', (req, res) => res.json(maintenanceMode));
@@ -968,6 +1067,14 @@ const SLASH_COMMANDS = [
     name: 'forget',
     description: 'Clear what this AI remembers about you',
   },
+  {
+    name: 'yap',
+    description: 'Make the AI start sending messages on its own in this channel',
+  },
+  {
+    name: 'unyap',
+    description: 'Stop the AI from sending messages on its own',
+  },
 ];
 
 async function registerSlashCommands(client, token) {
@@ -984,7 +1091,6 @@ async function registerSlashCommands(client, token) {
   }
 }
 
-// Kiara slash command handler
 kiaraBot.on(DJSEvents.InteractionCreate, async interaction => {
   if (!interaction.isChatInputCommand()) return;
   const userId = interaction.user.id;
@@ -999,14 +1105,13 @@ kiaraBot.on(DJSEvents.InteractionCreate, async interaction => {
       const ctx = interaction.guild
         ? { guildName: interaction.guild.name, channelName: interaction.channel?.name }
         : { isDM: true };
-      const msgs = buildMessages(global.kiaraConfig.personality, userId, userMsg, ctx, 'professional');
+      const msgs = buildMessages(KIARA_BOT_ID, global.kiaraConfig.personality, userId, userMsg, ctx, 'professional');
       let reply;
       try { reply = await callAI('groq', groqKey, msgs, 0.85, 'llama-3.1-8b-instant'); }
       catch { reply = await callAI('cerebras', process.env.CEREBRAS_API_KEY || groqKey, msgs, 0.85, 'llama3.1-8b'); }
-      addToHistory(userId, 'user', userMsg);
-      addToHistory(userId, 'assistant', reply);
-      extractFacts(userId, userMsg);
-      logActivity(username, userId, 'ai', `Kiara /chat in ${interaction.guild?.name || 'DMs'}`);
+      addToHistory(KIARA_BOT_ID, userId, 'user', userMsg);
+      addToHistory(KIARA_BOT_ID, userId, 'assistant', reply);
+      extractFacts(KIARA_BOT_ID, userId, userMsg);
       saveData();
       await interaction.editReply(reply.slice(0, 2000));
     } catch(e) { await interaction.editReply(`⚠️ ${e.message.slice(0, 200)}`); }
@@ -1016,14 +1121,14 @@ kiaraBot.on(DJSEvents.InteractionCreate, async interaction => {
     await interaction.deferReply();
     try {
       const imgUrl = await generateImage(prompt);
-      addToHistory(userId, 'user', `/imagine ${prompt}`);
-      addToHistory(userId, 'assistant', `[Generated image: ${prompt}]`);
+      addToHistory(KIARA_BOT_ID, userId, 'user', `/imagine ${prompt}`);
+      addToHistory(KIARA_BOT_ID, userId, 'assistant', `[Generated image: ${prompt}]`);
       saveData();
       await interaction.editReply({ content: `Here's "${prompt}" 🎨`, files: [{ attachment: imgUrl, name: 'generated.png' }] });
     } catch(e) { await interaction.editReply(`⚠️ Could not generate image: ${e.message.slice(0, 100)}`); }
 
   } else if (interaction.commandName === 'memory') {
-    const mem = userMemory.get(userId);
+    const mem = userMemory.get(memKey(KIARA_BOT_ID, userId));
     if (!mem || (!mem.facts.length && !mem.history.length)) {
       return interaction.reply({ content: "I don't remember anything about you yet.", ephemeral: true });
     }
@@ -1032,9 +1137,38 @@ kiaraBot.on(DJSEvents.InteractionCreate, async interaction => {
     await interaction.reply({ content: [factsText, histText].filter(Boolean).join('\n\n'), ephemeral: true });
 
   } else if (interaction.commandName === 'forget') {
-    userMemory.delete(userId);
+    userMemory.delete(memKey(KIARA_BOT_ID, userId));
     saveData();
-    await interaction.reply({ content: '✅ Done — I\'ve cleared everything I remembered about you.', ephemeral: true });
+    await interaction.reply({ content: '✅ Done — cleared everything I remembered about you.', ephemeral: true });
+
+  } else if (interaction.commandName === 'yap') {
+    if (!interaction.channel) return interaction.reply({ content: '⚠️ Cannot yap here.', ephemeral: true });
+    global.kiaraConfig.yapChannels = global.kiaraConfig.yapChannels || new Map();
+    if (global.kiaraConfig.yapChannels.has(interaction.channel.id)) {
+      return interaction.reply({ content: 'Already yapping in this channel! Use /unyap to stop.', ephemeral: true });
+    }
+    const interval = setInterval(async () => {
+      try {
+        const groqKey = process.env.GROQ_API_KEY;
+        if (!groqKey) return;
+        const yapPrompts = ['What\'s everyone thinking about?','Thoughts?','Anyone want to chat?','I\'m bored, talk to me 👀','What\'s good everyone?','Say something interesting!'];
+        const prompt = yapPrompts[Math.floor(Math.random() * yapPrompts.length)];
+        const msgs = [{ role: 'system', content: global.kiaraConfig.personality }, { role: 'user', content: prompt }];
+        const reply = await callAI('groq', groqKey, msgs, 0.9, 'llama-3.1-8b-instant');
+        const ch = await kiaraBot.channels.fetch(interaction.channel.id);
+        await ch.send(reply.slice(0, 1900));
+      } catch(e) { console.error('Yap error:', e.message); }
+    }, 15000 + Math.random() * 15000); // 15-30 seconds between messages
+    global.kiaraConfig.yapChannels.set(interaction.channel.id, interval);
+    await interaction.reply(`✅ Yapping mode ON in <#${interaction.channel.id}>! Use /unyap to stop.`);
+
+  } else if (interaction.commandName === 'unyap') {
+    global.kiaraConfig.yapChannels = global.kiaraConfig.yapChannels || new Map();
+    const interval = global.kiaraConfig.yapChannels.get(interaction.channel?.id);
+    if (!interval) return interaction.reply({ content: 'Not yapping in this channel.', ephemeral: true });
+    clearInterval(interval);
+    global.kiaraConfig.yapChannels.delete(interaction.channel.id);
+    await interaction.reply('✅ Yapping stopped.');
   }
 });
 
