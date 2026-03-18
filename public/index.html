@@ -716,72 +716,208 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
 }
 
 /* ═══════════════════════════════════════
-   DOLL SYSTEM
+   DOLL SYSTEM v2
 ═══════════════════════════════════════ */
-#dollOverlay{position:fixed;z-index:9000;pointer-events:none;bottom:80px;left:60px;user-select:none;}
+#dollOverlay{position:fixed;z-index:9000;pointer-events:none;bottom:100px;left:80px;user-select:none;transition:none;}
 #dollOverlay.visible{pointer-events:all;}
-.doll-wrap{position:relative;width:72px;cursor:grab;touch-action:none;}
+.doll-wrap{position:relative;width:96px;cursor:grab;touch-action:none;}
 .doll-wrap:active{cursor:grabbing;}
-.doll-sprite{width:72px;height:120px;position:relative;transition:transform .1s;}
-/* Character layers */
-.doll-body{position:absolute;bottom:0;left:0;width:72px;height:120px;}
-/* Walk animation */
-@keyframes dollWalkR{0%,100%{transform:translateX(0)}50%{transform:translateX(3px)}}
-@keyframes dollWalkL{0%,100%{transform:translateX(0)}50%{transform:translateX(-3px)}}
-@keyframes legSwingF{0%,100%{transform:rotate(-18deg)}50%{transform:rotate(18deg)}}
-@keyframes legSwingB{0%,100%{transform:rotate(18deg)}50%{transform:rotate(-18deg)}}
-@keyframes armSwing{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(12deg)}}
-@keyframes dollBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
-@keyframes dollSit{to{transform:translateY(10px)}}
-@keyframes dollDance{0%{transform:rotate(-6deg) translateY(0)}25%{transform:rotate(6deg) translateY(-6px)}50%{transform:rotate(-6deg) translateY(0)}75%{transform:rotate(6deg) translateY(-6px)}100%{transform:rotate(-6deg) translateY(0)}}
-@keyframes dollIdle{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
-@keyframes chatPop{from{opacity:0;transform:scale(.8) translateY(6px)}to{opacity:1;transform:scale(1) translateY(0)}}
-@keyframes coinPop{from{opacity:0;transform:translateY(0)}to{opacity:0;transform:translateY(-40px)}}
-.doll-state-walk{animation:dollBob .4s ease-in-out infinite;}
-.doll-state-idle{animation:dollIdle 2s ease-in-out infinite;}
-.doll-state-sit{animation:dollSit .3s forwards;}
-.doll-state-dance{animation:dollDance .5s ease-in-out infinite;}
-/* Interaction buttons */
-.doll-btns{position:absolute;bottom:130px;left:50%;transform:translateX(-50%);display:flex;gap:6px;white-space:nowrap;transition:opacity .3s;}
-.doll-btns.hidden{opacity:0;pointer-events:none;}
-.doll-btn{background:rgba(20,20,30,.85);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:20px;padding:5px 12px;font-size:.72rem;font-weight:600;cursor:pointer;transition:background .15s;}
-.doll-btn:hover{background:rgba(88,101,242,.8);}
-.doll-btn.active{background:rgba(88,101,242,.9);border-color:var(--brand);}
-/* Chat bubble */
-.doll-chat{position:absolute;bottom:128px;left:50%;transform:translateX(-50%);background:rgba(20,20,30,.92);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:10px 14px;font-size:.8rem;color:#fff;max-width:200px;min-width:120px;text-align:center;line-height:1.45;animation:chatPop .25s ease;white-space:normal;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.4);}
-.doll-chat::after{content:'';position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);border:7px solid transparent;border-top-color:rgba(20,20,30,.92);border-bottom:0;}
-.doll-chat-input-wrap{position:absolute;bottom:128px;left:50%;transform:translateX(-50%);display:flex;gap:4px;min-width:200px;}
-.doll-chat-input{flex:1;background:rgba(20,20,30,.92);border:1px solid rgba(255,255,255,.15);border-radius:20px;color:#fff;padding:6px 12px;font-size:.75rem;outline:none;}
-.doll-chat-input::placeholder{color:rgba(255,255,255,.4);}
-.doll-chat-send{background:var(--brand);border:none;border-radius:50%;width:28px;height:28px;color:#fff;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;}
-/* Coin display */
-.doll-coins{position:fixed;bottom:16px;right:16px;z-index:8999;background:rgba(20,20,30,.85);backdrop-filter:blur(8px);border:1px solid rgba(240,180,41,.3);border-radius:20px;padding:6px 14px;font-size:.8rem;font-weight:700;color:var(--gold);display:none;}
-.doll-coins.visible{display:flex;align-items:center;gap:5px;}
-.coin-pop{position:fixed;z-index:9001;font-size:.8rem;font-weight:700;color:var(--gold);pointer-events:none;animation:coinPop 1.2s ease forwards;}
-/* Toggle button in topbar area */
-.doll-toggle{position:fixed;bottom:16px;left:70px;z-index:8999;background:rgba(20,20,30,.85);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:6px 14px;font-size:.78rem;font-weight:600;color:var(--text-2);cursor:pointer;display:none;gap:6px;align-items:center;transition:background .15s;}
-.doll-toggle.show{display:flex;}
-.doll-toggle:hover{background:rgba(88,101,242,.4);}
-/* Shop styles */
+
+/* ── Character SVG layers ── */
+.doll-root{width:96px;height:160px;position:relative;overflow:visible;}
+.doll-root svg{overflow:visible;}
+
+/* ── Per-layer animation origins ── */
+.d-shadow{transform-origin:48px 158px;}
+.d-body{transform-origin:48px 90px;}
+.d-skirt{transform-origin:48px 100px;}
+.d-arm-l{transform-origin:30px 72px;}
+.d-arm-r{transform-origin:66px 72px;}
+.d-leg-l{transform-origin:38px 115px;}
+.d-leg-r{transform-origin:58px 115px;}
+.d-head{transform-origin:48px 45px;}
+.d-hair-back{transform-origin:48px 30px;}
+.d-hair-front{transform-origin:48px 28px;}
+.d-ahoge{transform-origin:48px 8px;}
+.d-eye-l{transform-origin:36px 50px;}
+.d-eye-r{transform-origin:60px 50px;}
+.d-blink{transform-origin:48px 50px;}
+
+/* ── IDLE ── */
+@keyframes idleBody{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes idleHead{0%,100%{transform:rotate(0deg) translateY(0)}30%{transform:rotate(2deg) translateY(-1px)}70%{transform:rotate(-1.5deg) translateY(-2px)}}
+@keyframes idleArmL{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+@keyframes idleArmR{0%,100%{transform:rotate(4deg)}50%{transform:rotate(-4deg)}}
+@keyframes idleSkirt{0%,100%{transform:rotate(0deg)}40%{transform:rotate(1.5deg)}80%{transform:rotate(-1deg)}}
+@keyframes ahoge{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}}
+@keyframes eyeBlink{0%,90%,100%{transform:scaleY(1)}94%,96%{transform:scaleY(0.05)}}
+
+/* ── WALK ── */
+@keyframes walkBody{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes walkLegL{0%,100%{transform:rotate(-22deg)}50%{transform:rotate(22deg)}}
+@keyframes walkLegR{0%,100%{transform:rotate(22deg)}50%{transform:rotate(-22deg)}}
+@keyframes walkArmL{0%,100%{transform:rotate(18deg)}50%{transform:rotate(-18deg)}}
+@keyframes walkArmR{0%,100%{transform:rotate(-18deg)}50%{transform:rotate(18deg)}}
+@keyframes walkSkirt{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+@keyframes walkHead{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
+
+/* ── SIT ── */
+@keyframes sitBody{to{transform:translateY(18px)}}
+@keyframes sitLegL{to{transform:rotate(80deg)}}
+@keyframes sitLegR{to{transform:rotate(-80deg)}}
+@keyframes sitArmL{to{transform:rotate(15deg)}}
+@keyframes sitArmR{to{transform:rotate(-15deg)}}
+
+/* ── DANCE ── */
+@keyframes danceBody{0%,100%{transform:rotate(-5deg) translateY(0)}25%{transform:rotate(5deg) translateY(-8px)}50%{transform:rotate(-5deg) translateY(0)}75%{transform:rotate(5deg) translateY(-8px)}}
+@keyframes danceArmL{0%,100%{transform:rotate(-50deg)}50%{transform:rotate(20deg)}}
+@keyframes danceArmR{0%,100%{transform:rotate(50deg)}50%{transform:rotate(-20deg)}}
+@keyframes danceLegL{0%,100%{transform:rotate(-10deg)}50%{transform:rotate(10deg)}}
+@keyframes danceLegR{0%,100%{transform:rotate(10deg)}50%{transform:rotate(-10deg)}}
+@keyframes danceHead{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}}
+@keyframes danceSkirt{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}}
+
+/* ── JUMP ── */
+@keyframes jumpBody{0%{transform:translateY(0)}30%{transform:translateY(-30px)}60%{transform:translateY(-30px)}100%{transform:translateY(0)}}
+@keyframes jumpLegL{0%,100%{transform:rotate(0)}30%,60%{transform:rotate(-30deg)}}
+@keyframes jumpLegR{0%,100%{transform:rotate(0)}30%,60%{transform:rotate(30deg)}}
+@keyframes jumpArmL{0%,100%{transform:rotate(-4deg)}30%,60%{transform:rotate(-50deg)}}
+@keyframes jumpArmR{0%,100%{transform:rotate(4deg)}30%,60%{transform:rotate(50deg)}}
+@keyframes jumpSkirt{0%,100%{transform:rotate(0)}30%,60%{transform:rotate(12deg)}}
+
+/* ── SWIM ── */
+@keyframes swimBody{0%,100%{transform:rotate(-8deg) translateY(0)}50%{transform:rotate(8deg) translateY(-6px)}}
+@keyframes swimArmL{0%,100%{transform:rotate(-60deg)}50%{transform:rotate(30deg)}}
+@keyframes swimArmR{0%,100%{transform:rotate(60deg)}50%{transform:rotate(-30deg)}}
+@keyframes swimLegL{0%,100%{transform:rotate(-20deg)}50%{transform:rotate(20deg)}}
+@keyframes swimLegR{0%,100%{transform:rotate(20deg)}50%{transform:rotate(-20deg)}}
+@keyframes swimSkirt{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(12deg)}}
+
+/* ── WAVE ── */
+@keyframes waveArmR{0%,100%{transform:rotate(40deg)}30%{transform:rotate(-30deg)}60%{transform:rotate(40deg)}}
+@keyframes waveBody{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+
+/* ── Apply animations by state class ── */
+/* IDLE */
+.anim-idle .d-body{animation:idleBody 2.4s ease-in-out infinite;}
+.anim-idle .d-head{animation:idleHead 3s ease-in-out infinite;}
+.anim-idle .d-arm-l{animation:idleArmL 2.4s ease-in-out infinite;}
+.anim-idle .d-arm-r{animation:idleArmR 2.4s ease-in-out infinite .4s;}
+.anim-idle .d-skirt{animation:idleSkirt 2.4s ease-in-out infinite;}
+.anim-idle .d-ahoge{animation:ahoge 1.8s ease-in-out infinite;}
+.anim-idle .d-blink{animation:eyeBlink 3.5s ease-in-out infinite;}
+
+/* WALK */
+.anim-walk .d-body{animation:walkBody .45s ease-in-out infinite;}
+.anim-walk .d-leg-l{animation:walkLegL .45s ease-in-out infinite;}
+.anim-walk .d-leg-r{animation:walkLegR .45s ease-in-out infinite;}
+.anim-walk .d-arm-l{animation:walkArmL .45s ease-in-out infinite;}
+.anim-walk .d-arm-r{animation:walkArmR .45s ease-in-out infinite;}
+.anim-walk .d-skirt{animation:walkSkirt .45s ease-in-out infinite;}
+.anim-walk .d-head{animation:walkHead .45s ease-in-out infinite;}
+.anim-walk .d-ahoge{animation:ahoge .45s ease-in-out infinite;}
+.anim-walk .d-blink{animation:eyeBlink 3.5s ease-in-out infinite;}
+
+/* SIT */
+.anim-sit .d-body{animation:sitBody .4s ease forwards;}
+.anim-sit .d-leg-l{animation:sitLegL .4s ease forwards;}
+.anim-sit .d-leg-r{animation:sitLegR .4s ease forwards;}
+.anim-sit .d-arm-l{animation:sitArmL .4s ease forwards;}
+.anim-sit .d-arm-r{animation:sitArmR .4s ease forwards;}
+.anim-sit .d-blink{animation:eyeBlink 3.5s ease-in-out infinite;}
+.anim-sit .d-ahoge{animation:ahoge 2s ease-in-out infinite;}
+
+/* DANCE */
+.anim-dance .d-body{animation:danceBody .6s ease-in-out infinite;}
+.anim-dance .d-arm-l{animation:danceArmL .6s ease-in-out infinite;}
+.anim-dance .d-arm-r{animation:danceArmR .6s ease-in-out infinite;}
+.anim-dance .d-leg-l{animation:danceLegL .6s ease-in-out infinite;}
+.anim-dance .d-leg-r{animation:danceLegR .6s ease-in-out infinite;}
+.anim-dance .d-head{animation:danceHead .6s ease-in-out infinite;}
+.anim-dance .d-skirt{animation:danceSkirt .6s ease-in-out infinite;}
+.anim-dance .d-ahoge{animation:ahoge .4s ease-in-out infinite;}
+.anim-dance .d-blink{animation:eyeBlink 2.5s ease-in-out infinite;}
+
+/* JUMP */
+.anim-jump .d-body{animation:jumpBody .7s ease forwards;}
+.anim-jump .d-leg-l{animation:jumpLegL .7s ease forwards;}
+.anim-jump .d-leg-r{animation:jumpLegR .7s ease forwards;}
+.anim-jump .d-arm-l{animation:jumpArmL .7s ease forwards;}
+.anim-jump .d-arm-r{animation:jumpArmR .7s ease forwards;}
+.anim-jump .d-skirt{animation:jumpSkirt .7s ease forwards;}
+
+/* SWIM */
+.anim-swim .d-body{animation:swimBody .8s ease-in-out infinite;}
+.anim-swim .d-arm-l{animation:swimArmL .8s ease-in-out infinite;}
+.anim-swim .d-arm-r{animation:swimArmR .8s ease-in-out infinite;}
+.anim-swim .d-leg-l{animation:swimLegL .8s ease-in-out infinite .2s;}
+.anim-swim .d-leg-r{animation:swimLegR .8s ease-in-out infinite;}
+.anim-swim .d-skirt{animation:swimSkirt .8s ease-in-out infinite;}
+
+/* WAVE */
+.anim-wave .d-body{animation:waveBody 1s ease-in-out infinite;}
+.anim-wave .d-arm-r{animation:waveArmR .7s ease-in-out infinite;}
+.anim-wave .d-blink{animation:eyeBlink 3.5s ease-in-out infinite;}
+.anim-wave .d-ahoge{animation:ahoge 1s ease-in-out infinite;}
+
+/* ── Interaction buttons ── */
+.doll-btns{position:absolute;bottom:168px;left:50%;transform:translateX(-50%);display:flex;gap:5px;white-space:nowrap;transition:opacity .25s,transform .25s;}
+.doll-btns.hidden{opacity:0;pointer-events:none;transform:translateX(-50%) translateY(6px);}
+.doll-btn{background:rgba(10,10,20,.88);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.18);color:#fff;border-radius:20px;padding:5px 11px;font-size:.7rem;font-weight:700;cursor:pointer;transition:background .15s,transform .1s;letter-spacing:.02em;}
+.doll-btn:hover{background:rgba(88,101,242,.85);transform:translateY(-1px);}
+.doll-btn.active{background:rgba(88,101,242,.95);border-color:var(--brand);}
+.doll-btn.danger:hover{background:rgba(237,66,69,.8);}
+
+/* ── Chat bubble ── */
+@keyframes chatPop{from{opacity:0;transform:translateX(-50%) scale(.85) translateY(8px)}to{opacity:1;transform:translateX(-50%) scale(1) translateY(0)}}
+.doll-chat{position:absolute;bottom:166px;left:50%;transform:translateX(-50%);background:rgba(10,10,22,.93);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:10px 15px;font-size:.8rem;color:#fff;max-width:220px;min-width:120px;text-align:center;line-height:1.5;animation:chatPop .22s ease;white-space:normal;pointer-events:none;box-shadow:0 6px 24px rgba(0,0,0,.5);}
+.doll-chat::after{content:'';position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);border:7px solid transparent;border-top-color:rgba(10,10,22,.93);border-bottom:0;}
+.doll-chat-input-wrap{position:absolute;bottom:166px;left:50%;transform:translateX(-50%);display:flex;gap:4px;min-width:210px;}
+.doll-chat-input{flex:1;background:rgba(10,10,22,.93);border:1px solid rgba(255,255,255,.18);border-radius:20px;color:#fff;padding:7px 13px;font-size:.75rem;outline:none;}
+.doll-chat-input::placeholder{color:rgba(255,255,255,.35);}
+.doll-chat-send{background:var(--brand);border:none;border-radius:50%;width:30px;height:30px;color:#fff;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+
+/* ── Coins overlay ── */
+@keyframes coinFloat{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-50px)}}
+.doll-coins{position:fixed;bottom:16px;right:16px;z-index:8999;background:rgba(10,10,22,.88);backdrop-filter:blur(10px);border:1px solid rgba(240,180,41,.35);border-radius:22px;padding:7px 16px;font-size:.82rem;font-weight:700;color:var(--gold);display:none;align-items:center;gap:6px;}
+.doll-coins.visible{display:flex;}
+.coin-pop{position:fixed;z-index:9001;font-size:.82rem;font-weight:700;color:var(--gold);pointer-events:none;animation:coinFloat 1.3s ease forwards;}
+
+/* ── Shop v2 ── */
+.shop-tabs{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:18px;}
+.shop-tab{padding:8px 18px;font-size:.82rem;font-weight:600;color:var(--text-4);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color .15s,border-color .15s;}
+.shop-tab.active{color:var(--brand-light);border-bottom-color:var(--brand);}
 .shop-cat-slider{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;margin-bottom:16px;}
 .shop-cat-slider::-webkit-scrollbar{display:none;}
 .shop-cat-btn{flex-shrink:0;padding:6px 16px;border-radius:20px;border:1px solid var(--border);background:var(--bg-300);color:var(--text-3);font-size:.8rem;cursor:pointer;white-space:nowrap;transition:all .15s;}
 .shop-cat-btn.active{background:var(--brand);border-color:var(--brand);color:#fff;}
-.shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;}
-.shop-item{background:var(--bg-200);border:1px solid var(--border);border-radius:var(--r-md);padding:12px;text-align:center;cursor:pointer;transition:border-color .15s;}
+.shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;}
+.shop-item{background:var(--bg-200);border:2px solid var(--border);border-radius:var(--r-md);padding:12px 8px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;position:relative;}
 .shop-item:hover{border-color:var(--border-mid);}
-.shop-item.owned{border-color:var(--green);background:rgba(87,242,135,.05);}
-.shop-item.equipped{border-color:var(--brand);background:rgba(88,101,242,.08);}
-.shop-item-preview{width:64px;height:64px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;}
-.shop-item-name{font-size:.8rem;font-weight:600;margin-bottom:4px;}
-.shop-item-price{font-size:.75rem;color:var(--gold);}
+.shop-item.owned{border-color:var(--green);background:rgba(87,242,135,.04);}
+.shop-item.equipped{border-color:var(--brand);background:rgba(88,101,242,.07);}
+.shop-item-preview{width:56px;height:56px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:2.2rem;position:relative;}
+.shop-item-name{font-size:.78rem;font-weight:700;margin-bottom:3px;}
+.shop-item-price{font-size:.72rem;color:var(--gold);}
 .shop-item-price.free{color:var(--green);}
+.shop-item-badge{position:absolute;top:5px;right:5px;font-size:.55rem;padding:2px 5px;border-radius:8px;font-weight:700;}
+/* Animation shop slots */
+.anim-slots{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;}
+.anim-slot{background:var(--bg-300);border:2px dashed var(--border);border-radius:var(--r-md);padding:12px 8px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;min-height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;}
+.anim-slot.has-anim{border-style:solid;border-color:var(--brand);background:rgba(88,101,242,.06);}
+.anim-slot.selected{border-color:var(--gold);background:rgba(240,180,41,.08);}
+.anim-slot-name{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-4);}
+.anim-slot-equip{font-size:.8rem;font-weight:600;color:var(--text-2);}
+.anim-slot-icon{font-size:1.5rem;}
+
+/* ── Char slider ── */
 .doll-char-slider{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;margin-bottom:16px;}
 .doll-char-slider::-webkit-scrollbar{display:none;}
 .doll-char-card{flex-shrink:0;width:80px;text-align:center;cursor:pointer;}
-.doll-char-card-inner{border:2px solid var(--border);border-radius:var(--r-md);padding:8px;margin-bottom:4px;transition:border-color .15s;background:var(--bg-300);}
-.doll-char-card.active .doll-char-card-inner{border-color:var(--brand);background:rgba(88,101,242,.1);}
-.doll-char-label{font-size:.7rem;color:var(--text-3);}
+.doll-char-card-inner{border:2px solid var(--border);border-radius:var(--r-md);padding:4px;margin-bottom:4px;transition:border-color .15s;background:var(--bg-300);overflow:hidden;}
+.doll-char-card.active .doll-char-card-inner{border-color:var(--brand);background:rgba(88,101,242,.08);}
+.doll-char-label{font-size:.68rem;color:var(--text-3);font-weight:600;}
+
 </style>
 </head>
 <body>
@@ -801,38 +937,53 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
     <div class="login-box">
       <div class="login-box-header">
         <h2>Welcome back</h2>
-        <p>Enter your access key to continue to the dashboard.</p>
+        <p id="loginSubtitle">Sign in to continue to the dashboard.</p>
       </div>
       <div class="login-box-body">
-        <div class="field">
-          <label>Access Key</label>
-          <div class="input-wrap">
-            <input type="password" id="keyInput" class="input" placeholder="••••••••••••" autocomplete="off" autocapitalize="off">
-            <button class="input-eye" onclick="togglePwd()" id="eyeBtn" aria-label="Toggle visibility">
-              <svg id="eyeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
+
+        <!-- Email login (shown in app mode + always available) -->
+        <div id="emailLoginSection">
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="loginEmail" class="input" placeholder="your@email.com" autocomplete="email">
           </div>
+          <button class="btn btn-primary btn-full" onclick="startEmailLogin()" id="emailLoginBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            Continue with Email
+          </button>
         </div>
-        <button class="btn btn-primary btn-full" onclick="verifyKey()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20,6 9,17 4,12"/></svg>
-          Continue
-        </button>
 
-        <div class="divider">or</div>
+        <!-- Discord login (hidden in app mode) -->
+        <div id="discordLoginSection">
+          <div class="divider">or</div>
+          <a href="https://kii-akira-backen-production-f0d7.up.railway.app/auth/discord" class="discord-connect-btn" style="text-decoration:none;display:flex;align-items:center;gap:12px;width:100%;justify-content:center;">
+            <div class="dc-icon">
+              <svg width="20" height="15" viewBox="0 0 22 16" fill="white"><path d="M18.59 1.33A18.17 18.17 0 0 0 14.1 0a.07.07 0 0 0-.07.03 12.68 12.68 0 0 0-.56 1.15 16.77 16.77 0 0 0-5.03 0A11.65 11.65 0 0 0 7.88.03a.07.07 0 0 0-.07-.03 18.13 18.13 0 0 0-4.49 1.33.06.06 0 0 0-.03.02C.48 5.57-.29 9.7.09 13.77a.07.07 0 0 0 .03.05 18.26 18.26 0 0 0 5.5 2.78.07.07 0 0 0 .08-.03c.42-.58.8-1.19 1.12-1.83a.07.07 0 0 0-.04-.09 12.03 12.03 0 0 1-1.72-.82.07.07 0 0 1-.01-.11c.12-.09.23-.18.34-.27a.07.07 0 0 1 .07-.01 13.01 13.01 0 0 0 11.06 0 .07.07 0 0 1 .07.01c.11.09.23.18.34.27a.07.07 0 0 1-.01.11 11.3 11.3 0 0 1-1.72.82.07.07 0 0 0-.04.09c.33.64.71 1.25 1.12 1.83a.07.07 0 0 0 .08.03 18.21 18.21 0 0 0 5.51-2.78.07.07 0 0 0 .03-.05c.46-4.74-.77-8.86-3.26-12.41a.05.05 0 0 0-.03-.03ZM7.35 11.29c-1.08 0-1.97-.99-1.97-2.21s.87-2.21 1.97-2.21c1.11 0 1.99 1 1.97 2.21 0 1.22-.87 2.21-1.97 2.21Zm7.29 0c-1.08 0-1.97-.99-1.97-2.21s.87-2.21 1.97-2.21c1.11 0 1.99 1 1.97 2.21 0 1.22-.86 2.21-1.97 2.21Z"/></svg>
+            </div>
+            <span>Continue with Discord</span>
+            <svg class="dc-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
+          </a>
+        </div>
 
-        <a href="https://kii-akira-backen-production-f0d7.up.railway.app/auth/discord" class="discord-connect-btn" style="text-decoration:none;display:flex;align-items:center;gap:12px;width:100%;justify-content:center;">
-          <div class="dc-icon">
-            <svg width="20" height="15" viewBox="0 0 22 16" fill="white"><path d="M18.59 1.33A18.17 18.17 0 0 0 14.1 0a.07.07 0 0 0-.07.03 12.68 12.68 0 0 0-.56 1.15 16.77 16.77 0 0 0-5.03 0A11.65 11.65 0 0 0 7.88.03a.07.07 0 0 0-.07-.03 18.13 18.13 0 0 0-4.49 1.33.06.06 0 0 0-.03.02C.48 5.57-.29 9.7.09 13.77a.07.07 0 0 0 .03.05 18.26 18.26 0 0 0 5.5 2.78.07.07 0 0 0 .08-.03c.42-.58.8-1.19 1.12-1.83a.07.07 0 0 0-.04-.09 12.03 12.03 0 0 1-1.72-.82.07.07 0 0 1-.01-.11c.12-.09.23-.18.34-.27a.07.07 0 0 1 .07-.01 13.01 13.01 0 0 0 11.06 0 .07.07 0 0 1 .07.01c.11.09.23.18.34.27a.07.07 0 0 1-.01.11 11.3 11.3 0 0 1-1.72.82.07.07 0 0 0-.04.09c.33.64.71 1.25 1.12 1.83a.07.07 0 0 0 .08.03 18.21 18.21 0 0 0 5.51-2.78.07.07 0 0 0 .03-.05c.46-4.74-.77-8.86-3.26-12.41a.05.05 0 0 0-.03-.03ZM7.35 11.29c-1.08 0-1.97-.99-1.97-2.21s.87-2.21 1.97-2.21c1.11 0 1.99 1 1.97 2.21 0 1.22-.87 2.21-1.97 2.21Zm7.29 0c-1.08 0-1.97-.99-1.97-2.21s.87-2.21 1.97-2.21c1.11 0 1.99 1 1.97 2.21 0 1.22-.86 2.21-1.97 2.21Z"/></svg>
-          </div>
-          <span>Continue with Discord</span>
-          <svg class="dc-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
-        </a>
       </div>
     </div>
 
     <p style="text-align:center;margin-top:20px;font-size:.75rem;color:var(--text-4);">
       Kii Akira Platform — Developer: <span style="color:var(--text-3);">kiiakira</span>
     </p>
+
+    <script>
+    // Detect if running inside the KiiAkira Android app
+    const isApp = new URLSearchParams(window.location.search).get('app') === '1'
+                  || navigator.userAgent.includes('KiiAkiraApp');
+    if (isApp) {
+      // Hide Discord login, show email only
+      document.getElementById('discordLoginSection').style.display = 'none';
+      document.getElementById('loginSubtitle').textContent = 'Sign in with your email to continue.';
+      // Store app mode so it persists through email verification steps
+      sessionStorage.setItem('appMode', '1');
+    }
+    </script>
   </div>
 </div>
 
@@ -1424,32 +1575,50 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
       <div class="section-header" style="margin-bottom:20px;">
         <div>
           <div class="section-title">🎀 Doll</div>
-          <div style="font-size:.8rem;color:var(--text-4);margin-top:2px;">Your virtual companion — lives on your screen, learns from you</div>
+          <div style="font-size:.79rem;color:var(--text-4);margin-top:2px;">Your animated companion · runs on your screen · learns from you</div>
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
           <div style="display:flex;align-items:center;gap:6px;background:var(--bg-300);border:1px solid rgba(240,180,41,.3);border-radius:20px;padding:6px 14px;">
-            <span style="font-size:1rem;">¢</span>
+            <span style="font-size:1rem;color:var(--gold);">¢</span>
             <span id="dollCoinDisplay" style="font-weight:700;color:var(--gold);font-size:.9rem;">0</span>
           </div>
           <button onclick="toggleDoll()" id="dollToggleBtn" class="btn btn-primary btn-sm">Show Doll</button>
         </div>
       </div>
 
-      <!-- Character selector -->
-      <div class="card" style="margin-bottom:16px;padding:16px;">
-        <div style="font-weight:600;margin-bottom:12px;">My Characters</div>
+      <!-- Character slider -->
+      <div class="card" style="margin-bottom:14px;padding:16px;">
+        <div style="font-weight:700;margin-bottom:12px;">My Characters</div>
         <div class="doll-char-slider" id="dollCharSlider"></div>
-        <div style="font-size:.75rem;color:var(--text-4);">Click a character to equip her. Buy more in the Shop below.</div>
+        <div style="font-size:.74rem;color:var(--text-4);">Tap to equip · buy more in the Shop tab below</div>
       </div>
 
-      <!-- Shop -->
+      <!-- Shop tabs -->
       <div class="card" style="padding:16px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-          <div style="font-weight:700;font-size:1rem;">🛍 Shop</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <div style="font-weight:700;font-size:1rem;">Shop</div>
           <div style="font-size:.8rem;color:var(--text-4);">Balance: <span id="shopCoinDisplay" style="color:var(--gold);font-weight:700;">¢0</span></div>
         </div>
-        <div class="shop-cat-slider" id="shopCatSlider"></div>
-        <div class="shop-grid" id="shopGrid"></div>
+        <div class="shop-tabs">
+          <div class="shop-tab active" id="stab-items" onclick="setShopTab('items')">🛍 Items</div>
+          <div class="shop-tab" id="stab-anim" onclick="setShopTab('anim')">🎬 Animations</div>
+        </div>
+
+        <!-- Items tab -->
+        <div id="shopItems">
+          <div class="shop-cat-slider" id="shopCatSlider"></div>
+          <div class="shop-grid" id="shopGrid"></div>
+        </div>
+
+        <!-- Animations tab -->
+        <div id="shopAnim" style="display:none;">
+          <div style="font-size:.8rem;color:var(--text-3);margin-bottom:14px;line-height:1.6;">
+            You have <strong>6 animation slots</strong> — one for each action. Equip any animation you own into a slot.
+          </div>
+          <div class="anim-slots" id="animSlots"></div>
+          <div style="font-weight:600;margin-bottom:10px;font-size:.875rem;">Animation Store</div>
+          <div class="shop-grid" id="animShopGrid"></div>
+        </div>
       </div>
     </div>
 
@@ -2547,6 +2716,11 @@ let resendInterval=null;
 function openDiscordModal(){
   goStep(1);
   document.getElementById('discordBackdrop').classList.add('open');
+}
+
+// Called by the email login button on the main login page
+function startEmailLogin(){
+  openDiscordModal();
 }
 function closeDiscord(){
   if(authStep>=4)return; // don't close mid-success
@@ -4108,7 +4282,8 @@ function toast(msg,type='ok'){
 }
 
 // ─── Keyboard ───
-document.getElementById('keyInput').addEventListener('keypress',e=>{if(e.key==='Enter')verifyKey();});
+document.getElementById('keyInput')?.addEventListener('keypress',e=>{if(e.key==='Enter')verifyKey();});
+document.getElementById('loginEmail')?.addEventListener('keypress',e=>{if(e.key==='Enter')startEmailLogin();});
 document.getElementById('authEmail')?.addEventListener('keypress',e=>{if(e.key==='Enter')sendEmailCode();});
 // Code inputs — backspace navigation
 [0,1,2,3,4,5].forEach(i=>{
@@ -4671,531 +4846,664 @@ async function saveBotPersonality(){
 <!-- ═══════════════ DOLL OVERLAY ═══════════════ -->
 <div id="dollOverlay">
   <div class="doll-wrap" id="dollWrap">
-    <!-- Chat bubble / input -->
     <div class="doll-chat" id="dollChat" style="display:none;"></div>
     <div class="doll-chat-input-wrap" id="dollChatInput" style="display:none;">
       <input class="doll-chat-input" id="dollMsgInput" placeholder="Talk to her..." maxlength="200" onkeydown="if(event.key==='Enter')sendDollMsg()">
       <button class="doll-chat-send" onclick="sendDollMsg()">➤</button>
     </div>
-    <!-- Interaction buttons -->
-    <div class="doll-btns" id="dollBtns">
-      <button class="doll-btn" onclick="dollAction('sit')" id="btnSit">🪑 Sit</button>
-      <button class="doll-btn" onclick="dollAction('dance')" id="btnDance">💃 Dance</button>
-      <button class="doll-btn" onclick="dollAction('talk')" id="btnTalk">💬 Talk</button>
-      <button class="doll-btn" onclick="toggleDoll()" style="background:rgba(237,66,69,.3);">✕</button>
+    <div class="doll-btns hidden" id="dollBtns">
+      <button class="doll-btn" onclick="dollAction('sit')" id="btnSit">🪑</button>
+      <button class="doll-btn" onclick="dollAction('dance')" id="btnDance">💃</button>
+      <button class="doll-btn" onclick="dollAction('jump')" id="btnJump">⬆️</button>
+      <button class="doll-btn" onclick="dollAction('swim')" id="btnSwim">🌊</button>
+      <button class="doll-btn" onclick="dollAction('wave')" id="btnWave">👋</button>
+      <button class="doll-btn" onclick="dollAction('talk')" id="btnTalk">💬</button>
+      <button class="doll-btn danger" onclick="toggleDoll()">✕</button>
     </div>
-    <!-- The doll sprite -->
-    <div class="doll-sprite doll-state-idle" id="dollSprite" onclick="onDollClick(event)"></div>
+    <div class="doll-root anim-idle" id="dollRoot" onclick="onDollClick(event)"></div>
   </div>
 </div>
-<!-- Coin display overlay -->
 <div class="doll-coins" id="dollCoinsOverlay">
-  <span style="font-size:1rem;">¢</span>
-  <span id="dollCoinsCount">0</span>
+  <span>¢</span><span id="dollCoinsCount">0</span>
 </div>
 
 <script>
-// ═══════════════════════════════════════════════════════
-//  DOLL SYSTEM
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
+//  DOLL SYSTEM v2
+// ═══════════════════════════════════════════════════
 
-// ── Data ──
-const DOLL_KEY = () => `kiiakira_doll_${currentUser?.discordId||'anon'}`;
+// ── Characters ──
+const CHAR_COLORS = {
+  homeless: {skin:'#e8c69a',hair:'#6b5b3e',cloth:'#9e9e9e',accent:'#757575',eye:'#795548',skirt:'#bdbdbd'},
+  sakura:   {skin:'#f5c6a0',hair:'#ff8fa3',cloth:'#f48fb1',accent:'#e91e63',eye:'#ff69b4',skirt:'#fce4ec'},
+  yuki:     {skin:'#f0e8ff',hair:'#90caf9',cloth:'#bbdefb',accent:'#1565c0',eye:'#5c6bc0',skirt:'#e3f2fd'},
+  hana:     {skin:'#f9d4a0',hair:'#ff7043',cloth:'#ffcc02',accent:'#e65100',eye:'#bf360c',skirt:'#fff9c4'},
+  luna:     {skin:'#e8d8f0',hair:'#9c27b0',cloth:'#7b1fa2',accent:'#ce93d8',eye:'#6a1b9a',skirt:'#f3e5f5'},
+  cyber:    {skin:'#c8e6c9',hair:'#00e5ff',cloth:'#0d47a1',accent:'#00bcd4',eye:'#00acc1',skirt:'#e1f5fe'},
+};
 
-function loadDollData(){
-  try{ return JSON.parse(localStorage.getItem(DOLL_KEY()))||{}; }catch{ return {}; }
+function buildDollSVG(charId, outfitId, hairId, accId){
+  const c = CHAR_COLORS[charId]||CHAR_COLORS.homeless;
+  // Hair styles
+  const hairStyles = {
+    none:      `<ellipse class="d-hair-back" cx="48" cy="28" rx="22" ry="18" fill="${c.hair}"/>`,
+    twin_tails:`<ellipse class="d-hair-back" cx="48" cy="28" rx="22" ry="18" fill="${c.hair}"/>
+                <ellipse cx="20" cy="52" rx="8" ry="18" fill="${c.hair}" transform="rotate(-10 20 52)"/>
+                <ellipse cx="76" cy="52" rx="8" ry="18" fill="${c.hair}" transform="rotate(10 76 52)"/>`,
+    long_hair: `<ellipse class="d-hair-back" cx="48" cy="28" rx="22" ry="18" fill="${c.hair}"/>
+                <path d="M26 28 Q22 80 30 120" stroke="${c.hair}" stroke-width="14" fill="none" stroke-linecap="round"/>
+                <path d="M70 28 Q74 80 66 120" stroke="${c.hair}" stroke-width="14" fill="none" stroke-linecap="round"/>`,
+    short_hair:`<ellipse class="d-hair-back" cx="48" cy="32" rx="20" ry="14" fill="${c.hair}"/>`,
+    ahoge_hair:`<ellipse class="d-hair-back" cx="48" cy="28" rx="22" ry="18" fill="${c.hair}"/>
+                <path class="d-ahoge" d="M48 12 Q58 2 56 14" stroke="${c.hair}" stroke-width="5" fill="none" stroke-linecap="round"/>`,
+  };
+  const hairSVG = hairStyles[hairId]||hairStyles.none;
+  // Accessories
+  const accSVG = {
+    none:'',
+    cat_ears:`<path d="M28 22 L22 8 L36 18Z" fill="${c.hair}"/><path d="M28 22 L22 8 L36 18Z" fill="${c.accent}" opacity=".5" transform="scale(.5) translate(32,20)"/>
+              <path d="M68 22 L74 8 L60 18Z" fill="${c.hair}"/><path d="M68 22 L74 8 L60 18Z" fill="${c.accent}" opacity=".5" transform="scale(.5) translate(66,20)"/>`,
+    hair_bow:`<path d="M36 16 Q38 10 44 14 Q38 18 36 16Z" fill="${c.accent}"/>
+              <path d="M60 16 Q58 10 52 14 Q58 18 60 16Z" fill="${c.accent}"/>
+              <circle cx="48" cy="15" r="4" fill="${c.accent}"/>`,
+    glasses:`<ellipse cx="38" cy="52" rx="8" ry="6" fill="none" stroke="${c.accent}" stroke-width="2"/>
+             <ellipse cx="58" cy="52" rx="8" ry="6" fill="none" stroke="${c.accent}" stroke-width="2"/>
+             <line x1="46" y1="52" x2="50" y2="52" stroke="${c.accent}" stroke-width="2"/>`,
+    headphones:`<path d="M22 42 Q24 30 48 30 Q72 30 74 42" fill="none" stroke="${c.accent}" stroke-width="4"/>
+                <ellipse cx="22" cy="46" rx="5" ry="7" fill="${c.accent}"/>
+                <ellipse cx="74" cy="46" rx="5" ry="7" fill="${c.accent}"/>`,
+  }[accId]||'';
+  // Outfit color
+  const outfitCols = {
+    homeless_outfit:{body:'#9e9e9e',skirt:'#bdbdbd',trim:'#757575'},
+    school_outfit:  {body:'#1565c0',skirt:'#ffffff',trim:'#ff8f00'},
+    maid_outfit:    {body:'#1a237e',skirt:'#ffffff',trim:'#e91e63'},
+    idol_outfit:    {body:'#f06292',skirt:'#f8bbd0',trim:'#ffd54f'},
+    casual_outfit:  {body:'#43a047',skirt:'#e8f5e9',trim:'#ffd600'},
+    gothic_outfit:  {body:'#212121',skirt:'#311b92',trim:'#e040fb'},
+  };
+  const oc = outfitCols[outfitId]||outfitCols.homeless_outfit;
+
+  return `<svg class="d-body" width="96" height="160" viewBox="0 0 96 160" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">
+  <!-- Shadow -->
+  <ellipse class="d-shadow" cx="48" cy="156" rx="24" ry="5" fill="rgba(0,0,0,.18)"/>
+  <!-- Hair back -->
+  ${hairSVG}
+  <!-- LEFT ARM (behind body) -->
+  <g class="d-arm-l">
+    <rect x="18" y="68" width="13" height="34" rx="6" fill="${c.skin}"/>
+    <!-- sleeve -->
+    <rect x="18" y="68" width="13" height="14" rx="5" fill="${oc.body}" opacity=".85"/>
+    <!-- hand -->
+    <ellipse cx="24" cy="103" rx="6" ry="6" fill="${c.skin}"/>
+  </g>
+  <!-- Legs -->
+  <g class="d-leg-l">
+    <rect x="30" y="114" width="14" height="34" rx="7" fill="${c.skin}"/>
+    <ellipse cx="37" cy="148" rx="8" ry="6" fill="${c.accent}"/>
+  </g>
+  <g class="d-leg-r">
+    <rect x="52" y="114" width="14" height="34" rx="7" fill="${c.skin}"/>
+    <ellipse cx="59" cy="148" rx="8" ry="6" fill="${c.accent}"/>
+  </g>
+  <!-- Skirt -->
+  <g class="d-skirt">
+    <path d="M28 100 Q24 122 26 128 L70 128 Q72 122 68 100 Z" fill="${oc.skirt}"/>
+    <!-- skirt trim -->
+    <path d="M26 126 Q48 132 70 126" stroke="${oc.trim}" stroke-width="3" fill="none"/>
+  </g>
+  <!-- Body/torso -->
+  <rect x="30" y="68" width="36" height="36" rx="6" fill="${oc.body}"/>
+  <!-- Collar / trim -->
+  <path d="M38 68 L48 80 L58 68" stroke="${oc.trim}" stroke-width="3" fill="none"/>
+  <!-- RIGHT ARM (in front) -->
+  <g class="d-arm-r">
+    <rect x="65" y="68" width="13" height="34" rx="6" fill="${c.skin}"/>
+    <rect x="65" y="68" width="13" height="14" rx="5" fill="${oc.body}" opacity=".85"/>
+    <ellipse cx="71" cy="103" rx="6" ry="6" fill="${c.skin}"/>
+  </g>
+  <!-- Neck -->
+  <rect x="43" y="56" width="10" height="16" rx="5" fill="${c.skin}"/>
+  <!-- Head -->
+  <ellipse class="d-head" cx="48" cy="38" rx="20" ry="22" fill="${c.skin}"/>
+  <!-- Blush -->
+  <ellipse cx="32" cy="44" rx="6" ry="3.5" fill="rgba(255,120,120,.28)"/>
+  <ellipse cx="64" cy="44" rx="6" ry="3.5" fill="rgba(255,120,120,.28)"/>
+  <!-- Eyes (with blink layer) -->
+  <g class="d-eye-l">
+    <ellipse cx="38" cy="40" rx="6" ry="7" fill="white"/>
+    <ellipse cx="38" cy="42" rx="4" ry="5" fill="${c.eye}"/>
+    <ellipse cx="38" cy="42" rx="2.5" ry="3.5" fill="#1a1a2e"/>
+    <circle cx="40" cy="39" r="1.5" fill="white"/>
+  </g>
+  <g class="d-eye-r">
+    <ellipse cx="58" cy="40" rx="6" ry="7" fill="white"/>
+    <ellipse cx="58" cy="42" rx="4" ry="5" fill="${c.eye}"/>
+    <ellipse cx="58" cy="42" rx="2.5" ry="3.5" fill="#1a1a2e"/>
+    <circle cx="60" cy="39" r="1.5" fill="white"/>
+  </g>
+  <!-- Blink layer (covers eyes) -->
+  <g class="d-blink">
+    <rect x="30" y="34" width="16" height="14" rx="4" fill="${c.skin}" opacity="0"/>
+    <rect x="50" y="34" width="16" height="14" rx="4" fill="${c.skin}" opacity="0"/>
+  </g>
+  <!-- Eyebrows -->
+  <path d="M33 32 Q38 29 43 32" stroke="${c.hair}" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M53 32 Q58 29 63 32" stroke="${c.hair}" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <!-- Nose -->
+  <circle cx="48" cy="46" r="1.5" fill="rgba(0,0,0,.12)"/>
+  <!-- Mouth -->
+  <path d="M43 50 Q48 55 53 50" stroke="${c.accent}" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <!-- Hair front -->
+  <path d="M28 30 Q26 42 30 50 Q32 28 48 18 Q64 28 66 50 Q70 42 68 30 Q58 8 48 10 Q38 8 28 30Z" fill="${c.hair}"/>
+  <!-- Accessories (on top) -->
+  ${accSVG}
+</svg>`;
 }
-function saveDollData(d){ localStorage.setItem(DOLL_KEY(), JSON.stringify(d)); }
 
+// ── Catalog ──
+const DOLL_CHARS = [
+  {id:'homeless',name:'Mika',emoji:'🧍',price:0,desc:'Your starter doll'},
+  {id:'sakura',  name:'Sakura',emoji:'🌸',price:200,desc:'Cherry blossom'},
+  {id:'yuki',    name:'Yuki',emoji:'❄️',price:200,desc:'Snow maiden'},
+  {id:'hana',    name:'Hana',emoji:'🌺',price:300,desc:'Flower spirit'},
+  {id:'luna',    name:'Luna',emoji:'🌙',price:350,desc:'Moonlit guardian'},
+  {id:'cyber',   name:'Cyber',emoji:'🤖',price:400,desc:'Cyberpunk android'},
+];
+
+const SHOP_ITEMS = [
+  {id:'homeless_outfit',cat:'outfit',name:'Rags',emoji:'👕',price:0,desc:'Default'},
+  {id:'school_outfit',  cat:'outfit',name:'School',emoji:'👗',price:80},
+  {id:'maid_outfit',    cat:'outfit',name:'Maid',emoji:'🎀',price:120},
+  {id:'idol_outfit',    cat:'outfit',name:'Idol',emoji:'✨',price:180},
+  {id:'casual_outfit',  cat:'outfit',name:'Casual',emoji:'🧥',price:60},
+  {id:'gothic_outfit',  cat:'outfit',name:'Gothic',emoji:'🖤',price:200},
+  {id:'twin_tails',     cat:'hair',name:'Twin Tails',emoji:'💇',price:50},
+  {id:'long_hair',      cat:'hair',name:'Long',emoji:'💆',price:40},
+  {id:'short_hair',     cat:'hair',name:'Short Bob',emoji:'✂️',price:30},
+  {id:'ahoge_hair',     cat:'hair',name:'Ahoge',emoji:'🌀',price:60},
+  {id:'cat_ears',       cat:'accessory',name:'Cat Ears',emoji:'🐱',price:70},
+  {id:'hair_bow',       cat:'accessory',name:'Hair Bow',emoji:'🎀',price:40},
+  {id:'glasses',        cat:'accessory',name:'Glasses',emoji:'👓',price:50},
+  {id:'headphones',     cat:'accessory',name:'Headphones',emoji:'🎧',price:90},
+  ...DOLL_CHARS.filter(c=>c.id!=='homeless').map(c=>({id:c.id,cat:'character',name:c.name,emoji:c.emoji,price:c.price,desc:c.desc})),
+];
+
+const ANIM_CATALOG = [
+  {id:'idle_default', slot:'idle',  name:'Default Idle', emoji:'😊', price:0,   desc:'Gentle sway'},
+  {id:'idle_bored',   slot:'idle',  name:'Bored Idle',   emoji:'🥱', price:60,  desc:'Looking around'},
+  {id:'walk_skip',    slot:'walk',  name:'Skip Walk',    emoji:'🚶', price:0,   desc:'Default walk'},
+  {id:'walk_run',     slot:'walk',  name:'Run',          emoji:'🏃', price:80,  desc:'Faster movement'},
+  {id:'sit_default',  slot:'sit',   name:'Sit',          emoji:'🪑', price:0,   desc:'Default sit'},
+  {id:'sit_meditate', slot:'sit',   name:'Meditate',     emoji:'🧘', price:100, desc:'Crossed legs sit'},
+  {id:'dance_basic',  slot:'dance', name:'Dance',        emoji:'💃', price:0,   desc:'Basic dance'},
+  {id:'dance_spin',   slot:'dance', name:'Spin',         emoji:'🌀', price:120, desc:'Spinning dance'},
+  {id:'jump_default', slot:'jump',  name:'Jump',         emoji:'⬆️', price:0,   desc:'Default jump'},
+  {id:'jump_flip',    slot:'jump',  name:'Backflip',     emoji:'🤸', price:150, desc:'Backflip jump'},
+  {id:'swim_default', slot:'swim',  name:'Swim',         emoji:'🌊', price:0,   desc:'Default swim'},
+  {id:'swim_dive',    slot:'swim',  name:'Dive',         emoji:'🤽', price:100, desc:'Diving swim'},
+  {id:'wave_default', slot:'wave',  name:'Wave',         emoji:'👋', price:0,   desc:'Friendly wave'},
+  {id:'wave_heart',   slot:'wave',  name:'Heart Hands',  emoji:'🫶', price:80,  desc:'Heart pose'},
+];
+
+const ANIM_SLOTS = [
+  {slot:'idle', label:'Idle', icon:'😊'},
+  {slot:'walk', label:'Walk', icon:'🚶'},
+  {slot:'sit',  label:'Sit',  icon:'🪑'},
+  {slot:'dance',label:'Dance',icon:'💃'},
+  {slot:'jump', label:'Jump', icon:'⬆️'},
+  {slot:'swim', label:'Swim', icon:'🌊'},
+];
+
+// ── Persistence (localStorage + backend sync) ──
+const DOLL_KEY = ()=>`kiiakira_doll_${currentUser?.discordId||'anon'}`;
+function loadDollData(){try{return JSON.parse(localStorage.getItem(DOLL_KEY()))||{};}catch{return {};}}
+function saveDollData(d){
+  localStorage.setItem(DOLL_KEY(), JSON.stringify(d));
+  // Sync coins to backend so they survive Railway updates
+  if(currentUser?.discordId){
+    fetch(`${BACKEND_URL}/doll/coins`,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({coins:d.coins||0})}).catch(()=>{});
+  }
+}
 function getDollState(){
-  const d = loadDollData();
+  const d=loadDollData();
   return {
     coins:      d.coins      || 0,
     ownedChars: d.ownedChars || ['homeless'],
     ownedItems: d.ownedItems || [],
-    equipped:   d.equipped   || { char:'homeless', outfit:'homeless_outfit', hair:'none', accessory:'none' },
+    ownedAnims: d.ownedAnims || ['idle_default','walk_skip','sit_default','dance_basic','jump_default','swim_default','wave_default'],
+    equippedAnims: d.equippedAnims || {idle:'idle_default',walk:'walk_skip',sit:'sit_default',dance:'dance_basic',jump:'jump_default',swim:'swim_default',wave:'wave_default'},
+    equipped:   d.equipped   || {char:'homeless',outfit:'homeless_outfit',hair:'none',accessory:'none'},
     visible:    d.visible    || false,
-    posX:       d.posX       !== undefined ? d.posX : 60,
-    posY:       d.posY       !== undefined ? d.posY : 80,
+    posX:       d.posX       !== undefined ? d.posX : 80,
+    posY:       d.posY       !== undefined ? d.posY : 100,
   };
 }
-function saveDollState(s){ saveDollData(s); }
+function saveDollState(s){saveDollData(s);}
 
-// ── Characters & items catalog ──
-const DOLL_CHARS = [
-  { id:'homeless', name:'Mika', emoji:'🧍', desc:'Your starter companion', price:0,
-    svg: buildCharSVG('#e8c99a','#888','#aaa','#ccc','gray') },
-  { id:'sakura', name:'Sakura', emoji:'🌸', desc:'Cherry blossom girl', price:200,
-    svg: buildCharSVG('#f5c6a0','#ff9fc8','#ffb3d1','#fff0f5','#ff69b4') },
-  { id:'yuki', name:'Yuki', emoji:'❄️', desc:'Winter snow maiden', price:200,
-    svg: buildCharSVG('#f0e6ff','#b0c4ff','#c8daff','#f0f4ff','#7090ff') },
-  { id:'hana', name:'Hana', emoji:'🌺', desc:'Summer flower spirit', price:300,
-    svg: buildCharSVG('#f9d4a0','#ff7043','#ffab40','#fff3e0','#ff5722') },
-  { id:'luna', name:'Luna', emoji:'🌙', desc:'Moonlit guardian', price:350,
-    svg: buildCharSVG('#d4b8e0','#9c27b0','#ce93d8','#f3e5f5','#7b1fa2') },
-];
+// ── State ──
+let dollVisible=false,dollAnimState='idle',dollX=80,dollY=100,dollDir=1;
+let dollWalkTimer=null,dollBtnTimer=null,dollCoinTimer=null,dollChatTimer=null;
+let dollDragging=false,_dragDown=false,_dragSX=0,_dragSY=0,_dragOX=0,_dragOY=0;
+let currentDollData=null;
+let activeShopTab='items',activeShopCat='outfit',selectedAnimSlot=null;
 
-const SHOP_ITEMS = [
-  // Outfits
-  { id:'homeless_outfit', cat:'outfit', name:'Rags', emoji:'🧥', price:0, desc:'Default look' },
-  { id:'school_outfit', cat:'outfit', name:'School Uniform', emoji:'👗', price:80, desc:'Classic sailor uniform' },
-  { id:'maid_outfit', cat:'outfit', name:'Maid Dress', emoji:'🎀', price:120, desc:'Frilly maid outfit' },
-  { id:'idol_outfit', cat:'outfit', name:'Idol Stage', emoji:'✨', price:180, desc:'Pop idol performance wear' },
-  { id:'casual_outfit', cat:'outfit', name:'Casual Cute', emoji:'👕', price:60, desc:'Everyday street style' },
-  { id:'gothic_outfit', cat:'outfit', name:'Gothic Lolita', emoji:'🖤', price:200, desc:'Dark elegant dress' },
-  // Hair
-  { id:'twin_tails', cat:'hair', name:'Twin Tails', emoji:'💇', price:50, desc:'Iconic twin tails' },
-  { id:'long_hair', cat:'hair', name:'Long Flowing', emoji:'💆', price:40, desc:'Beautiful long hair' },
-  { id:'short_hair', cat:'hair', name:'Short Bob', emoji:'✂️', price:30, desc:'Cute short bob' },
-  { id:'ahoge_hair', cat:'hair', name:'Ahoge', emoji:'🌀', price:60, desc:'Signature antenna hair' },
-  // Accessories
-  { id:'cat_ears', cat:'accessory', name:'Cat Ears', emoji:'🐱', price:70, desc:'Cute ne-ko ears' },
-  { id:'hair_bow', cat:'accessory', name:'Hair Bow', emoji:'🎀', price:40, desc:'Big ribbon bow' },
-  { id:'glasses', cat:'accessory', name:'Glasses', emoji:'👓', price:50, desc:'Round cute glasses' },
-  { id:'headphones', cat:'accessory', name:'Headphones', emoji:'🎧', price:90, desc:'Music headphones' },
-  // Characters (same as DOLL_CHARS except homeless)
-  ...DOLL_CHARS.filter(c=>c.id!=='homeless').map(c=>({ id:c.id, cat:'character', name:c.name, emoji:c.emoji, price:c.price, desc:c.desc })),
-];
-
-function buildCharSVG(skin, hairCol, clothCol, bgCol, accentCol){
-  return `<svg width="72" height="120" viewBox="0 0 72 120" xmlns="http://www.w3.org/2000/svg">
-  <!-- Body glow bg -->
-  <ellipse cx="36" cy="110" rx="22" ry="5" fill="rgba(0,0,0,.15)"/>
-  <!-- Legs -->
-  <g id="legs">
-    <rect x="27" y="85" width="8" height="22" rx="4" fill="${skin}"/>
-    <rect x="37" y="85" width="8" height="22" rx="4" fill="${skin}"/>
-    <!-- Shoes -->
-    <ellipse cx="31" cy="107" rx="6" ry="4" fill="${accentCol}"/>
-    <ellipse cx="41" cy="107" rx="6" ry="4" fill="${accentCol}"/>
-  </g>
-  <!-- Skirt/body -->
-  <path d="M20 58 Q22 88 28 90 L44 90 Q50 88 52 58 Z" fill="${clothCol}"/>
-  <!-- Torso -->
-  <rect x="25" y="42" width="22" height="20" rx="4" fill="${clothCol}"/>
-  <!-- Arms -->
-  <rect x="14" y="44" width="10" height="20" rx="5" fill="${skin}" transform="rotate(-8,19,44)"/>
-  <rect x="48" y="44" width="10" height="20" rx="5" fill="${skin}" transform="rotate(8,53,44)"/>
-  <!-- Neck -->
-  <rect x="32" y="36" width="8" height="10" rx="4" fill="${skin}"/>
-  <!-- Head -->
-  <ellipse cx="36" cy="28" rx="16" ry="17" fill="${skin}"/>
-  <!-- Hair back -->
-  <ellipse cx="36" cy="22" rx="17" ry="14" fill="${hairCol}"/>
-  <!-- Face -->
-  <ellipse cx="36" cy="30" rx="13" ry="13" fill="${skin}"/>
-  <!-- Eyes -->
-  <ellipse cx="30" cy="29" rx="4" ry="4.5" fill="white"/>
-  <ellipse cx="42" cy="29" rx="4" ry="4.5" fill="white"/>
-  <ellipse cx="30" cy="30" rx="2.5" ry="3" fill="${accentCol}"/>
-  <ellipse cx="42" cy="30" rx="2.5" ry="3" fill="${accentCol}"/>
-  <circle cx="31" cy="28.5" r="1" fill="white"/>
-  <circle cx="43" cy="28.5" r="1" fill="white"/>
-  <!-- Blush -->
-  <ellipse cx="25" cy="34" rx="4" ry="2" fill="rgba(255,150,150,.35)"/>
-  <ellipse cx="47" cy="34" rx="4" ry="2" fill="rgba(255,150,150,.35)"/>
-  <!-- Mouth -->
-  <path d="M32 37 Q36 40 40 37" stroke="${accentCol}" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-  <!-- Hair front -->
-  <path d="M20 20 Q18 30 22 38 Q24 20 36 13 Q48 20 50 38 Q54 30 52 20 Q44 6 36 8 Q28 6 20 20Z" fill="${hairCol}"/>
-</svg>`;
-}
-
-// ── DOM refs ──
-let dollEl, dollWrap, dollSprite, dollBtns, dollChat, dollChatInput, dollMsgInput;
-let dollVisible = false;
-let dollState = 'idle'; // idle | walk | sit | dance
-let dollX = 60, dollY = 80;
-let dollDir = 1; // 1=right, -1=left
-let dollWalkInterval = null;
-let dollBtnTimeout = null;
-let dollCoinInterval = null;
-let dollDragging = false;
-let dollDragStartX, dollDragStartY, dollDragOriginX, dollDragOriginY;
-let dollChatTimeout = null;
-let currentDollData = null;
-
+// ── Init ──
 function initDollSystem(){
-  dollEl       = document.getElementById('dollOverlay');
-  dollWrap     = document.getElementById('dollWrap');
-  dollSprite   = document.getElementById('dollSprite');
-  dollBtns     = document.getElementById('dollBtns');
-  dollChat     = document.getElementById('dollChat');
-  dollChatInput= document.getElementById('dollChatInput');
-  dollMsgInput = document.getElementById('dollMsgInput');
-  if(!dollEl) return;
-
-  currentDollData = getDollState();
+  currentDollData=getDollState();
+  // Load coins from backend if available
+  if(currentUser?.discordId){
+    fetch(`${BACKEND_URL}/doll/coins/me`,{credentials:'include'})
+      .then(r=>r.json()).then(d=>{
+        if(d.coins>currentDollData.coins){
+          currentDollData.coins=d.coins;
+          localStorage.setItem(DOLL_KEY(),JSON.stringify(currentDollData));
+          updateDollCoinDisplay();
+        }
+      }).catch(()=>{});
+  }
   updateDollCoinDisplay();
-  renderDollSprite();
+  renderDollRoot();
   setupDollDrag();
-
+  // Click outside hides buttons
+  document.addEventListener('click', e=>{
+    const wrap=document.getElementById('dollWrap');
+    const btns=document.getElementById('dollBtns');
+    if(btns&&wrap&&!wrap.contains(e.target)){
+      btns.classList.add('hidden');
+    }
+  });
   if(currentDollData.visible) showDoll();
-  else hideDoll(true);
 }
 
-// ── Sprite ──
-function renderDollSprite(){
-  const d = currentDollData || getDollState();
-  const char = DOLL_CHARS.find(c=>c.id===d.equipped.char) || DOLL_CHARS[0];
-  if(dollSprite) dollSprite.innerHTML = char.svg;
-  // Apply outfit tint via overlay (simple approach)
+// ── Render character ──
+function renderDollRoot(){
+  const el=document.getElementById('dollRoot');
+  if(!el)return;
+  const d=currentDollData||getDollState();
+  el.innerHTML=buildDollSVG(d.equipped.char,d.equipped.outfit,d.equipped.hair||'none',d.equipped.accessory||'none');
+  el.className=`doll-root anim-${dollAnimState}`;
 }
 
-// ── Show / Hide ──
+function setDollAnim(state){
+  dollAnimState=state;
+  const el=document.getElementById('dollRoot');
+  if(el) el.className=`doll-root anim-${state}`;
+}
+
+// ── Show/Hide ──
 function toggleDoll(){
-  if(dollVisible) hideDoll();
-  else showDoll();
+  if(dollVisible)hideDoll();else showDoll();
 }
-
 function showDoll(){
-  if(!dollEl) initDollSystem();
-  dollVisible = true;
-  dollEl.classList.add('visible');
-  dollEl.style.display = 'block';
+  const ov=document.getElementById('dollOverlay');
+  if(!ov)return;
+  dollVisible=true;
+  ov.style.display='block';
   document.getElementById('dollCoinsOverlay').classList.add('visible');
-  document.getElementById('dollToggleBtn').textContent = 'Hide Doll';
-  const btn = document.querySelector('.doll-toggle');
-  if(btn){ btn.classList.add('show'); btn.textContent='🎀 Hide Doll'; }
-  currentDollData = getDollState();
-  dollX = currentDollData.posX;
-  dollY = currentDollData.posY;
+  const tb=document.getElementById('dollToggleBtn');
+  if(tb)tb.textContent='Hide Doll';
+  currentDollData=getDollState();
+  dollX=currentDollData.posX; dollY=currentDollData.posY;
   updateDollPos();
+  setDollAnim('idle');
   startDollWalk();
   startCoinTimer();
-  currentDollData.visible = true;
+  currentDollData.visible=true;
   saveDollState(currentDollData);
+  setTimeout(()=>dollSay('Hiii~ 👋',2500),800);
 }
-
-function hideDoll(silent){
-  dollVisible = false;
-  if(dollEl){ dollEl.classList.remove('visible'); dollEl.style.display='none'; }
+function hideDoll(){
+  const ov=document.getElementById('dollOverlay');
+  if(ov)ov.style.display='none';
+  dollVisible=false;
   document.getElementById('dollCoinsOverlay').classList.remove('visible');
-  const tb = document.getElementById('dollToggleBtn');
-  if(tb) tb.textContent='Show Doll';
-  stopDollWalk();
-  stopCoinTimer();
-  if(currentDollData){ currentDollData.visible=false; saveDollState(currentDollData); }
+  const tb=document.getElementById('dollToggleBtn');
+  if(tb)tb.textContent='Show Doll';
+  stopDollWalk();stopCoinTimer();
+  if(currentDollData){currentDollData.visible=false;saveDollState(currentDollData);}
 }
 
-// ── Walking AI ──
+// ── Walk AI ──
 function startDollWalk(){
-  if(dollWalkInterval) clearInterval(dollWalkInterval);
-  setDollState('idle');
-  dollWalkInterval = setInterval(()=>{
-    if(dollDragging || dollState==='sit' || dollState==='dance') return;
-    if(Math.random()<0.35){ setDollState('idle'); return; }
-    setDollState('walk');
-    const speed = 60 + Math.random()*60;
-    // Bounce off screen edges
-    const vw = window.innerWidth - 90;
-    const vh = window.innerHeight - 140;
-    const step = speed * dollDir * 0.08;
-    dollX += step;
-    if(dollX <= 10){ dollDir=1; dollX=10; flipDoll(); }
-    if(dollX >= vw){ dollDir=-1; dollX=vw; flipDoll(); }
-    // Small random Y drift
-    dollY += (Math.random()-0.5)*8;
-    dollY = Math.max(10, Math.min(vh, dollY));
+  stopDollWalk();
+  let phase=0;
+  dollWalkTimer=setInterval(()=>{
+    if(dollDragging||dollAnimState==='sit'||dollAnimState==='dance'||dollAnimState==='swim')return;
+    phase++;
+    if(phase%8===0){
+      // random pause
+      if(Math.random()<0.3){setDollAnim('idle');return;}
+    }
+    setDollAnim('walk');
+    const vw=window.innerWidth-110,vh=window.innerHeight-170;
+    dollX+=dollDir*(48+Math.random()*40)*0.1;
+    dollY+=(Math.random()-.5)*5;
+    dollX=Math.max(5,Math.min(vw,dollX));
+    dollY=Math.max(10,Math.min(vh,dollY));
+    if(dollX<=6){dollDir=1;flipDoll();}
+    if(dollX>=vw-2){dollDir=-1;flipDoll();}
     updateDollPos();
-  }, 120);
+  },100);
 }
-
-function stopDollWalk(){
-  if(dollWalkInterval){ clearInterval(dollWalkInterval); dollWalkInterval=null; }
-}
-
+function stopDollWalk(){if(dollWalkTimer){clearInterval(dollWalkTimer);dollWalkTimer=null;}}
 function updateDollPos(){
-  if(dollEl){ dollEl.style.left=dollX+'px'; dollEl.style.bottom=dollY+'px'; }
-  if(currentDollData){ currentDollData.posX=dollX; currentDollData.posY=dollY; }
+  const ov=document.getElementById('dollOverlay');
+  if(ov){ov.style.left=dollX+'px';ov.style.bottom=dollY+'px';}
+  if(currentDollData){currentDollData.posX=dollX;currentDollData.posY=dollY;}
 }
-
 function flipDoll(){
-  if(dollSprite) dollSprite.style.transform = dollDir===1 ? 'scaleX(1)' : 'scaleX(-1)';
+  const el=document.getElementById('dollRoot');
+  if(el)el.style.transform=dollDir===1?'scaleX(1)':'scaleX(-1)';
 }
 
-function setDollState(state){
-  if(!dollSprite) return;
-  dollState = state;
-  dollSprite.className = `doll-sprite doll-state-${state}`;
-}
-
-// ── Click interaction ──
+// ── Click doll ──
 function onDollClick(e){
   e.stopPropagation();
-  if(dollDragging) return;
-  showDollBtns();
+  if(dollDragging)return;
+  const btns=document.getElementById('dollBtns');
+  if(btns)btns.classList.toggle('hidden');
+  clearTimeout(dollBtnTimer);
+  dollBtnTimer=setTimeout(()=>{if(btns)btns.classList.add('hidden');},3000);
 }
 
-function showDollBtns(){
-  if(!dollBtns) return;
-  dollBtns.classList.remove('hidden');
-  clearTimeout(dollBtnTimeout);
-  dollBtnTimeout = setTimeout(()=>dollBtns.classList.add('hidden'), 3000);
-}
-
+// ── Actions ──
 function dollAction(action){
-  clearTimeout(dollBtnTimeout);
+  clearTimeout(dollBtnTimer);
+  ['btnSit','btnDance','btnJump','btnSwim','btnWave'].forEach(id=>{
+    const b=document.getElementById(id);if(b)b.classList.remove('active');
+  });
+  stopDollWalk();
   if(action==='sit'){
-    setDollState('sit');
-    stopDollWalk();
-    document.getElementById('btnSit').classList.add('active');
-    document.getElementById('btnDance').classList.remove('active');
-    setTimeout(()=>{ setDollState('idle'); startDollWalk(); document.getElementById('btnSit').classList.remove('active'); }, 5000);
-  } else if(action==='dance'){
-    setDollState('dance');
-    stopDollWalk();
-    document.getElementById('btnDance').classList.add('active');
-    document.getElementById('btnSit').classList.remove('active');
-    dollSay('💃 La la la~');
-    setTimeout(()=>{ setDollState('idle'); startDollWalk(); document.getElementById('btnDance').classList.remove('active'); }, 6000);
-  } else if(action==='talk'){
-    const ci = document.getElementById('dollChatInput');
-    const isOpen = ci.style.display==='flex';
-    ci.style.display = isOpen?'none':'flex';
-    if(!isOpen){ document.getElementById('dollMsgInput').focus(); dollSay('What\'s up? 👀'); }
-    else hideDollChat();
+    setDollAnim('sit');
+    document.getElementById('btnSit')?.classList.add('active');
+    dollSay('Finally resting~ 😌',3000);
+    setTimeout(()=>{setDollAnim('idle');startDollWalk();document.getElementById('btnSit')?.classList.remove('active');},6000);
+  }else if(action==='dance'){
+    setDollAnim('dance');
+    document.getElementById('btnDance')?.classList.add('active');
+    dollSay('Lalala~ 🎵',4000);
+    setTimeout(()=>{setDollAnim('idle');startDollWalk();document.getElementById('btnDance')?.classList.remove('active');},8000);
+  }else if(action==='jump'){
+    setDollAnim('jump');
+    document.getElementById('btnJump')?.classList.add('active');
+    setTimeout(()=>{setDollAnim('idle');startDollWalk();document.getElementById('btnJump')?.classList.remove('active');},900);
+  }else if(action==='swim'){
+    setDollAnim('swim');
+    document.getElementById('btnSwim')?.classList.add('active');
+    dollSay('Splashy splashy~ 🌊',3000);
+    setTimeout(()=>{setDollAnim('idle');startDollWalk();document.getElementById('btnSwim')?.classList.remove('active');},7000);
+  }else if(action==='wave'){
+    setDollAnim('wave');
+    document.getElementById('btnWave')?.classList.add('active');
+    dollSay('Hi hi hi!!! 👋😄',2500);
+    setTimeout(()=>{setDollAnim('idle');startDollWalk();document.getElementById('btnWave')?.classList.remove('active');},4000);
+  }else if(action==='talk'){
+    const ci=document.getElementById('dollChatInput');
+    const open=ci.style.display==='flex';
+    ci.style.display=open?'none':'flex';
+    if(!open){document.getElementById('dollMsgInput').focus();dollSay('What\'s up? 👀',2000);}
   }
-  dollBtnTimeout = setTimeout(()=>dollBtns.classList.add('hidden'), 3000);
+  dollBtnTimer=setTimeout(()=>{document.getElementById('dollBtns')?.classList.add('hidden');},3000);
 }
 
 // ── Chat ──
-function dollSay(text, duration=3000){
-  if(!dollChat) return;
-  hideDollChat();
-  dollChat.textContent = text;
-  dollChat.style.display = 'block';
-  dollChatTimeout = setTimeout(hideDollChat, duration);
+function dollSay(text,dur=3000){
+  const el=document.getElementById('dollChat');
+  if(!el)return;
+  clearTimeout(dollChatTimer);
+  el.textContent=text;el.style.display='block';
+  dollChatTimer=setTimeout(()=>{el.style.display='none';},dur);
 }
-
-function hideDollChat(){
-  if(dollChat) dollChat.style.display='none';
-  clearTimeout(dollChatTimeout);
-}
-
 async function sendDollMsg(){
-  const input = document.getElementById('dollMsgInput');
-  const msg = input?.value.trim();
-  if(!msg) return;
-  input.value='';
-  dollSay('...', 60000);
-
-  // Determine personality from equipped char
-  const d = currentDollData || getDollState();
-  const char = DOLL_CHARS.find(c=>c.id===d.equipped.char)||DOLL_CHARS[0];
-  const sysPrompt = `You are ${char.name}, a cute anime companion living on the user's screen. You're sweet, playful, and expressive. Use light Japanese words occasionally (nyan, senpai, kawaii etc). Keep replies short — 1-2 sentences max. Use emojis. Never break character.`;
-
+  const inp=document.getElementById('dollMsgInput');
+  const msg=inp?.value.trim();if(!msg)return;
+  inp.value='';
+  const d=currentDollData||getDollState();
+  const char=DOLL_CHARS.find(c=>c.id===d.equipped.char)||DOLL_CHARS[0];
+  dollSay('...thinking 💭',30000);
   try{
-    const res = await fetch(`${BACKEND_URL}/user-bots/models`,{credentials:'include'});
-    const mdata = await res.json();
-    // Use first available free model
-    const freeModel = (mdata.models||[]).find(m=>!m.vipOnly&&m.keyConfigured);
-    if(!freeModel){ dollSay('I can\'t talk right now 😢'); return; }
-    const modelMap = {akira:'llama-3.1-8b-instant',llama70b:'llama-3.3-70b-versatile',mistral:'mixtral-8x7b-32768',cerebras:'llama3.1-8b',gpt4mini:'gpt-4o-mini',gpt4:'gpt-4-turbo'};
-    const provMap = {akira:'groq',llama70b:'groq',mistral:'groq',cerebras:'cerebras',gpt4mini:'openai',gpt4:'openai'};
-    // Call through a lightweight proxy-style fetch to backend
-    const aiRes = await fetch(`${BACKEND_URL}/doll/chat`,{
-      method:'POST', credentials:'include',
+    const r=await fetch(`${BACKEND_URL}/doll/chat`,{method:'POST',credentials:'include',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ message: msg, systemPrompt: sysPrompt, modelId: freeModel.id }),
-    });
-    const aiData = await aiRes.json();
-    dollSay(aiData.reply || 'Hmm~? 🤔', 5000);
-  } catch(e){
-    // Fallback cute responses if no AI available
-    const fallbacks=['Ehehe~ 💕','Tell me more! 👀','That\'s so interesting nyan~','You\'re so funny senpai 😄','I don\'t know but I like you! 🌸'];
-    dollSay(fallbacks[Math.floor(Math.random()*fallbacks.length)], 4000);
+      body:JSON.stringify({message:msg,charName:char.name})});
+    const rd=await r.json();
+    dollSay(rd.reply||'Hmm~ 🤔',5000);
+  }catch{
+    const fb=['Ehehe~ 💕','Tell me more!','Nyan~ 🐱','You\'re funny senpai 😄','I like you! 🌸'];
+    dollSay(fb[Math.floor(Math.random()*fb.length)],3500);
   }
 }
 
-// Random idle chatter
-function startDollIdleChatter(){
-  const lines=['Bored... play with me! 🥺','I like being here~ 💕','Nyan! 🐱','You\'re working hard! 😊','*yawns* 😴','Hey! 👋','...zoning out~','Ehehe~','I\'m hungry 🍡'];
-  setInterval(()=>{
-    if(!dollVisible||dollState==='dance') return;
-    if(Math.random()<0.1) dollSay(lines[Math.floor(Math.random()*lines.length)], 3000);
-  }, 15000);
-}
+// Idle chatter
+setInterval(()=>{
+  if(!dollVisible||dollAnimState==='dance')return;
+  if(Math.random()<0.08){
+    const lines=['Bored... play with me 🥺','I\'m right here~ 💕','Nyan! 🐱','You\'re working hard!','*yawns* 😴','Ehehe~','...zoning out','Hm~ 🤔','Hello senpai!'];
+    dollSay(lines[Math.floor(Math.random()*lines.length)],3000);
+  }
+},12000);
 
-// ── Dragging ──
+// ── Drag ──
 function setupDollDrag(){
-  const wrap = document.getElementById('dollWrap');
-  if(!wrap) return;
-  wrap.addEventListener('mousedown', startDrag);
-  wrap.addEventListener('touchstart', startDrag, {passive:true});
-  document.addEventListener('mousemove', onDrag);
-  document.addEventListener('touchmove', onDrag, {passive:false});
-  document.addEventListener('mouseup', endDrag);
-  document.addEventListener('touchend', endDrag);
+  const wrap=document.getElementById('dollWrap');
+  if(!wrap)return;
+  const down=e=>{
+    if(e.target.closest('.doll-btn,.doll-chat-send,.doll-chat-input'))return;
+    _dragDown=true;
+    const p=e.touches?e.touches[0]:e;
+    _dragSX=p.clientX;_dragSY=p.clientY;
+    _dragOX=dollX;_dragOY=dollY;
+  };
+  const move=e=>{
+    if(!_dragDown)return;
+    const p=e.touches?e.touches[0]:e;
+    const dx=p.clientX-_dragSX,dy=-(p.clientY-_dragSY);
+    if(Math.abs(dx)>4||Math.abs(dy)>4)dollDragging=true;
+    if(!dollDragging)return;
+    if(e.cancelable)e.preventDefault();
+    stopDollWalk();
+    dollX=Math.max(0,Math.min(window.innerWidth-110,_dragOX+dx));
+    dollY=Math.max(10,Math.min(window.innerHeight-170,_dragOY+dy));
+    updateDollPos();
+  };
+  const up=()=>{
+    _dragDown=false;
+    if(dollDragging){
+      dollDragging=false;
+      saveDollState(currentDollData);
+      setTimeout(startDollWalk,400);
+    }
+  };
+  wrap.addEventListener('mousedown',down);
+  wrap.addEventListener('touchstart',down,{passive:true});
+  document.addEventListener('mousemove',move);
+  document.addEventListener('touchmove',move,{passive:false});
+  document.addEventListener('mouseup',up);
+  document.addEventListener('touchend',up);
 }
 
-function startDrag(e){
-  if(e.target.classList.contains('doll-btn')||e.target.classList.contains('doll-chat-send')||e.target.classList.contains('doll-chat-input')) return;
-  dollDragging = false;
-  const pt = e.touches?e.touches[0]:e;
-  dollDragStartX = pt.clientX;
-  dollDragStartY = pt.clientY;
-  dollDragOriginX = dollX;
-  dollDragOriginY = dollY;
-  const wrap = document.getElementById('dollWrap');
-  if(wrap) wrap._dragDown = true;
-}
-
-function onDrag(e){
-  const wrap = document.getElementById('dollWrap');
-  if(!wrap||!wrap._dragDown) return;
-  const pt = e.touches?e.touches[0]:e;
-  const dx = pt.clientX - dollDragStartX;
-  const dy = -(pt.clientY - dollDragStartY); // invert because bottom positioning
-  if(Math.abs(dx)>5||Math.abs(dy)>5) dollDragging=true;
-  if(!dollDragging) return;
-  if(e.touches) e.preventDefault();
-  stopDollWalk();
-  dollX = Math.max(0, Math.min(window.innerWidth-90, dollDragOriginX+dx));
-  dollY = Math.max(10, Math.min(window.innerHeight-140, dollDragOriginY+dy));
-  updateDollPos();
-}
-
-function endDrag(){
-  const wrap = document.getElementById('dollWrap');
-  if(wrap) wrap._dragDown=false;
-  if(dollDragging){
-    dollDragging=false;
-    if(currentDollData){ saveDollState(currentDollData); }
-    setTimeout(()=>startDollWalk(), 500);
-  }
-}
-
-// ── Coin system ──
+// ── Coins ──
 function startCoinTimer(){
-  if(dollCoinInterval) clearInterval(dollCoinInterval);
-  dollCoinInterval = setInterval(()=>{
-    if(!dollVisible||!currentDollData) return;
-    currentDollData.coins = (currentDollData.coins||0)+5;
+  if(dollCoinTimer)clearInterval(dollCoinTimer);
+  dollCoinTimer=setInterval(()=>{
+    if(!dollVisible||!currentDollData)return;
+    currentDollData.coins=(currentDollData.coins||0)+5;
     saveDollState(currentDollData);
     updateDollCoinDisplay();
     showCoinPop();
-  }, 60000); // +5 every minute
+  },60000);
 }
-
-function stopCoinTimer(){
-  if(dollCoinInterval){ clearInterval(dollCoinInterval); dollCoinInterval=null; }
-}
-
+function stopCoinTimer(){if(dollCoinTimer){clearInterval(dollCoinTimer);dollCoinTimer=null;}}
 function showCoinPop(){
-  const pop = document.createElement('div');
-  pop.className='coin-pop';
-  pop.textContent='+¢5';
-  pop.style.left=(dollX+30)+'px';
-  pop.style.bottom=(dollY+130)+'px';
-  document.body.appendChild(pop);
-  setTimeout(()=>pop.remove(), 1300);
+  const p=document.createElement('div');
+  p.className='coin-pop';p.textContent='+¢5';
+  p.style.left=dollX+50+'px';p.style.bottom=dollY+165+'px';
+  document.body.appendChild(p);setTimeout(()=>p.remove(),1400);
 }
-
 function updateDollCoinDisplay(){
-  const coins = currentDollData?.coins||0;
-  const els = document.querySelectorAll('#dollCoinDisplay,#dollCoinsCount,#shopCoinDisplay');
-  els.forEach(el=>{ if(el){ el.textContent = el.id==='shopCoinDisplay'?'¢'+coins:coins; }});
+  const coins=currentDollData?.coins||0;
+  ['dollCoinDisplay','dollCoinsCount'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.textContent=coins;
+  });
+  const sd=document.getElementById('shopCoinDisplay');
+  if(sd)sd.textContent='¢'+coins;
 }
 
-// ── Doll Page ──
+// ── Doll page UI ──
 function initDollPage(){
-  if(!currentDollData) currentDollData=getDollState();
+  if(!currentDollData)currentDollData=getDollState();
   updateDollCoinDisplay();
   renderDollCharSlider();
-  renderShop('outfit');
+  setShopTab('items');
 }
 
 function renderDollCharSlider(){
-  const slider = document.getElementById('dollCharSlider');
-  if(!slider) return;
-  const d = currentDollData||getDollState();
-  slider.innerHTML = d.ownedChars.map(cid=>{
-    const char = DOLL_CHARS.find(c=>c.id===cid)||DOLL_CHARS[0];
-    const isActive = d.equipped.char===cid;
-    return `<div class="doll-char-card ${isActive?'active':''}" onclick="equipChar('${cid}')">
-      <div class="doll-char-card-inner">${char.svg.replace('width="72" height="120"','width="48" height="80"')}</div>
-      <div class="doll-char-label">${char.name}</div>
+  const sl=document.getElementById('dollCharSlider');
+  if(!sl)return;
+  const d=currentDollData||getDollState();
+  sl.innerHTML=d.ownedChars.map(cid=>{
+    const ch=DOLL_CHARS.find(c=>c.id===cid)||DOLL_CHARS[0];
+    const active=d.equipped.char===cid;
+    const mini=buildDollSVG(cid,d.equipped.outfit,d.equipped.hair||'none',d.equipped.accessory||'none')
+      .replace('width="96" height="160"','width="56" height="92"').replace('viewBox="0 0 96 160"','viewBox="0 0 96 160"');
+    return `<div class="doll-char-card ${active?'active':''}" onclick="equipChar('${cid}')">
+      <div class="doll-char-card-inner" style="height:96px;display:flex;align-items:center;justify-content:center;">${mini}</div>
+      <div class="doll-char-label">${ch.name}</div>
     </div>`;
   }).join('');
 }
 
 function equipChar(charId){
-  currentDollData = getDollState();
-  if(!currentDollData.ownedChars.includes(charId)) return;
-  currentDollData.equipped.char = charId;
+  currentDollData=getDollState();
+  if(!currentDollData.ownedChars.includes(charId))return;
+  currentDollData.equipped.char=charId;
   saveDollState(currentDollData);
-  renderDollSprite();
-  renderDollCharSlider();
-  if(dollVisible) dollSay('New look! How do I look? ✨', 3000);
+  renderDollRoot();renderDollCharSlider();
+  if(dollVisible)dollSay('New look! ✨',2500);
 }
 
-const SHOP_CATS = ['outfit','hair','accessory','character'];
-let activeShopCat = 'outfit';
-
-function renderShopCats(){
-  const slider = document.getElementById('shopCatSlider');
-  if(!slider) return;
-  slider.innerHTML = SHOP_CATS.map(c=>`
-    <button class="shop-cat-btn ${c===activeShopCat?'active':''}" onclick="renderShop('${c}')">
-      ${{outfit:'👗 Outfits',hair:'💇 Hair',accessory:'🎀 Accessories',character:'👤 Characters'}[c]}
-    </button>`).join('');
+function setShopTab(tab){
+  activeShopTab=tab;
+  document.getElementById('stab-items')?.classList.toggle('active',tab==='items');
+  document.getElementById('stab-anim')?.classList.toggle('active',tab==='anim');
+  document.getElementById('shopItems').style.display=tab==='items'?'block':'none';
+  document.getElementById('shopAnim').style.display=tab==='anim'?'block':'none';
+  if(tab==='items')renderShop(activeShopCat);
+  if(tab==='anim'){renderAnimSlots();renderAnimShop();}
 }
 
+const SHOP_CATS=['outfit','hair','accessory','character'];
 function renderShop(cat){
-  activeShopCat = cat;
-  renderShopCats();
-  const grid = document.getElementById('shopGrid');
-  if(!grid) return;
-  const d = currentDollData||getDollState();
-  const items = SHOP_ITEMS.filter(i=>i.cat===cat);
-  grid.innerHTML = items.map(item=>{
-    const owned = item.price===0 || d.ownedItems.includes(item.id) || (item.cat==='character'&&d.ownedChars.includes(item.id));
-    const equipped = d.equipped[item.cat]===item.id || (item.cat==='character'&&d.equipped.char===item.id);
+  activeShopCat=cat;
+  const sl=document.getElementById('shopCatSlider');
+  if(sl)sl.innerHTML=SHOP_CATS.map(c=>`<button class="shop-cat-btn ${c===cat?'active':''}" onclick="renderShop('${c}')">
+    ${{outfit:'👗 Outfits',hair:'💇 Hair',accessory:'🎀 Accessories',character:'👤 Characters'}[c]}</button>`).join('');
+  const grid=document.getElementById('shopGrid');if(!grid)return;
+  const d=currentDollData||getDollState();
+  grid.innerHTML=SHOP_ITEMS.filter(i=>i.cat===cat).map(item=>{
+    const owned=item.price===0||d.ownedItems.includes(item.id)||(item.cat==='character'&&d.ownedChars.includes(item.id));
+    const equipped=d.equipped[item.cat==='character'?'char':item.cat]===item.id;
     return `<div class="shop-item ${owned?'owned':''} ${equipped?'equipped':''}" onclick="shopAction('${item.id}','${item.cat}',${item.price},${owned})">
       <div class="shop-item-preview">${item.emoji}</div>
       <div class="shop-item-name">${item.name}</div>
       <div class="shop-item-price ${item.price===0?'free':''}">${item.price===0?'Free':'¢'+item.price}</div>
-      <div style="font-size:.65rem;color:var(--text-4);margin-top:2px;">${equipped?'✓ Equipped':owned?'Tap to equip':'Tap to buy'}</div>
+      <div style="font-size:.62rem;color:var(--text-4);margin-top:2px;">${equipped?'✓ On':''+( owned?'Tap equip':'Buy')}</div>
     </div>`;
   }).join('');
 }
 
-function shopAction(itemId, cat, price, owned){
-  currentDollData = getDollState();
+function shopAction(itemId,cat,price,owned){
+  currentDollData=getDollState();
+  const realCat=cat==='character'?'char':cat;
   if(owned){
-    // Equip
-    if(cat==='character') currentDollData.equipped.char = itemId;
-    else currentDollData.equipped[cat] = itemId;
+    currentDollData.equipped[realCat]=itemId;
+    if(cat==='character')currentDollData.equipped.char=itemId;
     saveDollState(currentDollData);
-    renderShop(cat);
-    renderDollCharSlider();
-    renderDollSprite();
-    toast(`Equipped!`);
-    if(dollVisible) dollSay('New style! 💖', 2500);
-  } else {
-    // Buy
-    if(currentDollData.coins < price){ toast(`Need ¢${price} — only ¢${currentDollData.coins}`, 'err'); return; }
-    if(!confirm(`Buy ${SHOP_ITEMS.find(i=>i.id===itemId)?.name} for ¢${price}?`)) return;
-    currentDollData.coins -= price;
-    if(cat==='character') currentDollData.ownedChars.push(itemId);
+    renderShop(cat);renderDollCharSlider();renderDollRoot();
+    toast('Equipped! 💖');
+    if(dollVisible)dollSay('Love the new style! 💃',2500);
+  }else{
+    if(currentDollData.coins<price){toast(`Need ¢${price} — you have ¢${currentDollData.coins}`,'err');return;}
+    if(!confirm(`Buy for ¢${price}?`))return;
+    currentDollData.coins-=price;
+    if(cat==='character')currentDollData.ownedChars.push(itemId);
     else currentDollData.ownedItems.push(itemId);
-    // Auto-equip
-    if(cat==='character') currentDollData.equipped.char = itemId;
-    else currentDollData.equipped[cat] = itemId;
+    currentDollData.equipped[realCat]=itemId;
+    if(cat==='character')currentDollData.equipped.char=itemId;
     saveDollState(currentDollData);
-    updateDollCoinDisplay();
-    renderShop(cat);
-    renderDollCharSlider();
-    renderDollSprite();
-    toast(`Bought & equipped! ✨`);
+    updateDollCoinDisplay();renderShop(cat);renderDollCharSlider();renderDollRoot();
+    toast('Bought & equipped! ✨');
   }
 }
 
-// Wire into page system
-document.addEventListener('DOMContentLoaded', ()=>{
-  setTimeout(initDollSystem, 500);
-  setTimeout(startDollIdleChatter, 2000);
+// ── Animation shop ──
+function renderAnimSlots(){
+  const container=document.getElementById('animSlots');if(!container)return;
+  const d=currentDollData||getDollState();
+  container.innerHTML=ANIM_SLOTS.map(sl=>{
+    const equipped=d.equippedAnims?.[sl.slot];
+    const animItem=ANIM_CATALOG.find(a=>a.id===equipped);
+    const isSelected=selectedAnimSlot===sl.slot;
+    return `<div class="anim-slot ${equipped?'has-anim':''} ${isSelected?'selected':''}" onclick="selectAnimSlot('${sl.slot}')">
+      <div class="anim-slot-icon">${sl.icon}</div>
+      <div class="anim-slot-name">${sl.label}</div>
+      <div class="anim-slot-equip">${animItem?animItem.name:'Empty'}</div>
+    </div>`;
+  }).join('');
+}
+
+function selectAnimSlot(slot){
+  selectedAnimSlot=slot;
+  renderAnimSlots();
+  renderAnimShop();
+}
+
+function renderAnimShop(){
+  const grid=document.getElementById('animShopGrid');if(!grid)return;
+  const d=currentDollData||getDollState();
+  const items=selectedAnimSlot?ANIM_CATALOG.filter(a=>a.slot===selectedAnimSlot):ANIM_CATALOG;
+  if(!selectedAnimSlot){
+    grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-4);font-size:.82rem;">👆 Select a slot above to see matching animations</div>`;
+    return;
+  }
+  grid.innerHTML=items.map(anim=>{
+    const owned=anim.price===0||d.ownedAnims?.includes(anim.id);
+    const equipped=d.equippedAnims?.[anim.slot]===anim.id;
+    return `<div class="shop-item ${owned?'owned':''} ${equipped?'equipped':''}" onclick="animShopAction('${anim.id}','${anim.slot}',${anim.price},${owned})">
+      <div class="shop-item-preview">${anim.emoji}</div>
+      <div class="shop-item-name">${anim.name}</div>
+      <div class="shop-item-price ${anim.price===0?'free':''}">${anim.price===0?'Free':'¢'+anim.price}</div>
+      <div style="font-size:.62rem;color:var(--text-4);margin-top:2px;">${equipped?'✓ Active':owned?'Tap equip':'Buy'}</div>
+    </div>`;
+  }).join('');
+}
+
+function animShopAction(animId,slot,price,owned){
+  currentDollData=getDollState();
+  if(owned){
+    if(!currentDollData.equippedAnims)currentDollData.equippedAnims={};
+    currentDollData.equippedAnims[slot]=animId;
+    saveDollState(currentDollData);
+    renderAnimSlots();renderAnimShop();
+    toast('Animation equipped!');
+  }else{
+    if(currentDollData.coins<price){toast(`Need ¢${price}`,'err');return;}
+    if(!confirm(`Buy animation for ¢${price}?`))return;
+    currentDollData.coins-=price;
+    if(!currentDollData.ownedAnims)currentDollData.ownedAnims=[];
+    currentDollData.ownedAnims.push(animId);
+    if(!currentDollData.equippedAnims)currentDollData.equippedAnims={};
+    currentDollData.equippedAnims[slot]=animId;
+    saveDollState(currentDollData);
+    updateDollCoinDisplay();renderAnimSlots();renderAnimShop();
+    toast('Animation bought & equipped!');
+  }
+}
+
+// Init on load
+document.addEventListener('DOMContentLoaded',()=>{
+  setTimeout(initDollSystem,600);
 });
 </script>
 
