@@ -943,11 +943,22 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em;color:var(--text-1);}
 
         <!-- Email login (shown in app mode + always available) -->
         <div id="emailLoginSection">
-          <div class="field">
+          <div class="field" id="emailInputField">
             <label>Email</label>
             <input type="email" id="loginEmail" class="input" placeholder="your@email.com" autocomplete="email">
+            <div id="loginEmailErr" style="display:none;font-size:.75rem;color:var(--red);margin-top:4px;"></div>
           </div>
-          <button class="btn btn-primary btn-full" onclick="startEmailLogin()" id="emailLoginBtn">
+          <!-- Step 2: code entry (hidden initially) -->
+          <div id="loginCodeField" style="display:none;">
+            <label style="font-size:.8125rem;font-weight:600;color:var(--text-2);display:block;margin-bottom:6px;">6-digit code sent to <span id="loginEmailDisplay" style="color:var(--brand-light);"></span></label>
+            <div id="loginCodeHint" style="display:none;background:rgba(240,180,41,.07);border:1px solid rgba(240,180,41,.18);border-radius:8px;padding:8px 12px;font-size:.75rem;color:var(--text-3);margin-bottom:8px;">
+              📬 Code: <strong id="loginCodeDisplay" style="font-family:monospace;color:var(--gold);letter-spacing:.1em;"></strong>
+              <span style="font-size:.625rem;color:var(--text-4);display:block;margin-top:2px;">Shown here — no mail server connected yet</span>
+            </div>
+            <input type="text" id="loginCodeInput" class="input" placeholder="Enter 6-digit code" maxlength="6" style="letter-spacing:.2em;font-size:1.1rem;text-align:center;" oninput="if(this.value.length===6)verifyLoginCode()">
+            <div id="loginCodeErr" style="display:none;font-size:.75rem;color:var(--red);margin-top:4px;"></div>
+          </div>
+          <button class="btn btn-primary btn-full" onclick="handleEmailLoginBtn()" id="emailLoginBtn" style="margin-top:8px;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
             Continue with Email
           </button>
@@ -2718,18 +2729,138 @@ function openDiscordModal(){
   document.getElementById('discordBackdrop').classList.add('open');
 }
 
-// Called by the email login button on the main login page
-function startEmailLogin(){
-  const emailInput = document.getElementById('loginEmail');
-  const email = emailInput ? emailInput.value.trim() : '';
-  // Open the email verification modal
-  openDiscordModal();
-  // Pre-fill the email in the modal's input field
-  if(email){
-    const authEmailEl = document.getElementById('authEmail');
-    if(authEmailEl) authEmailEl.value = email;
+// ── Inline email login (no modal — works in app and browser) ──
+let _loginEmail = '';
+let _loginCodeGen = '';
+
+async function handleEmailLoginBtn(){
+  const codeField = document.getElementById('loginCodeField');
+  const isCodeStep = codeField && codeField.style.display !== 'none';
+  if(isCodeStep){
+    verifyLoginCode();
+  } else {
+    await sendLoginCode();
   }
 }
+
+async function sendLoginCode(){
+  const emailEl = document.getElementById('loginEmail');
+  const errEl   = document.getElementById('loginEmailErr');
+  const email   = emailEl ? emailEl.value.trim() : '';
+  if(errEl) errEl.style.display='none';
+
+  if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    if(errEl){ errEl.textContent='Enter a valid email address.'; errEl.style.display='block'; }
+    return;
+  }
+
+  const btn = document.getElementById('emailLoginBtn');
+  if(btn){ btn.disabled=true; btn.textContent='Sending...'; }
+
+  _loginEmail = email;
+
+  try{
+    const res = await fetch(`${BACKEND_URL}/auth/send-code`,{
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email}),
+    });
+    const data = await res.json();
+
+    // Show code step
+    document.getElementById('emailInputField').style.display = 'none';
+    document.getElementById('loginCodeField').style.display  = 'block';
+    const dispEl = document.getElementById('loginEmailDisplay');
+    if(dispEl) dispEl.textContent = email;
+
+    // Dev mode — show code if returned
+    if(data.dev_code){
+      const hint = document.getElementById('loginCodeHint');
+      const disp = document.getElementById('loginCodeDisplay');
+      if(hint) hint.style.display='block';
+      if(disp) disp.textContent = data.dev_code;
+    }
+
+    if(btn){ btn.disabled=false; btn.textContent='Verify Code'; }
+    toast('Code sent! Check your email.');
+    document.getElementById('loginCodeInput')?.focus();
+
+  }catch(e){
+    if(errEl){ errEl.textContent='Could not send code. Try again.'; errEl.style.display='block'; }
+    if(btn){ btn.disabled=false; btn.textContent='Continue with Email'; }
+  }
+}
+
+async function verifyLoginCode(){
+  const codeEl = document.getElementById('loginCodeInput');
+  const errEl  = document.getElementById('loginCodeErr');
+  const code   = codeEl ? codeEl.value.trim() : '';
+  if(errEl) errEl.style.display='none';
+
+  if(code.length !== 6){
+    if(errEl){ errEl.textContent='Enter the 6-digit code.'; errEl.style.display='block'; }
+    return;
+  }
+
+  const btn = document.getElementById('emailLoginBtn');
+  if(btn){ btn.disabled=true; btn.textContent='Verifying...'; }
+
+  try{
+    const res = await fetch(`${BACKEND_URL}/auth/verify-code`,{
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email: _loginEmail, code}),
+    });
+    const data = await res.json();
+    if(!data.success){
+      if(errEl){ errEl.textContent='Incorrect code. Try again.'; errEl.style.display='block'; }
+      if(btn){ btn.disabled=false; btn.textContent='Verify Code'; }
+      return;
+    }
+
+    // Code verified — log user in
+    // Register/load user by email
+    const meRes = await fetch(`${BACKEND_URL}/auth/me`,{credentials:'include'});
+    const meData = await meRes.json();
+
+    if(meData.loggedIn && meData.user){
+      const u = meData.user;
+      currentUser = {
+        id: u.username, username: u.username,
+        role: u.role, isVIP: u.isVIP,
+        email: u.email||_loginEmail, discordId: u.discordId||null,
+        avatar: u.avatar||null, discordLinked: !!u.discordId,
+        bots:0, banned:false,
+      };
+    } else {
+      // New user — create session from email
+      const username = _loginEmail.split('@')[0].replace(/[^a-z0-9]/gi,'').toLowerCase() || 'user';
+      currentUser = {
+        id: username, username,
+        role: 'user', isVIP: false,
+        email: _loginEmail, discordId: null,
+        avatar: null, discordLinked: false,
+        bots:0, banned:false,
+      };
+    }
+
+    if(currentUser.discordId==='1093442344310820895'||currentUser.username==='kiiakira'){
+      currentUser.role='developer'; currentUser.isVIP=true;
+    }
+
+    document.getElementById('loginView').classList.remove('active');
+    document.getElementById('mainView').classList.add('active');
+    saveSession();
+    initApp();
+    toast(`Welcome, ${currentUser.username}! 🎉`);
+
+  }catch(e){
+    if(errEl){ errEl.textContent='Verification failed. Try again.'; errEl.style.display='block'; }
+    if(btn){ btn.disabled=false; btn.textContent='Verify Code'; }
+  }
+}
+
+function startEmailLogin(){ sendLoginCode(); }
 function closeDiscord(){
   if(authStep>=4)return; // don't close mid-success
   document.getElementById('discordBackdrop').classList.remove('open');
