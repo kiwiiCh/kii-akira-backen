@@ -3910,10 +3910,21 @@ async function checkMaintenanceOnLoad(){
     const res = await fetch(`${BACKEND_URL}/admin/maintenance`);
     const m = await res.json();
     if(m.enabled){
+      // Check if this is the owner BEFORE showing maintenance screen
+      // by asking the backend if we have a valid session
+      let isOwner = false;
+      try{
+        const meRes = await fetch(`${BACKEND_URL}/auth/me`, {credentials:'include'});
+        const meData = await meRes.json();
+        if(meData.loggedIn && (meData.user.role==='developer' || meData.user.username==='kiiakira' || meData.user.discordId==='1093442344310820895' || meData.user.email==='mikeorbita02@gmail.com')){
+          isOwner = true;
+        }
+      } catch(e){}
+
+      // Owner bypasses maintenance screen entirely
+      if(isOwner) return;
+
       showMaintenanceScreen(m);
-      if(currentUser && (currentUser.role==='developer'||currentUser.role==='admin'||currentUser.username==='kiiakira')){
-        document.getElementById('maintAdminBypass').style.display = 'block';
-      }
     }
   } catch(e){}
 }
