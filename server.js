@@ -272,20 +272,11 @@ function detectImageRequest(msg) {
 }
 
 async function generateImage(prompt) {
+  // Return URL directly — Discord fetches the image itself, not Railway
+  // This avoids network restriction issues on the server
   const encoded = encodeURIComponent(prompt.slice(0, 500));
   const seed = Math.floor(Math.random() * 99999);
-  const url = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&nologo=true&model=flux&seed=${seed}`;
-  // Verify the image actually generates by doing a real GET request
-  const response = await axios.get(url, {
-    timeout: 30000,
-    responseType: 'arraybuffer',
-    maxContentLength: 10 * 1024 * 1024,
-  });
-  if (!response.headers['content-type']?.startsWith('image/')) {
-    throw new Error('Pollinations did not return an image');
-  }
-  // Return the URL — Discord will fetch it directly
-  return url;
+  return `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&nologo=true&model=flux&seed=${seed}`;
 }
 
 async function getMessageImageUrl(message) {
@@ -415,7 +406,8 @@ kiaraBot.on(DJSEvents.MessageCreate, async message => {
         addToHistory(KIARA_BOT_ID, message.author.id, 'user', userMsg);
         addToHistory(KIARA_BOT_ID, message.author.id, 'assistant', `[Generated image: ${imageSubject}]`);
         saveData();
-        return await message.reply({ content: `Here's "${imageSubject}" 🎨`, files: [{ attachment: imgUrl, name: 'generated.png' }] });
+        return await message.reply({ content: `Here's "" 🎨
+${imgUrl}` });
       } catch {}
     }
 
@@ -511,7 +503,7 @@ async function spawnUserBot(botId, cfg) {
         addToHistory(botId, uid, 'user', `/imagine ${prompt}`);
         addToHistory(botId, uid, 'assistant', `[Generated image: ${prompt}]`);
         saveData();
-        await interaction.editReply({ content: `Here's "${prompt}" 🎨`, files: [{ attachment: imgUrl, name: 'generated.png' }] });
+        await interaction.editReply({ embeds: [{ title: '🎨 Here you go!', image: { url: imgUrl }, color: 0x5865f2 }] });
       } catch(e) { await interaction.editReply(`⚠️ Could not generate image: ${e.message.slice(0, 100)}`); }
 
     } else if (interaction.commandName === 'memory') {
@@ -622,7 +614,8 @@ async function spawnUserBot(botId, cfg) {
           addToHistory(botId, uid, 'assistant', `[Generated image: ${imageSubject}]`);
           logActivity(message.author.username, uid, 'ai', `Bot "${live.name}" generated image: "${imageSubject}"`);
           saveData();
-          return await message.reply({ content: `Here's "${imageSubject}" 🎨`, files: [{ attachment: imgUrl, name: 'generated.png' }] });
+          return await message.reply({ content: `Here's "" 🎨
+${imgUrl}` });
         } catch(imgErr) { /* fall through */ }
       }
 
@@ -1214,7 +1207,7 @@ kiaraBot.on(DJSEvents.InteractionCreate, async interaction => {
       addToHistory(KIARA_BOT_ID, userId, 'user', `/imagine ${prompt}`);
       addToHistory(KIARA_BOT_ID, userId, 'assistant', `[Generated image: ${prompt}]`);
       saveData();
-      await interaction.editReply({ content: `Here's "${prompt}" 🎨`, files: [{ attachment: imgUrl, name: 'generated.png' }] });
+      await interaction.editReply({ embeds: [{ title: '🎨 Here you go!', image: { url: imgUrl }, color: 0x5865f2 }] });
     } catch(e) { await interaction.editReply(`⚠️ Could not generate image: ${e.message.slice(0, 100)}`); }
 
   } else if (interaction.commandName === 'memory') {
