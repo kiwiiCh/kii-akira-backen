@@ -678,7 +678,7 @@ app.get('/auth/callback', async (req, res) => {
     const { data: d } = await axios.get('https://discord.com/api/users/@me', { headers: { Authorization: `${token_type} ${access_token}` } });
     if (bannedUsers.has(d.id)) return res.redirect('/?error=banned');
     const role   = getUserRole(d.username, d.id);
-    const isVIP  = checkVIP(d.id, d.username);
+    const isVIP  = checkVIP(d.id, d.username, d.email);
     const avatar = d.avatar ? `https://cdn.discordapp.com/avatars/${d.id}/${d.avatar}.png` : null;
     req.session.user = { discordId: d.id, username: d.username, email: d.email, avatar, role, isVIP, loggedIn: true };
     registerUser(d.id, d.username, d.email, avatar, role, isVIP);
@@ -776,7 +776,7 @@ app.get('/admin/users', requireAdmin, (req, res) => {
     banned:   bannedUsers.has(u.discordId),
     botCount: [...userBotConfigs.values()].filter(c => c.ownerId === u.username || c.ownerDiscordId === u.discordId).length,
     role:     getUserRole(u.username, u.discordId),
-    isVIP:    checkVIP(u.discordId, u.username),
+    isVIP:    checkVIP(u.discordId, u.username, u.email),
   }));
   res.json({ users });
 });
@@ -825,9 +825,9 @@ app.delete('/admin/whitelist/:username', requireDev, (req, res) => {
 // ── VIP routes ──
 app.get('/vip/status', (req, res) => {
   if (!req.session?.user?.loggedIn) return res.json({ isVIP: false });
-  const { discordId, username } = req.session.user;
-  const role  = getUserRole(username, discordId);
-  const isVIP = checkVIP(discordId, username);
+  const { discordId, username, email } = req.session.user;
+  const role  = getUserRole(username, discordId, email);
+  const isVIP = checkVIP(discordId, username, email);
   if (!isVIP) return res.json({ isVIP: false });
   if (role === 'developer' || role === 'admin') return res.json({ isVIP: true, plan: 'complimentary', daysLeft: 99999, role });
   const vip = vipUsers.get(discordId);
@@ -862,8 +862,8 @@ app.post('/vip/webhook', express.raw({ type: 'application/json' }), (req, res) =
 
 // ── User Bot routes ──
 app.get('/user-bots/models', (req, res) => {
-  const { discordId, username } = req.session?.user || {};
-  const isVIP = checkVIP(discordId, username||'');
+  const { discordId, username, email } = req.session?.user || {};
+  const isVIP = checkVIP(discordId, username||'', email);
   res.json({ models: Object.entries(PLATFORM_MODELS).map(([id, def]) => ({ id, label: def.label, provider: def.provider, vipOnly: def.vipOnly, available: !def.vipOnly||isVIP, keyConfigured: !!getPlatformKey(def.provider) })), isVIP });
 });
 
@@ -872,8 +872,8 @@ app.post('/user-bots/create', async (req, res) => {
   if (!name||!token||!modelId) return res.status(400).json({ error: 'name, token and modelId required' });
   const modelDef = PLATFORM_MODELS[modelId];
   if (!modelDef) return res.status(400).json({ error: 'Invalid model' });
-  const { discordId, username } = req.session?.user || {};
-  const isVIP = checkVIP(discordId, username||'');
+  const { discordId, username, email } = req.session?.user || {};
+  const isVIP = checkVIP(discordId, username||'', email);
   if (modelDef.vipOnly && !isVIP) return res.status(403).json({ error: `👑 ${modelDef.label} requires VIP!` });
   const platformKey = getPlatformKey(modelDef.provider);
   if (!platformKey) return res.status(500).json({ error: `${modelDef.provider.toUpperCase()} API key not configured on server.` });
