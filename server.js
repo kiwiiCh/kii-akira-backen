@@ -272,61 +272,60 @@ function detectImageRequest(msg) {
 }
 
 async function generateImage(prompt) {
-  // Pollinations.ai — free, no API key
-  // Use GET with stream to avoid HEAD request issues
-  const encoded = encodeURIComponent(prompt);
-  const url = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&nologo=true&enhance=true&model=flux&seed=${Math.floor(Math.random()*99999)}`;
-  // Just return the URL directly — Discord will fetch it when sending
-  // Pollinations generates on-demand when the URL is accessed
+  const encoded = encodeURIComponent(prompt.slice(0, 500));
+  const seed = Math.floor(Math.random() * 99999);
+  const url = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&nologo=true&model=flux&seed=${seed}`;
+  // Verify the image actually generates by doing a real GET request
+  const response = await axios.get(url, {
+    timeout: 30000,
+    responseType: 'arraybuffer',
+    maxContentLength: 10 * 1024 * 1024,
+  });
+  if (!response.headers['content-type']?.startsWith('image/')) {
+    throw new Error('Pollinations did not return an image');
+  }
+  // Return the URL — Discord will fetch it directly
   return url;
 }
 
-// ─────────────────────────────────────────────────────────────
-//  IMAGE VISION — read images sent by users using OpenAI
-// ─────────────────────────────────────────────────────────────
+async function getMessageImageUrl(message) {
+  // Discord.js attachments is a Collection — use .first() or iterate
+  if (message.attachments && message.attachments.size > 0) {
+    const att = message.attachments.first();
+    if (att && (att.contentType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url))) {
+      return att.url;
+    }
+  }
+  // Check embeds
+  if (message.embeds && message.embeds.length > 0) {
+    for (const embed of message.embeds) {
+      if (embed.image?.url) return embed.image.url;
+      if (embed.thumbnail?.url) return embed.thumbnail.url;
+    }
+  }
+  return null;
+}
 
 async function describeImage(imageUrl, userQuestion, systemPrompt) {
   const openaiKey = process.env.OPENAI_API_KEY;
-  if (!openaiKey) return null; // vision requires OpenAI
-
+  if (!openaiKey) return null;
   try {
     const res = await axios.post('https://api.openai.com/v1/chat/completions', {
-      model: 'gpt-4o-mini', // cheapest vision model
+      model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt || 'You are a helpful assistant.' },
-        {
-          role: 'user',
-          content: [
-            { type: 'image_url', image_url: { url: imageUrl, detail: 'auto' } },
-            { type: 'text', text: userQuestion || 'What do you see in this image? Describe it in detail.' },
-          ],
-        },
+        { role: 'user', content: [
+          { type: 'image_url', image_url: { url: imageUrl, detail: 'auto' } },
+          { type: 'text', text: userQuestion || 'What do you see in this image?' },
+        ]},
       ],
       max_tokens: 1024,
-    }, {
-      headers: { Authorization: `Bearer ${openaiKey}` },
-      timeout: 20000,
-    });
+    }, { headers: { Authorization: `Bearer ${openaiKey}` }, timeout: 20000 });
     return res.data.choices[0].message.content;
   } catch(e) {
     console.error('Vision error:', e?.response?.data?.error?.message || e.message);
     return null;
   }
-}
-
-async function getMessageImageUrl(message) {
-  // Check attachments
-  const imageAttachment = message.attachments?.find(a =>
-    a.contentType?.startsWith('image/') ||
-    /\.(jpg|jpeg|png|gif|webp)$/i.test(a.url)
-  );
-  if (imageAttachment) return imageAttachment.url;
-
-  // Check embeds
-  const imageEmbed = message.embeds?.find(e => e.image?.url || e.thumbnail?.url);
-  if (imageEmbed) return imageEmbed.image?.url || imageEmbed.thumbnail?.url;
-
-  return null;
 }
 
 
