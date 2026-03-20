@@ -261,7 +261,6 @@ function detectImageRequest(msg) {
   const clean = msg.trim();
   for (const pattern of IMAGE_TRIGGERS) {
     if (pattern.test(clean)) {
-      // Extract the actual image subject — strip the trigger phrase
       const subject = clean
         .replace(/^(draw|paint|sketch|generate|create|make|show me|give me|send|produce|imagine|visualize|can you draw|can you paint|can you generate|can you create|can you make|can you show|show me)\s*/i, '')
         .replace(/^(me\s+)?(a\s+|an\s+|the\s+)?(image|picture|photo|pic|illustration|drawing|artwork|art|painting|portrait|wallpaper|thumbnail|meme)\s+(of\s+)?/i, '')
@@ -273,12 +272,61 @@ function detectImageRequest(msg) {
 }
 
 async function generateImage(prompt) {
-  // Pollinations.ai — completely free, no API key, returns image URL directly
+  // Pollinations.ai — free, no API key
+  // Use GET with stream to avoid HEAD request issues
   const encoded = encodeURIComponent(prompt);
-  const url = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&nologo=true&enhance=true&model=flux`;
-  // Validate the URL loads (Pollinations generates on-demand)
-  await axios.head(url, { timeout: 20000 });
+  const url = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&nologo=true&enhance=true&model=flux&seed=${Math.floor(Math.random()*99999)}`;
+  // Just return the URL directly — Discord will fetch it when sending
+  // Pollinations generates on-demand when the URL is accessed
   return url;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  IMAGE VISION — read images sent by users using OpenAI
+// ─────────────────────────────────────────────────────────────
+
+async function describeImage(imageUrl, userQuestion, systemPrompt) {
+  const openaiKey = process.env.OPENAI_API_KEY;
+  if (!openaiKey) return null; // vision requires OpenAI
+
+  try {
+    const res = await axios.post('https://api.openai.com/v1/chat/completions', {
+      model: 'gpt-4o-mini', // cheapest vision model
+      messages: [
+        { role: 'system', content: systemPrompt || 'You are a helpful assistant.' },
+        {
+          role: 'user',
+          content: [
+            { type: 'image_url', image_url: { url: imageUrl, detail: 'auto' } },
+            { type: 'text', text: userQuestion || 'What do you see in this image? Describe it in detail.' },
+          ],
+        },
+      ],
+      max_tokens: 1024,
+    }, {
+      headers: { Authorization: `Bearer ${openaiKey}` },
+      timeout: 20000,
+    });
+    return res.data.choices[0].message.content;
+  } catch(e) {
+    console.error('Vision error:', e?.response?.data?.error?.message || e.message);
+    return null;
+  }
+}
+
+async function getMessageImageUrl(message) {
+  // Check attachments
+  const imageAttachment = message.attachments?.find(a =>
+    a.contentType?.startsWith('image/') ||
+    /\.(jpg|jpeg|png|gif|webp)$/i.test(a.url)
+  );
+  if (imageAttachment) return imageAttachment.url;
+
+  // Check embeds
+  const imageEmbed = message.embeds?.find(e => e.image?.url || e.thumbnail?.url);
+  if (imageEmbed) return imageEmbed.image?.url || imageEmbed.thumbnail?.url;
+
+  return null;
 }
 
 
@@ -342,6 +390,23 @@ kiaraBot.on(DJSEvents.MessageCreate, async message => {
   try {
     await message.channel.sendTyping();
     const userMsg = message.content.replace(`<@${kiaraBot.user.id}>`, '').trim();
+    const userId = message.author.id;
+
+    // ── Vision: user sent an image ──
+    const attachedImg = await getMessageImageUrl(message);
+    if (attachedImg) {
+      const question = userMsg || 'What do you see in this image?';
+      const visionReply = await describeImage(attachedImg, question, global.kiaraConfig.personality);
+      if (visionReply) {
+        addToHistory(KIARA_BOT_ID, userId, 'user', `[Sent an image] ${question}`);
+        addToHistory(KIARA_BOT_ID, userId, 'assistant', visionReply);
+        extractFacts(KIARA_BOT_ID, userId, question);
+        saveData();
+        return await message.reply(visionReply.slice(0, 1900));
+      }
+      if (!userMsg) return message.reply('I can see you sent an image! Add OPENAI_API_KEY to enable image reading. 👀');
+    }
+
     if (!userMsg) return message.reply('Hey! How can I help? 👋');
 
     const imageSubject = detectImageRequest(userMsg);
@@ -357,7 +422,6 @@ kiaraBot.on(DJSEvents.MessageCreate, async message => {
 
     const groqKey = process.env.GROQ_API_KEY;
     if (!groqKey) return message.reply('⚠️ GROQ_API_KEY not set.');
-    const userId = message.author.id;
     const ctx    = isDM ? { isDM: true } : { guildName: message.guild.name, channelName: message.channel.name };
     const msgs   = buildMessages(KIARA_BOT_ID, global.kiaraConfig.personality, userId, userMsg, ctx, 'professional');
 
@@ -531,6 +595,24 @@ async function spawnUserBot(botId, cfg) {
       await message.channel.sendTyping();
       const userMsg = message.content.replace(`<@${botClient.user.id}>`, '').trim();
       const uid = message.author.id;
+
+      // ── Vision: user sent an image ──
+      const imageUrl = await getMessageImageUrl(message);
+      if (imageUrl) {
+        const question = userMsg || 'What do you see in this image?';
+        const visionReply = await describeImage(imageUrl, question, live.systemPrompt);
+        if (visionReply) {
+          addToHistory(botId, uid, 'user', `[Sent an image] ${question}`);
+          addToHistory(botId, uid, 'assistant', visionReply);
+          extractFacts(botId, uid, question);
+          logActivity(message.author.username, uid, 'ai', `Bot "${live.name}" described image`);
+          saveData();
+          return await message.reply(visionReply.slice(0, 1900));
+        }
+        // Fall through to text if no OpenAI key
+        if (!userMsg) return message.reply('I can see you sent an image! Add an OPENAI_API_KEY to enable image reading. 👀');
+      }
+
       if (!userMsg) return message.reply(`Hey! I'm ${live.name}. How can I help? 👋`);
 
       const imageSubject = detectImageRequest(userMsg);
