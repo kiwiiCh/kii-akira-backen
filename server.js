@@ -406,8 +406,7 @@ kiaraBot.on(DJSEvents.MessageCreate, async message => {
         addToHistory(KIARA_BOT_ID, message.author.id, 'user', userMsg);
         addToHistory(KIARA_BOT_ID, message.author.id, 'assistant', `[Generated image: ${imageSubject}]`);
         saveData();
-        return await message.reply({ content: `Here's "" 🎨
-${imgUrl}` });
+        return await message.reply({ embeds: [{ title: `🎨 ${imageSubject}`, image: { url: imgUrl }, color: 0x5865f2 }] });
       } catch {}
     }
 
@@ -614,8 +613,7 @@ async function spawnUserBot(botId, cfg) {
           addToHistory(botId, uid, 'assistant', `[Generated image: ${imageSubject}]`);
           logActivity(message.author.username, uid, 'ai', `Bot "${live.name}" generated image: "${imageSubject}"`);
           saveData();
-          return await message.reply({ content: `Here's "" 🎨
-${imgUrl}` });
+          return await message.reply({ embeds: [{ title: `🎨 ${imageSubject}`, image: { url: imgUrl }, color: 0x5865f2 }] });
         } catch(imgErr) { /* fall through */ }
       }
 
